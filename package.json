@@ -1,0 +1,30 @@
+{
+  "name": "TauChan",
+  "version": "0.0.1",
+  "description": "The next generation image board platform",
+  "author": "The TauChan Team <tauchan@sugar.horse>",
+  "contributors": [{
+    "name":  "Xaekai",
+    "email": "ribbon13@gmail.com"
+  },{
+    "name":  "Techborn",
+    "email": "unborntech@gmail.com"
+  }],
+  "keywords": ["image board"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TauChan/alpha.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TauChan/alpha/issues"
+  },
+  "dependencies" : {
+    "express"          : "latest",
+    "jade"             : "latest",
+    "request"          : "latest",
+    "socket.io"        : "latest",
+    "socket.io-client" : "latest",
+    "pg"               : "latest"
+  },
+  "license": "MIT"
+}
