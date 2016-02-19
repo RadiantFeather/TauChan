@@ -49,8 +49,7 @@ CREATE TABLE IF NOT EXISTS posts (
 	thread INTEGER,
 	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
 	posted TIMESTAMP NOT NULL DEFAULT NOW(),
-	ip INET NOT NULL DEFAULT '0.0.0.0',
-	iphash CHAR(16) DEFAULT '0000000000000000',
+	ip INET NOT NULL DEFAULT '::',
 	edited TIMESTAMP,
 	name VARCHAR(32) NOT NULL,
 	trip VARCHAR(16),
@@ -91,8 +90,8 @@ SELECT x.*
 	FROM (
 		SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, 
 			(p.post = t.op) AS is_op, cl.local AS local_clean, cl.global AS global_clean, 
-			FETCH_cites(p.board,p.post) AS targets, c.targets AS cites, 
-			FETCH_media(p.board,p.post) AS media
+			fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, 
+			fetch_media(p.board,p.post) AS media
 		FROM posts p, threads t , clean cl, _
 		WHERE p.board = ? AND t.board = p.board AND p.thread = ? AND t.op = p.thread
 			AND cl.board = p.board AND cl.post = p.post
@@ -108,9 +107,9 @@ SELECT x.*
 		--Fetch Raw Data
 		SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post ASC) AS m, --Enumerate the correct post order per thread
 			COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n, --Enumerate the threads
-			p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw,
+			p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw, c.targets AS cites,
 			cl.local AS local_clean, cl.global AS global_clean, (p.post = t.op) AS is_op,
-			FETCH_cites(p.board,p.post) AS targets, c.targets AS cites, FETCH_media(p.board,p.post) AS media
+			fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media
 		FROM posts p, threads t, cites c, clean cl, _
 		WHERE p.board = _.board AND t.board = p.board AND p.thread = t.op 
 			AND c.board = p.board AND c.post = p.post AND t.archived IS NULL
@@ -340,5 +339,4 @@ CREATE TABLE IF NOT EXISTS clean (
 	FOREIGN KEY (board,post) REFERENCES posts (board,post) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 );
-
 

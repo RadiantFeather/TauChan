@@ -1,4 +1,5 @@
-﻿-------------------------------------------
+﻿CREATE EXTENSION IF NOT EXISTS pgcrypto; 
+-------------------------------------------
 -- Encrypt and validate passwords with crypt-md5
 --
 CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER AS $$
@@ -26,7 +27,7 @@ END;$$ LANGUAGE plpgsql;
 -------------------------------------------
 -- Compiles post numbers that have cited the requested post into a JSON array
 --
-CREATE OR REPLACE FUNCTION FETCH_cites(_board VARCHAR(32), _thread INTEGER, _post INTEGER) RETURNS JSON AS $$
+CREATE OR REPLACE FUNCTION fetch_cites(_board VARCHAR(32), _thread INTEGER, _post INTEGER) RETURNS JSON AS $$
 DECLARE
 	target RECORD; rv INTEGER[];
 BEGIN
@@ -39,7 +40,7 @@ END;$$ LANGUAGE plpgsql;
 -------------------------------------------
 -- Compiles media locations into a correctly ordered JSON array
 --
-CREATE OR REPLACE FUNCTION FETCH_media(_board VARCHAR(32), _post INTEGER) RETURNS JSON AS $$
+CREATE OR REPLACE FUNCTION fetch_media(_board VARCHAR(32), _post INTEGER) RETURNS JSON AS $$
 DECLARE
 	target RECORD; rv TEXT[];
 BEGIN
@@ -92,16 +93,16 @@ DECLARE
 	temp BIGINT;
 BEGIN
 	IF (TG_OP = 'INSERT') THEN
-		EXECUTE FORMAT('CREATE SEQUENCE %I MINVALUE 0 OWNED BY boards.board',CONCAT_WS('_',NEW.board,'post','seq'));
+		EXECUTE format('CREATE SEQUENCE %I MINVALUE 0 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
 		RETURN NEW;
 	ELSIF (TG_OP = 'DELETE') THEN
-		EXECUTE FORMAT('DROP SEQUENCE IF EXISTS %I',CONCAT_WS('_',OLD.board,'post','seq'));
+		EXECUTE format('DROP SEQUENCE IF EXISTS %I',concat_ws('_',OLD.board,'post','seq'));
 		RETURN OLD;
 	ELSIF (TG_OP = 'UPDATE' AND OLD.board <> NEW.board) THEN	--Update post sequence id if board id changes
-		temp := CURRVAL(CONCAT_WS('_',OLD.board,'post','seq'));
-		EXECUTE FORMAT('DROP SEQUENCE %I',CONCAT_WS('_',OLD.board,'post','seq'));
-		EXECUTE FORMAT('CREATE SEQUENCE %I MINVALUE 0 OWNED BY boards.board',CONCAT_WS('_',NEW.board,'post','seq'));
-		PERFORM SETVAL(CONCAT_WS('_',NEW.board,'post','seq'),temp);
+		temp := currval(concat_ws('_',OLD.board,'post','seq'));
+		EXECUTE format('DROP SEQUENCE %I',concat_ws('_',OLD.board,'post','seq'));
+		EXECUTE format('CREATE SEQUENCE %I MINVALUE 0 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
+		PERFORM setval(concat_ws('_',NEW.board,'post','seq'),temp);
 		RETURN NEW;
 	END IF;
 END;$$ LANGUAGE plpgsql;
@@ -124,7 +125,7 @@ DECLARE
 	i BIGINT;
 BEGIN
 	SELECT bumplimit,threadlimit,postlimit,noname INTO b FROM boards WHERE board = NEW.board;
-	SELECT NEXTVAL(CONCAT_WS('_',NEW.board,'post','seq')) INTO NEW.post;
+	SELECT nextval(concat_ws('_',NEW.board,'post','seq')) INTO NEW.post;
 	IF (NEW.thread IS NULL) THEN NEW.thread := NEW.post; END IF;
 	IF (NEW.name = '') THEN NEW.name := NULL; END IF;
 	NEW.posted := NOW(); --Set manually to update the recent post bump value for the board
@@ -176,7 +177,7 @@ BEGIN
 	END IF;
 	RETURN TRUE;
 EXCEPTION WHEN OTHERS THEN --Revert post sequence if inserts fail then reraise the exception.
-	PERFORM SETVAL(CONCAT_WS('_',NEW.board,'post','seq'),CURRVAL(CONCAT_WS('_',NEW.board,'post','seq'))-1);
+	PERFORM setval(concat_ws('_',NEW.board,'post','seq'),currval(concat_ws('_',NEW.board,'post','seq'))-1);
 	RAISE;
 END;$$ LANGUAGE plpgsql;
 
@@ -247,7 +248,7 @@ BEGIN
 	SELECT * INTO p FROM (
 		VALUES (
 			p.board, p.thread, p.post, p.posted, p.ip,
-			regexp_replace(p.postbody, r, '#Link-Expunged#', 'ix')
+			regexp_replace(p.postbody, r, '#Link-Expunged#', 'ixg')
 		)
 	) AS _(board,thread,post,posted,ip,postbody);
 	IF (NEW.expires <> '0') THEN -- Set mask length if not a warning
@@ -264,3 +265,27 @@ END;$$ LANGUAGE plpgsql;
 CREATE TRIGGER ban
 	INSTEAD OF INSERT ON ban
 	FOR EACH ROW EXECUTE PROCEDURE ban();
+	
+-------------------------------------------
+-- Function for masking user IPs (with optional hashing).
+--
+CREATE OR REPLACE FUNCTION mask_ip(_ip CIDR, _salt TEXT DEFAULT NULL) RETURNS TEXT AS $$
+DECLARE
+	f SMALLINT := 1;
+	r TEXT; l INT := 0;
+BEGIN
+	IF (_salt IS NOT NULL) THEN
+		r := substring(encode(digest(_salt||_ip,'sha1'),'hex') from 1 for 16);
+	ELSE
+		IF (family(_ip) = 6) THEN f := 4; END IF;
+		r := host(set_masklen(_ip,16*f))::TEXT; -- Hide the back half of the IP
+		IF (f = 4) THEN 
+			l := length(r) - length(regexp_replace(r,':(?!:)','','g')) - (length(r) = 2)::INT;
+			IF (l > 4) THEN l := 0; END IF;
+			r := btrim(replace(r,'::',repeat(':0',4-l)) || ':x:x:x:x',':');
+		ELSE 
+			r := replace(r,'.0','.x');
+		END IF;
+	END IF;
+	RETURN r;
+END;$$ LANGUAGE plpgsql;
