@@ -269,13 +269,13 @@ CREATE TRIGGER ban
 -------------------------------------------
 -- Function for masking user IPs (with optional hashing).
 --
-CREATE OR REPLACE FUNCTION mask_ip(_ip CIDR, _salt TEXT DEFAULT NULL) RETURNS TEXT AS $$
+CREATE OR REPLACE FUNCTION mask_ip(_ip CIDR, _board VARCHAR(32) DEFAULT '_', _salt TEXT DEFAULT NULL) RETURNS TEXT AS $$
 DECLARE
 	f SMALLINT := 1;
 	r TEXT; l INT := 0;
 BEGIN
 	IF (_salt IS NOT NULL) THEN
-		r := substring(encode(digest(_salt||_ip,'sha1'),'hex') from 1 for 16);
+		r := substring(encode(digest(_salt||_ip||_board,'sha1'),'hex') from 1 for 16);
 	ELSE
 		IF (family(_ip) = 6) THEN f := 4; END IF;
 		r := host(set_masklen(_ip,16*f))::TEXT; -- Hide the back half of the IP
