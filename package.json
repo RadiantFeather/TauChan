@@ -31,7 +31,8 @@
     "request": "latest",
     "socket.io": "latest",
     "socket.io-client": "latest",
-    "pg": "latest",
+    "pg-promise": "latest",
+	"redis": "latest",
     "multer": "latest"
   },
   "license": "MIT"
