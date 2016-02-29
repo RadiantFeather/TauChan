@@ -21,7 +21,7 @@ _.index = function(req,res){		// moderation front page
 
 _.bans = function(req,res){
 	res.send('Preset Global Page: '+ req.params.board +'/'+ req.params.page);
-	if (res.locals.user.auth(req,res))
+	if (!res.locals.user.auth(req,res)) return res.sendStatus(403);
 };
 
 _.banned = function(req,res){

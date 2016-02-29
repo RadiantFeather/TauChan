@@ -39,6 +39,7 @@ else {
 if (fs.existsSync('./install/done')) {
 	console.log('App has already been installed. These actions are destructive. Please eneter the site secret from the config file to continue.');
 	if (prompt('Secret: ',/\w+/) != cfg.site.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
+	else console.log('Secret matched. Proceeding.');
 }
 
 if (yn.test(prompt('Configure the database connection? (y/n): '))) {

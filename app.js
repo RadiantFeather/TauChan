@@ -7,7 +7,7 @@ var express = require('express'),
 	yaml = {read: require('read-yaml'), write: require('write-yaml')},
 	global = require('./global'),
 	boards = require('./boards'),
-	lib = require('./lib/common');
+	lib = require('./common');
 
 	
 if (fs.existsSync('./config.yml')) cfg = yaml.read.sync('./config.yml');
