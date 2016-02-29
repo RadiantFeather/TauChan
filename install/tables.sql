@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS boards (
+CREATE TABLE IF NOT EXISTS boards (
 	board CHARACTER VARYING(32) PRIMARY KEY,
 	title CHARACTER VARYING(64) NOT NULL,
 	listed BOOLEAN DEFAULT TRUE,
@@ -40,7 +40,7 @@ SELECT x.*
 		AND NOT tags ?| ?::TEXT[] //IGNORE tags
 	) x
 	ORDER BY x.active_users DESC, x.posts_per_hour DESC, x.post_count DESC
-	LIMIT 50 OFFSET (50 * ?) + 50
+	LIMIT 50 OFFSET (50 * ?) + 50;
 	--Board View (unverified) CALLWITH (search.tags.all, search.tags.any, search.tags.none, search.page)
 */
 
@@ -65,9 +65,8 @@ CREATE TABLE IF NOT EXISTS posts (
 		ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE INDEX post_iphashes ON posts (iphash);
-CREATE INDEX post_boards ON posts (boards);
-CREATE INDEX post_ips ON posts USING GIST (ip INET_OPS);
+CREATE INDEX post_boards ON posts (board);
+CREATE INDEX post_ips ON posts USING GIST (ip);
 CREATE INDEX post_threads ON posts (thread);
 CREATE INDEX post_times ON posts (posted);
 CREATE VIEW recent_posts AS SELECT * FROM posts 
@@ -207,6 +206,7 @@ CREATE TABLE IF NOT EXISTS media (
 	board VARCHAR(32),
 	thread INTEGER NOT NULL,
 	post INTEGER NOT NULL,
+	nsfw BOOLEAN DEFAULT FALSE,
 	loc TEXT NOT NULL,
 	sort SMALLINT,
 	FOREIGN KEY (board, post) REFERENCES posts (board, post) 
@@ -225,12 +225,19 @@ CREATE TABLE IF NOT EXISTS users (
 
 INSERT INTO users VALUES (0,'SYSTEM','','',TRUE); --Passphrase-less user for system driven database operations that require a user
 
+CREATE TABLE IF NOT EXISTS flags (
+	role VARCHAR(16) NOT NULL,
+	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
+	flags JSONB,
+	PRIMARY KEY (role, board)
+);
+
 CREATE TABLE IF NOT EXISTS roles (
 	id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
-	role INTEGER NOT NULL,
-	PRIMARY KEY (role, board),
-	CONSTRAINT one_role_per_user_per_board UNIQUE (id, board)
+	board VARCHAR(32) NOT NULL,
+	role VARCHAR(16) NOT NULL,
+	FOREIGN KEY (board,role) REFERENCES flags (board,role) ON DELETE CASCADE ON UPDATE CASCADE,
+	UNIQUE (id, board)
 );
 /*
 SELECT users.*,roles.role FROM users,roles WHERE roles.user = users.id AND roles.board = ?
@@ -246,22 +253,23 @@ CREATE TABLE IF NOT EXISTS bans (
 	seen BOOLEAN NOT NULL DEFAULT FALSE,
 	post JSON,
 	PRIMARY KEY (ip, board),
-	CONSTRAINT ip_is_banned EXCLUDE (ip WITH &&) WHERE (board = board OR board = '_') --Reject bans that are already contained by a range ban (including global bans)
+	FOREIGN KEY (board) REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
+	CONSTRAINT ip_is_banned EXCLUDE USING GIST (ip WITH &&) WHERE (board = board OR board = '_') --Reject bans that are already contained by a range ban (including global bans)
 );
-CREATE INDEX ON bans USING GIST (ip inet_ops);
+CREATE INDEX ON bans USING GIST (ip);
 
 CREATE TABLE IF NOT EXISTS appeals (
 	ip INET NOT NULL DEFAULT '::',
 	board VARCHAR(32) NOT NULL DEFAULT '_',
+	ban INET NOT NULL DEFAULT '::',
 	created TIMESTAMP NOT NULL DEFAULT NOW(),
 	approved TIMESTAMP,
 	approval INTEGER DEFAULT 0 REFERENCES users (id) ON DELETE SET DEFAULT,
 	reason TEXT,
 	FOREIGN KEY (board,ban) REFERENCES bans (board,ip)
-		ON DELETE CASCADE ON UPDATE CASCADE,
-	CONSTRAINT ip_is_not_banned CHECK (ban >>= ip)
+		ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE INDEX ON appeals USING GIST (ip inet_ops);
+CREATE INDEX ON appeals USING GIST (ip);
 /*
 SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged
 	FROM bans b, appeals a
@@ -289,6 +297,7 @@ CREATE TABLE IF NOT EXISTS reports (
 	FOREIGN KEY (board, post) REFERENCES posts (board, post) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 );
+CREATE INDEX report_ips ON reports USING GIST (ip);
 /*
 SELECT r.post, r.created, r.reason, to_json(p) AS content,
 	FROM posts p, reports r
@@ -298,19 +307,18 @@ SELECT r.post, r.created, r.reason, to_json(p) AS content,
 	--Reports View (unverified) CALLWITH (board.id)
 */
 
-CREATE TYPE IF NOT EXISTS logaction AS ENUM('access','info','notice','alert');
 CREATE TABLE IF NOT EXISTS logs (
 	board VARCHAR(32) NOT NULL DEFAULT '_',
 	username VARCHAR(32) NOT NULL,
 	created TIMESTAMP NOT NULL DEFAULT NOW(),
-	level LOGACTION NOT NULL,
+	level LOGLEVEL NOT NULL,
 	details TEXT
 );
-CREATE INDEX catalog_sort ON threads (board, level);
+CREATE INDEX log_levels ON logs (board, level);
 /*
 SELECT *
 	FROM (
-		SELECT * FROM logaction
+		SELECT * FROM logs
 		WHERE board = ? AND level = ?
 		ORDER BY created DESC
 		LIMIT 100 OFFSET ? * 100
@@ -325,7 +333,7 @@ CREATE TABLE IF NOT EXISTS news (
 	created TIMESTAMP NOT NULL DEFAULT NOW(),
 	edited TIMESTAMP,
 	title VARCHAR(64),
-	markdown VARCHAR(2048)
+	markdown VARCHAR(2048),
 	markup TEXT
 );
 

@@ -1,4 +1,3 @@
-﻿CREATE EXTENSION IF NOT EXISTS pgcrypto; 
 -------------------------------------------
 -- Encrypt and validate passwords with crypt-md5
 --
@@ -18,7 +17,7 @@ CREATE TRIGGER hash_password
 	
 CREATE OR REPLACE FUNCTION validate_password(_user VARCHAR(32), _pass VARCHAR(64)) RETURNS BOOLEAN AS $$
 DECLARE
-	r BOOLEAN
+	r BOOLEAN;
 BEGIN
 	SELECT (passphrase = crypt(_pass, passphrase)) INTO r FROM users WHERE username = _user;
 	RETURN r;
@@ -115,11 +114,11 @@ CREATE TRIGGER board_seq
 -------------------------------------------
 -- Proxy function that takes care of managing data for new posts.
 -- 
-CREATE IF NOT EXISTS VIEW post AS 	
+CREATE OR REPLACE VIEW post AS 	
 	SELECT _.*, p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.sage, t.nsfw 
 	FROM posts p, threads t, (VALUES ('1'::JSON,'1'::JSONB)) AS _(media,cites);
 	
-CREATE OR REPLACE FUNCTION post() RETURNS BOOLEAN AS $$
+CREATE OR REPLACE FUNCTION post() RETURNS TRIGGER AS $$
 DECLARE
 	b RECORD; m RECORD; h JSONB;
 	i BIGINT;
@@ -168,8 +167,8 @@ BEGIN
 		UPDATE boards SET bumped = NEW.posted WHERE board = NEW.board; --Update recent post bump for board
 	END IF;
 	IF (NEW.media IS NOT NULL) THEN
-		FOR m IN SELECT * FROM json_to_recordset(NEW.media) AS _(hash TEXT, board VARCHAR(32), thread INTEGER, post INTEGER, loc TEXT); LOOP
-			INSERT INTO media (hash,board,thread,post,loc) VALUES (m.*);
+		FOR m IN SELECT * FROM json_to_recordset(NEW.media) AS _(hash TEXT, board VARCHAR(32), thread INTEGER, post INTEGER, nsfw BOOLEAN, loc TEXT) LOOP
+			INSERT INTO media (hash,board,thread,post,nsfw,loc) VALUES (m.hash,m.board,m.thread,m.post,m.nsfw,m.loc);
 		END LOOP;
 	END IF;
 	IF (NEW.cites IS NOT NULL) THEN
@@ -224,15 +223,14 @@ DECLARE
 	f SMALLINT := 1;
 	g BOOLEAN;
 	-- Might there be a better regex for URL hunting? (this is borrowed from infinity for the time being)
-	r TEXT := '\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))'
+	r TEXT := '\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:".,<>?«»“”‘’]))';
 BEGIN
 	IF (NEW.board IS NULL OR NEW.post IS NULL) THEN
 		RAISE not_null_violation;
 	END IF;
 	IF (NEW.range IS NULL) THEN NEW.range := 32; END IF;
 	IF (NEW.creator IS NULL) THEN NEW.creator := 0; END IF;
-	SELECT * INTO p FROM posts WHERE board = NEW.board AND post = NEW.post LIMIT 1;
-	IF (NOT EXISTS(p)) THEN
+	IF (NOT EXISTS(SELECT * INTO p FROM posts WHERE board = NEW.board AND post = NEW.post LIMIT 1)) THEN
 		RAISE case_not_found
 			USING MESSAGE = 'Ban and Delete failed.',
 			DETAIL = 'Post does not exist.',
@@ -259,7 +257,7 @@ BEGIN
 	IF (NEW.expires <> '0' AND NEW.notice IS NOT NULL) THEN
 		UPDATE posts SET bantext = NEW.notice WHERE board = NEW.board AND post = NEW.post;
 	END IF;
-	RETURN TRUE;
+	RETURN NEW;
 END;$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER ban

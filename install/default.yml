@@ -1,0 +1,15 @@
+version: 0.0.1
+site:
+  name: Tauchan Instance
+  secret: thiswillbegeneratedwhenyouruntheappinstallation
+database:
+  host: localhost
+  port: 5433
+  database: tauchan
+  user: postgres
+  password: postgres
+options:
+  hash_ip_mask: true
+  disable_usermade_boards: false
+  reserve_single_char_boards: true
+  require_valid_email: false

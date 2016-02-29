@@ -1,0 +1,4 @@
+hash_ip_mask: 'Should the IP mask be hashed for all board managers?'
+disable_usermade_boards: 'Restrict board creation to global managers only?'
+reserve_single_char_boards: 'Reserve single character board creation (like /a/ and /x/) for global managers?'
+require_valid_email: 'Require a validated email for a user to create a board?'

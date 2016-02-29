@@ -1,9 +1,11 @@
-var db = require('pg-promise');
-var multer = require('multer');
-var cache = require('redis');
-var tpl = require('jade');
-var request = require('request');
-// var socket = require('socekt.io');
+var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
+	multer = require('multer'),
+	fs = require('fs'),
+	request = require('request'),
+	multer = require('multer'),
+	cache = require('redis'),
+	yml = {read: require('read-yaml'), write: require('write-yaml')},
+	tpl = require('jade');
 
 var handlers = {},_ = {};
 
@@ -13,10 +15,13 @@ var handlers = {},_ = {};
 
 _.index = function(req,res){		// moderation front page
 	res.send('Moderation front page');
+	if (!res.locals.user.auth(req)) return res.sendStatus(403);
+	
 };
 
 _.bans = function(req,res){
 	res.send('Preset Global Page: '+ req.params.board +'/'+ req.params.page);
+	if (res.locals.user.auth(req,res))
 };
 
 _.banned = function(req,res){
@@ -37,6 +42,10 @@ _ = {};
 /*
  *	POST request handlers
  */
+ 
+_.install = function(req,res){
+	
+};
 
 handlers.POST = _;
 

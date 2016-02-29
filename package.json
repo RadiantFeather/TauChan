@@ -15,8 +15,8 @@
   ],
   "keywords": [
     "image",
-	"board",
-	"node"
+    "board",
+    "node"
   ],
   "repository": {
     "type": "git",
@@ -26,14 +26,19 @@
     "url": "https://github.com/TauChan/alpha/issues"
   },
   "dependencies": {
+    "bluebird": "^3.3.3",
+    "cookie-parser": "latest",
+    "deasync": "^0.1.4",
     "express": "latest",
     "jade": "latest",
+    "multer": "latest",
+    "pg-promise": "latest",
+    "read-yaml": "latest",
+    "redis": "latest",
     "request": "latest",
     "socket.io": "latest",
     "socket.io-client": "latest",
-    "pg-promise": "latest",
-	"redis": "latest",
-    "multer": "latest"
+    "write-yaml": "latest"
   },
   "license": "MIT"
 }
