@@ -122,10 +122,10 @@ cfg.site.name = prompt("What do you want the site's name to be? (Leave empty for
 
 if (yn.test(prompt('Do you want to configure the additional options available for the app? (y/n): '))) {
 	console.log('Answer the following questions with either a yes or no. (y/n is fine as well)');
-	let questions = yml.read('./install/options.yml'), missed = [];
+	let questions = yml.read('./install/options.yml'), missed = [], key;
 	for (key in cfg.options) { if (cfg.options.hasOwnProperty(key)) { 
 		if (questions.hasOwnProperty(key)) {
-			if (questions[key]) cfg.options[key] = yn.test(prompt(questions[key],null,true));
+			if (questions[key]) cfg.options[key] = yn.test(prompt(questions[key]+': ',null,true));
 		} else missed.push(key);
 	}}
 	yml.write('./config.yml',cfg);
