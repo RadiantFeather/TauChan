@@ -4,11 +4,13 @@ var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	request = require('request'),
 	multer = require('multer'),
 	cache = require('redis'),
+	tpl = require('jade'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	tpl = require('jade');
+	cfg = yml.read.sync('./config.yml');
 // var socket = require('socekt.io');
 
-var handlers = {},_ = {};
+var handlers = {},_ = {},
+	db = pgp(cfg.database);
 
 /*
  *	GET request handlers
@@ -26,21 +28,22 @@ _[0] = function(req,res) {	// thread view
 				'SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, '+
 				'(p.post = t.op) AS is_op, cl.local AS local_clean, cl.global AS global_clean, '+
 				'fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, '+
-				'fetch_media(p.board,p.post) AS media'+
-				'FROM posts p, threads t , clean cl, _'+
-				'WHERE p.board = ${board} AND t.board = p.board AND p.thread = ${thread} AND t.op = p.thread'+
-				'AND cl.board = p.board AND cl.post = p.post'+
-				'ORDER BY (p.post = t.op) DESC p.posted DESC'+
-				'LIMIT ${limit} + 1'+
-			') x'+
-			'ORDER BY x.is_op DESC x.posted ASC', {
+				'fetch_media(p.board,p.post) AS media '+
+				'FROM posts p, threads t , clean cl, cites c '+
+				'WHERE p.board = ${board} AND t.board = p.board AND p.thread = ${thread} AND t.op = p.thread '+
+				'AND cl.board = p.board AND cl.post = p.post '+
+				'ORDER BY (p.post = t.op) DESC, p.posted DESC '+
+				'LIMIT ${limit} + 1 '+
+			') x '+
+			'ORDER BY x.is_op DESC, x.posted ASC;', {
 		board: req.params.board, 
 		thread: req.params.thread, 
-		limit: req.query.preview?req.query.preview:null
+		limit: req.query.preview?parseInt(req.query.preview):null
 	}).then(function(data) {
 		res.send(data);
 	}).catch(function(err) {
-		res.send(err)
+		res.send(err);
+		console.log(err);
 	});
 };
 

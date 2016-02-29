@@ -4,10 +4,12 @@ var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	request = require('request'),
 	multer = require('multer'),
 	cache = require('redis'),
+	tpl = require('jade'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	tpl = require('jade');
+	cfg = yml.read.sync('./config.yml');
 
-var handlers = {},_ = {};
+var handlers = {},_ = {},
+	db = pgp(cfg.database);
 
 /*
  *	GET request handlers

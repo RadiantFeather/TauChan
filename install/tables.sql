@@ -91,13 +91,13 @@ SELECT x.*
 			(p.post = t.op) AS is_op, cl.local AS local_clean, cl.global AS global_clean, 
 			fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, 
 			fetch_media(p.board,p.post) AS media
-		FROM posts p, threads t , clean cl, _
+		FROM posts p, threads t , clean cl, cites c,
 		WHERE p.board = ? AND t.board = p.board AND p.thread = ? AND t.op = p.thread
-			AND cl.board = p.board AND cl.post = p.post
-		ORDER BY (p.post = t.op) DESC p.posted DESC;
+			AND cl.board = p.board AND cl.post = p.post AND c.board = p.board AND c.post = p.post
+		ORDER BY (p.post = t.op) DESC, p.posted DESC;
 		LIMIT ? + 1
 	) x
-	ORDER BY x.is_op DESC x.posted ASC;
+	ORDER BY x.is_op DESC, x.posted ASC;
 	--Thread view (verified) CALLWITH (board.id, thread.id, search.replylimit)
 	
 WITH _ AS (SELECT board, stickylimit, cyclelimit, lockedlimit, standardlimit, ?::INTEGER AS page FROM boards WHERE board = ?)
