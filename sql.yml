@@ -1,0 +1,153 @@
+view:
+  thread: '
+    SELECT * FROM (
+      SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, 
+      (p.post = t.op) AS is_op, cl.localstamp, cl.globalstamp, 
+      fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, t.archived,
+      fetch_media(p.board,p.post) AS media 
+      FROM threads t, (posts p 
+        LEFT OUTER JOIN cites c USING (board,post))
+        LEFT OUTER JOIN clean cl USING (board,post)
+      WHERE p.board = ${board} AND p.thread = ${thread} AND t.board = p.board AND t.op = p.thread 
+      ORDER BY (p.post = t.op) DESC, p.posted DESC 
+      LIMIT ${limit} + 1
+    ) x 
+    ORDER BY is_op DESC, posted ASC;
+  '
+
+  catalog: '
+    WITH board AS (SELECT threadlimit FROM boards WHERE board = ${board})
+    SELECT t.*, (SELECT COUNT(1) FROM posts p WHERE p.board = t.board AND p.thread = t.op AND p.post <> t.op) AS replies,
+      (SELECT COUNT(1) FROM media m WHERE m.board = t.board AND m.thread = t.op) AS images,
+      COUNT(1) FILTER (WHERE t.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + 1 AS page
+    FROM (
+      SELECT t.*, p.markdown AS markup, p.subject, m.loc AS image, COUNT(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n
+      FROM threads t LEFT OUTER JOIN media m ON (m.board = t.board AND m.post = t.op AND m.sort = 0), board b, posts p
+      WHERE t.board = ${board} AND p.post = t.op
+        AND p.board = t.board AND t.archived IS NULL
+      ORDER BY pinned DESC, sticky DESC, bumped DESC
+      LIMIT ${limit}
+    ) t;
+  '
+
+  board_index: '
+    WITH board AS (SELECT stickylimit, cyclelimit, pinnedlimit, lockedlimit, standardlimit FROM boards WHERE board = ${board})
+    SELECT x.* FROM (
+      SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post ASC) AS m,
+        COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
+        p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw, c.targets AS cites,
+        cl.localstamp, cl.globalstamp, (p.post = t.op) AS is_op,
+        fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media
+      FROM threads t, (posts p 
+        LEFT OUTER JOIN cites c USING (board,post))
+        LEFT OUTER JOIN clean cl USING (board,post)
+      WHERE p.board = ${board} AND t.board = p.board AND p.thread = t.op AND t.archived IS NULL
+      ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC
+    ) x, board b
+    WHERE (
+      (x.pinned AND x.m <= b.pinnedlimit + 1)
+      OR (x.sticky AND x.m <= b.stickylimit + 1) 
+      OR (x.cycle AND x.m <= b.cyclelimit + 1)
+      OR (x.locked AND x.m <= b.lockedlimit + 1)
+      OR x.m <= b.standardlimit + 1
+    ) AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10;
+  '
+  
+  archive: '
+    WITH board AS (SELECT archivedlimit, archivedlifespan FROM boards WHERE board = ${board})
+    SELECT x.* FROM (
+      SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post DESC) AS m,
+        COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
+        p.*, t.archived, t.bumped, (p.post = t.op) AS is_op, fetch_media(p.board,p.post) as media
+      FROM posts p, threads t, board b
+      WHERE p.board = ${board} AND p.thread = t.op AND t.archived < NOW() - b.archivedlifespan
+      ORDER BY t.archived DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC
+    ) x, board b
+    WHERE (x.m <= b.archivedlimit + 1)
+    AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10;
+  '
+
+  recent_posts: '
+    SELECT * FROM posts
+    WHERE board = ${board} ORDER BY posted DESC
+    LIMIT ${limit} OFFSET ${limit} * ${page};
+  '
+  
+  ip_history: '
+    SELECT * FROM posts
+    WHERE board = ${board} AND ip = ${ip}
+    ORDER BY posted DESC
+    LIMIT ${limit} OFFSET ${page} * ${limit};
+  '
+
+  boards_list: "
+    SELECT * FROM (
+      SELECT b.*, CURRVAL(CONCAT_WS('_', b.board, 'post', 'seq')) AS post_count,
+        (SELECT COUNT(1) FROM recent_posts WHERE board = b.board) AS posts_per_hour, 
+        (SELECT COUNT(DISTINCT ip) FROM recent_posts WHERE board = b.board) AS active_users
+      FROM boards b
+      WHERE listed = TRUE
+        AND tags ?& ${require}::TEXT[]
+        AND tags ?| ${optional}::TEXT[]
+        AND NOT tags ?| ${ignore}::TEXT[]
+    ) x
+    ORDER BY active_users DESC, posts_per_hour DESC, post_count DESC
+    LIMIT 50 OFFSET 50 * ${page};
+  "
+  
+  is_banned: "
+    SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged
+    FROM bans b, appeals a
+    WHERE (a.board = ${board} OR a.board = '_') AND b.board = a.board
+      AND a.ip = ${ip} AND b.ip >>= a.ip
+      AND a.approved IS NOT NULL;
+  "
+  
+  bans: "
+    SELECT b.ip, b.board, b.created, b.reason, b.post, a.created AS appealed, a.approved
+    (b.created + b.expires - NOW()) AS expires_in, (b.ip >> a.ip) AS ranged
+    FROM bans b, appeals a
+    WHERE (a.board = ? OR a.board = '_') AND b.board = a.board 
+      AND a.ip = ${ip} AND b.ip >>= a.ip
+    ORDER BY b.board ASC;
+  "
+  
+  reports: '
+    SELECT r.post, r.created, r.reason, to_json(p) AS content,
+    FROM posts p, reports r
+    WHERE p.board = ? AND p.board = r.board AND p.post = r.post
+      AND r.dismissed IS FALSE
+    ORDER BY p.post ASC, r.created ASC;
+  '
+  
+  mod_logs: '
+    SELECT * FROM (
+      SELECT * FROM logs
+      WHERE board = ${board} AND level = ${level}
+      ORDER BY created DESC
+      LIMIT 100 OFFSET ${page} * 100
+    ) x
+    ORDER BY created ASC;
+  '
+  
+modify:
+  vaccuum_thread: '
+    UPDATE posts SET archived = NOW()
+    WHERE thread IN (
+      WITH threadlimit AS (SELECT threadlimit FROM boards WHERE board = ${board})
+      SELECT t.op FROM threads t
+      WHERE t.board = ${board}
+      ORDER BY t.sticky DESC, t.anchor DESC, t.bumped DESC, t.op DESC
+      OFFSET threadlimit
+    );
+  '
+  
+  vaccuum_archive: '
+    DELETE FROM posts
+    WHERE thread IN (
+      WITH archivedlimit AS (SELECT archivedlimit FROM boards WHERE board = ${board})
+      SELECT t.op FROM threads t
+      WHERE t.board = ${board} AND t.archived IS NOT NULL AND t.archived < NOW() - archivedlifespan
+    )
+    RETURNING *;
+  '

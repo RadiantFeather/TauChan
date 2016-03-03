@@ -1,3 +1,4 @@
+"use strict";
 var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	multer = require('multer'),
 	fs = require('fs'),
@@ -6,7 +7,7 @@ var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	cache = require('redis'),
 	tpl = require('jade'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	cfg = yml.read.sync('./config.yml');
+	cfg = yml.read.sync('./conf/config.yml');
 // var socket = require('socekt.io');
 
 var handlers = {},_ = {},
@@ -17,33 +18,42 @@ var handlers = {},_ = {},
  */
 
 _.index = function(req,res) { 	// board index
-	res.send('Index: '+ req.params.board);
+	// res.send('Index: '+ req.params.board);
+	db.any(req.app.locals.sql.view.board_index, {
+		board: req.params.board,
+		page: req.query.page?parseInt(req.query.page):0
+	}).then(function(data) {
+		res.send(data);
+	}).catch(function(err) {
+		console.log(err);
+		res.send(err);
+	});
 };
 
-_[0] = function(req,res) {	// thread view
-	//res.send('Thread: '+ req.params.board +'/'+ req.params.page);
-	db.any(
-		'SELECT x.* '+
-			'FROM ('+
-				'SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, '+
-				'(p.post = t.op) AS is_op, cl.local AS local_clean, cl.global AS global_clean, '+
-				'fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, '+
-				'fetch_media(p.board,p.post) AS media '+
-				'FROM posts p, threads t , clean cl, cites c '+
-				'WHERE p.board = ${board} AND t.board = p.board AND p.thread = ${thread} AND t.op = p.thread '+
-				'AND cl.board = p.board AND cl.post = p.post '+
-				'ORDER BY (p.post = t.op) DESC, p.posted DESC '+
-				'LIMIT ${limit} + 1 '+
-			') x '+
-			'ORDER BY x.is_op DESC, x.posted ASC;', {
-		board: req.params.board, 
-		thread: req.params.thread, 
+_.thread = function(req,res) {	// thread view
+	// res.send('Thread: '+ req.params.board +'/'+ req.params.page);
+	db.any(req.app.locals.sql.view.thread, {
+		board: req.params.board,
+		thread: parseInt(req.params.page),
 		limit: req.query.preview?parseInt(req.query.preview):null
 	}).then(function(data) {
 		res.send(data);
 	}).catch(function(err) {
-		res.send(err);
 		console.log(err);
+		res.send(err);
+	});
+};
+
+_.catalog = function(req,res) {
+	// res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
+	db.any(req.app.locals.sql.view.catalog, {
+		board: req.params.board,
+		limit: req.app.locals.board.threadlimit
+	}).then(function(data) {
+		res.send(data);
+	}).catch(function(err) {
+		console.log(err);
+		res.send(err);
 	});
 };
 
@@ -56,10 +66,6 @@ _.bans = function(req,res) {
 };
 
 _.banned = function(req,res) {
-	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
-};
-
-_.catalog = function(req,res) {
 	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
 };
 

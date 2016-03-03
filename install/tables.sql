@@ -1,11 +1,12 @@
 CREATE TABLE IF NOT EXISTS boards (
-	board CHARACTER VARYING(32) PRIMARY KEY,
-	title CHARACTER VARYING(64) NOT NULL,
-	listed BOOLEAN DEFAULT TRUE,
-	nsfw BOOLEAN DEFAULT TRUE,
+	board VARCHAR(32) PRIMARY KEY,
+	title VARCHAR(64) NOT NULL,
+	listed BOOLEAN NOT NULL DEFAULT TRUE,
+	nsfw BOOLEAN NOT NULL DEFAULT TRUE,
 	created TIMESTAMP DEFAULT NOW(),
 	bumped TIMESTAMP,
 	global BOOLEAN DEFAULT FALSE,
+	noname VARCHAR(16) DEFAULT 'Anonymous',
 	lockedlimit SMALLINT DEFAULT 0 CONSTRAINT max_locked_preview_limit CHECK (lockedlimit <= 10),
 	pinnedlimit SMALLINT DEFAULT 1 CONSTRAINT max_pinned_preview_limit CHECK (pinnedlimit <= 10),
 	stickylimit SMALLINT DEFAULT 2 CONSTRAINT max_sticky_preview_limit CHECK (stickylimit <= 10),
@@ -23,14 +24,13 @@ CREATE TABLE IF NOT EXISTS boards (
 	loguser BOOLEAN DEFAULT TRUE,
 	preticker VARCHAR(256),
 	postticker TEXT,
-	noname VARCHAR(16) NOT NULL DEFAULT 'Anonymous',
 	tags JSONB
 );
 CREATE INDEX board_tags ON boards USING GIN(tags);
 /*
 SELECT x.*
 	FROM (
-		SELECT b.*, CURRVAL(CONCAT_WS('_', b.board, 'post', 'seq')) AS post_count
+		SELECT b.*, CURRVAL(CONCAT_WS('_', b.board, 'post', 'seq')) AS post_count,
 		(SELECT COUNT(1) FROM recent_posts WHERE board = b.board) AS posts_per_hour, 
 		(SELECT COUNT(DISTINCT ip) FROM recent_posts WHERE board = b.board) AS active_users
 		FROM boards b
@@ -51,11 +51,10 @@ CREATE TABLE IF NOT EXISTS posts (
 	posted TIMESTAMP NOT NULL DEFAULT NOW(),
 	ip INET NOT NULL DEFAULT '::',
 	edited TIMESTAMP,
-	name VARCHAR(32) NOT NULL,
+	name VARCHAR(32),
 	trip VARCHAR(16),
 	subject VARCHAR(128),
 	email VARCHAR(64),
-	saged BOOLEAN DEFAULT FALSE,
 	capcode VARCHAR(64),
 	banned VARCHAR(128),
 	markdown VARCHAR (2048) NOT NULL,
@@ -133,7 +132,7 @@ SELECT x.*
 			p.*, t.archived, t.bumped, (p.post = t.op) AS is_op, FETCH_media(p.board,p.post) as media
 		FROM posts p, threads t, _
 		WHERE p.board = _.board AND p.thread = t.op AND t.archived < NOW() - _.archivedlifespan
-		ORDER BY t.archived DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC; --Proper sorting
+		ORDER BY t.archived DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC --Proper sorting
 	) x, _
 	WHERE (x.m <= _.archivedlimit + 1) --Filterd threads for archived preview limit
 	AND x.n > (_.page * 10) AND x.n <= (_.page * 10) + 10; --LIMIT + OFFSET filter proxy
@@ -206,7 +205,7 @@ CREATE TABLE IF NOT EXISTS media (
 	board VARCHAR(32),
 	thread INTEGER NOT NULL,
 	post INTEGER NOT NULL,
-	nsfw BOOLEAN DEFAULT FALSE,
+	nsfw BOOLEAN NOT NULL DEFAULT FALSE,
 	loc TEXT NOT NULL,
 	sort SMALLINT,
 	FOREIGN KEY (board, post) REFERENCES posts (board, post) 
@@ -219,7 +218,7 @@ CREATE TABLE IF NOT EXISTS users (
 	username VARCHAR(32) NOT NULL UNIQUE,
 	passphrase VARCHAR(64) NOT NULL,
 	email TEXT UNIQUE,
-	validated BOOLEAN DEFAULT FALSE,
+	validated BOOLEAN NOT NULL DEFAULT FALSE,
 	global BOOLEAN NOT NULL DEFAULT FALSE
 );
 
@@ -228,7 +227,7 @@ INSERT INTO users VALUES (0,'SYSTEM','','',TRUE); --Passphrase-less user for sys
 CREATE TABLE IF NOT EXISTS flags (
 	role VARCHAR(16) NOT NULL,
 	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
-	flags JSONB,
+	flags JSONB NOT NULL DEFAULT '{}',
 	PRIMARY KEY (role, board)
 );
 
@@ -342,9 +341,20 @@ CREATE TABLE IF NOT EXISTS clean (
 	board VARCHAR(32) NOT NULL,
 	post INTEGER NOT NULL,
 	local INTEGER DEFAULT 0 REFERENCES users (id) ON DELETE SET DEFAULT,
+	localstamp TIMESTAMP,
 	global INTEGER DEFAULT 0 REFERENCES users (id) ON DELETE SET DEFAULT,
+	globalstamp TIMESTAMP,
 	PRIMARY KEY (board,post),
 	FOREIGN KEY (board,post) REFERENCES posts (board,post) 
 		ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS pages (
+	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE,
+	page VARCHAR(16) NOT NULL,
+	title VARCHAR(32),
+	markdown VARCHAR(2048),
+	markup TEXT,
+	PRIMARY KEY (board, page)
 );
 

@@ -1,3 +1,4 @@
+"use strict";
 var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	multer = require('multer'),
 	fs = require('fs'),
@@ -6,7 +7,7 @@ var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	cache = require('redis'),
 	tpl = require('jade'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	cfg = yml.read.sync('./config.yml');
+	cfg = yml.read.sync('./conf/config.yml');
 
 var handlers = {},_ = {},
 	db = pgp(cfg.database);

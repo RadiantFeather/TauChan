@@ -15,11 +15,11 @@ CREATE TRIGGER hash_password
 	FOR EACH ROW
 	EXECUTE PROCEDURE hash_password();
 	
-CREATE OR REPLACE FUNCTION validate_password(_user VARCHAR(32), _pass VARCHAR(64)) RETURNS BOOLEAN AS $$
+CREATE OR REPLACE FUNCTION fetch_user(_user VARCHAR(32), _pass VARCHAR(64)) RETURNS RECORD AS $$
 DECLARE
-	r BOOLEAN;
+	r RECORD;
 BEGIN
-	SELECT (passphrase = crypt(_pass, passphrase)) INTO r FROM users WHERE username = _user;
+	SELECT * INTO r FROM users WHERE username = _user AND (passphrase = crypt(_pass, passphrase));
 	RETURN r;
 END;$$ LANGUAGE plpgsql;
 
@@ -92,16 +92,18 @@ DECLARE
 	temp BIGINT;
 BEGIN
 	IF (TG_OP = 'INSERT') THEN
-		EXECUTE format('CREATE SEQUENCE %I MINVALUE 0 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
+		EXECUTE format('CREATE SEQUENCE %I MINVALUE 1 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
 		RETURN NEW;
 	ELSIF (TG_OP = 'DELETE') THEN
 		EXECUTE format('DROP SEQUENCE IF EXISTS %I',concat_ws('_',OLD.board,'post','seq'));
 		RETURN OLD;
-	ELSIF (TG_OP = 'UPDATE' AND OLD.board <> NEW.board) THEN	--Update post sequence id if board id changes
-		temp := currval(concat_ws('_',OLD.board,'post','seq'));
-		EXECUTE format('DROP SEQUENCE %I',concat_ws('_',OLD.board,'post','seq'));
-		EXECUTE format('CREATE SEQUENCE %I MINVALUE 0 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
-		PERFORM setval(concat_ws('_',NEW.board,'post','seq'),temp);
+	ELSIF (TG_OP = 'UPDATE') THEN 
+		IF (OLD.board <> NEW.board) THEN	--Update post sequence id if board id changes
+			temp := currval(concat_ws('_',OLD.board,'post','seq'));
+			EXECUTE format('DROP SEQUENCE %I',concat_ws('_',OLD.board,'post','seq'));
+			EXECUTE format('CREATE SEQUENCE %I MINVALUE 1 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
+			PERFORM setval(concat_ws('_',NEW.board,'post','seq'),temp);
+		END IF;
 		RETURN NEW;
 	END IF;
 END;$$ LANGUAGE plpgsql;
@@ -127,7 +129,7 @@ BEGIN
 	SELECT nextval(concat_ws('_',NEW.board,'post','seq')) INTO NEW.post;
 	IF (NEW.thread IS NULL) THEN NEW.thread := NEW.post; END IF;
 	IF (NEW.name = '') THEN NEW.name := NULL; END IF;
-	NEW.posted := NOW(); --Set manually to update the recent post bump value for the board
+	IF (NEW.posted IS NULL) THEN NEW.posted := NOW(); END IF; --Set manually to update the recent post bump value for the board
 	IF (NEW.media IS NOT NULL) THEN
 		FOR m IN SELECT * FROM json_array_elements(NEW.media) LOOP
 			h := h || m->hash;
@@ -143,16 +145,21 @@ BEGIN
 			CONSTRAINT = 'thread_reply_limit_reached';
 	END IF;
 	
-	INSERT INTO posts(post, thread, board, ip, iphash, name, trip, subject, email, capcode, markdown, markup) VALUES
-		(NEW.post, NEW.thread, NEW.board, NEW.ip, NEW.iphash, NEW.name, NEW.trip, NEW.subject, NEW.email, NEW.capcode, NEW.markdown, NEW.markup);
+	INSERT INTO posts(post, thread, board, posted, ip, name, trip, subject, email, capcode, markdown, markup) VALUES
+		(NEW.post, NEW.thread, NEW.board, NEW.posted, NEW.ip, NEW.name, NEW.trip, NEW.subject, NEW.email, NEW.capcode, NEW.markdown, NEW.markup);
 	
 	IF (NEW.post = NEW.thread) THEN
-		IF (NEW.pinned = TRUE) THEN	--Only one pinned thread allowed per board and pinned thread must be a sticky
+		IF (NEW.pinned IS TRUE) THEN	--Only one pinned thread allowed per board and pinned thread must be a sticky
 			UPDATE threads SET pinned = FALSE WHERE board = NEW.board AND pinned = TRUE;
 			NEW.sticky = TRUE;
 		END IF;
 		INSERT INTO threads (op,board,bumped,pinned,sticky,anchor,cycle,locked,sage,nsfw) 
-			VALUES (NEW.thread, NEW.board, NEW.posted, NEW.pinned, NEW.sticky, NEW.anchor, NEW.cycle, NEW.locked, NEW.sage, NEW.nsfw);
+			VALUES (NEW.thread, NEW.board, NEW.posted, 
+			coalesce(new.pinned,FALSE), coalesce(NEW.sticky,FALSE), 
+			coalesce(NEW.anchor,FALSE), coalesce(NEW.cycle,FALSE), 
+			coalesce(NEW.locked,FALSE), coalesce(NEW.sage,FALSE), 
+			coalesce(NEW.nsfw,FALSE)
+		);
 	END IF;
 	
 	UPDATE threads SET archived = NOW() WHERE op IN ( --Archive threads that have fallen past the board thread limit
@@ -174,10 +181,10 @@ BEGIN
 	IF (NEW.cites IS NOT NULL) THEN
 		INSERT INTO cites (board,thread,post,targets) VALUES (NEW.board, NEW.thread, NEW.post, NEW.cites);
 	END IF;
-	RETURN TRUE;
-EXCEPTION WHEN OTHERS THEN --Revert post sequence if inserts fail then reraise the exception.
-	PERFORM setval(concat_ws('_',NEW.board,'post','seq'),currval(concat_ws('_',NEW.board,'post','seq'))-1);
-	RAISE;
+	RETURN NEW;
+--EXCEPTION WHEN OTHERS THEN --Revert post sequence if inserts fail then reraise the exception.
+--	PERFORM setval(concat_ws('_',NEW.board,'post','seq'),currval(concat_ws('_',NEW.board,'post','seq'))-1);
+--	RAISE;
 END;$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER post 
