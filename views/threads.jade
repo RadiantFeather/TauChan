@@ -1,0 +1,152 @@
+extends layout
+
+mixin actions(board,post)
+	label.menu
+		input.toggle(type="checkbox")
+		menu.postactions(id="postactions_#{post}")
+			menuitem: a(href="/#{board}/#{post}/report", target="_blank") Report
+			- if (user.auth(board,{action:'delete'}))
+				menuitem: a(href="/#{board}/#{post}/delete", target="_blank") Delete
+			- if (user.auth(board,{action:'ban'}))
+				menuitem: a(href="/#{board}/#{post}/ban", target="_blank") Ban
+			- if (user.auth(board,{action:['ban','delete']}))
+				menuitem: a(href="/#{board}/#{post}/bnd", target="_blank") Ban & Delete
+				
+mixin mediaitem(m)
+	div.item(class="#{m.mediatype}")
+		case m.mediatype
+			when 'rim' //- Raw image
+				span.meta
+					a.file(href="#{m.loc}") #{m.uploadname}
+					//- | (#{m.size} #{m.dims})
+				a.file(class={spoiler:m.nsfw}, onclick="toggleImage(this);", data-thumb="#{m.thumb}")
+					img(src="#{m.loc}")
+			//- when 'rvi' //- Raw video
+			//- when 'rau' //- Raw audio
+			//- when 'you' //- Youtube
+			//- when 'dly' //- Dailymotion
+			//- when 'voc' //- Vocaroo
+			//- when 'liv' //- Livestream
+			//- when 'box' //- Hitbox
+			//- when 'ust' //- Ustream
+			
+block head
+	- if (page.type == 'index')
+		title #{sitename} - /#{board.board}/ Index
+		meta(rel="description" content="/#{board.board}/ - #{board.title}")
+	- else if (page.type == 'thread')
+		title #{data[0].subject || title}
+	meta(rel="keywords" content="image,board,node,js,forum,imageboard,anonymous,/#{board.board}/")
+
+append script
+	script.
+		if (window.SITE === undefined) window.SITE = {};
+		window.SITE.page = page.type;
+		
+block header
+	form#newpost(method="POST")
+		input(name="name", type="text")
+		- if (board.emailsubmit)
+			input(name="email", type="email")
+		input(name="subject", type="text")
+		input(type="submit", value="Submit")
+		textarea(name="markdown")
+		div.upload
+			input.file(type="file", name="file[]")
+block content
+	- var i = -1
+	- while (++i >= 0 && i < data.length)
+		- if (data[i].post == data[i].thread)
+			div.thread.post.op(id="#{data[i].post}")
+				div.info
+					- if (data[i].email !== null)
+						a.name(href="mailto:#{data[i].email}"): span.name #{data[i].name}
+					- else
+						span.name #{data[i].name}
+					- if (data[i].trip !== null)
+						span.trip #{data[i].trip}
+					- if (data[i].capcode !== null)
+						span.capcode #{data[i].capcode}
+					- if (data[i].subject !== null)
+						span.subject #{data[i].subject}
+					- if (user.auth(board.board,{view:'ip'}))
+						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ip}
+					- else if (user.auth(board,{view:'ipmask'}))
+						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ipmask}
+					- else if (user.auth(board,{view:'iphash'}))
+						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].shorthash}
+					span.timestamp #{data[i].posted}
+					a.quote(href="##{data[i].post}", onclick="return quotePost(#{data[i].post}),false;") #{data[i].post}
+					+ actions(board.board,data[i].post)
+				div.media(class=(data[i].media.length > 1 ? 'many' : data[i].media.length < 1 ? 'none' : 'one'))
+					- each m in data[i].media
+						+ mediaitem(m)
+				span.content !{data[i].markdown}
+				- if (dada[i].banned !== null)
+					div.banned #{data[i].banned}
+				- if (data[i].globalstamp !== null)
+					div.clean Moderators have deemed this post as acceptable: (#{data[i].globalstamp})
+				- else if (data[i].localstamp !== null)
+					div.clean Managers have deemed this post as acceptable: (#{data[i].localstamp})
+				- if (page.type == 'index')
+					i There are #{data[i].total - data[i].visible} hidden posts. Click
+						a(href="/#{board.board}/#{data[i].thread}") HERE
+						| to view.
+				- while (data[i+1] && data[i+1].post != data[i+1].thread && ++i)
+					div.post.reply(id="#{data[i].post}")
+						div.info
+							- if (data[i].email !== null)
+								a.name(href="mailto:#{data[i].email}"): span.name #{data[i].name}
+							- else
+								span.name #{data[i].name}
+							- if (data[i].trip !== null)
+								span.trip #{data[i].trip}
+							- if (data[i].capcode !== null)
+								span.capcode #{data[i].capcode}
+							- if (data[i].subject !== null)
+								span.subject #{data[i].subject}
+							- if (user.auth(board.board,{view:'ip'}))
+								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ip}
+							- else if (user.auth(board.board,{view:'ipmask'}))
+								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ipmask}
+							- else if (user.auth(board.board,{view:'iphash'}))
+								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].shorthash}
+							span.timestamp #{data[i].posted}
+							a.quote(href="##{data[i].post}", onclick="return quotePost(#{data[i].post}),false;") #{data[i].post}
+							+ actions(board.board,data[i].post)
+							span.cited
+								- each t in data[i].targets
+									a.cite(href="##{t.post}")
+						div.media(class=(data[i].media.length > 1 ? 'many' : data[i].media.length < 1 ? 'none' : 'one'))
+							- each m in data[i].media
+								+ mediaitem(m)
+						span.content !{data[i].markdown}
+						- if (dada[i].banned !== null)
+							div.banned #{data[i].banned}
+						- if (data[i].globalstamp !== null)
+							div.clean This post is globally: (#{data[i].globalstamp})
+						- else if (data[i].localstamp !== null)
+							div.clean This post is locally: (#{data[i].localstamp})
+append footer
+	- if (page.type = 'thread')
+		- var countof
+		div#interact
+			span.quicklinks
+				a.index.brick(href="/#{board.board}/") Index
+				a.catalog.brick(href="/#{board.board}/catalog", target="_blank") Catalog
+				a.top.brick(href="#top") Top
+				a.update.brick(href="/#{board.board}/#{page.param}#bottom", onclick="return updateThread(#{page.param}),false;") Update
+			span.stats
+				span.replies #{data.length-1}
+				span.images
+					= data.reduce((a,b)=>{return a+b.media.length;},0)
+				span.posters
+					= data.reduce((a,b)=>{if(a.indexOf(b.ip)==-1)a.push(b.ip);return a;},[]).length
+				span.page #{data[0].page}
+				
+				
+				
+				
+				
+				
+			

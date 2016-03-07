@@ -17,10 +17,14 @@ CREATE TABLE IF NOT EXISTS boards (
 	bumplimit SMALLINT DEFAULT 150 CONSTRAINT max_bump_limit CHECK (bumplimit <= 500),
 	imagelimit SMALLINT DEFAULT 250 CONSTRAINT max_image_limit CHECK (imagelimit <= 750),
 	postlimit SMALLINT DEFAULT 300 CONSTRAINT max_post_limit CHECK (postlimit <= 1000),
+	imageuploadlimit SMALLINT DEFAULT 1 CONSTRAINT max_image_upload_limit CHECK (imageuploadlimit <= 4),
 	archivedlifespan INTERVAL DEFAULT '3 days' CONSTRAINT  max_archived_lifespan CHECK (archivedlifespan <= '7 days'::INTERVAL),
 	perthreadunique BOOLEAN DEFAULT FALSE,
+	archivethreads BOOLEAN DEFAULT TRUE,
+	emailsubmit BOOLEAN DEFAULT TRUE,
 	publicbans BOOLEAN DEFAULT FALSE,
 	publiclogs BOOLEAN DEFAULT TRUE,
+	publicedits BOOLEAN DEFAULT TRUE,
 	loguser BOOLEAN DEFAULT TRUE,
 	preticker VARCHAR(256),
 	postticker TEXT,
@@ -202,11 +206,14 @@ CREATE INDEX cite_targets ON cites USING GIN (targets);
 
 CREATE TABLE IF NOT EXISTS media (
 	hash TEXT,
+	loc TEXT NOT NULL,
+	thumb TEXT NOT NULL,
 	board VARCHAR(32),
 	thread INTEGER NOT NULL,
 	post INTEGER NOT NULL,
+	mediatype CHAR(3) NOT NULL,
 	nsfw BOOLEAN NOT NULL DEFAULT FALSE,
-	loc TEXT NOT NULL,
+	uploadname TEXT,
 	sort SMALLINT,
 	FOREIGN KEY (board, post) REFERENCES posts (board, post) 
 		ON DELETE CASCADE ON UPDATE CASCADE
@@ -219,7 +226,8 @@ CREATE TABLE IF NOT EXISTS users (
 	passphrase VARCHAR(64) NOT NULL,
 	email TEXT UNIQUE,
 	validated BOOLEAN NOT NULL DEFAULT FALSE,
-	global BOOLEAN NOT NULL DEFAULT FALSE
+	global BOOLEAN NOT NULL DEFAULT FALSE,
+	token TEXT UNIQUE
 );
 
 INSERT INTO users VALUES (0,'SYSTEM','','',TRUE); --Passphrase-less user for system driven database operations that require a user

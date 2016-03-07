@@ -37,6 +37,11 @@ function updatable(stale,fresh) {
 	return false;
 }
 const dcfg = yml.read('./install/default.yml');
+
+if (!fs.existsSync('./assets')) fs.mkdirSync('./assets');
+if (!fs.existsSync('./cache')) fs.mkdirSync('./cache');
+if (!fs.existsSync('./conf')) fs.mkdirSync('./conf');
+
 if (fs.existsSync('./conf/config.yml')) cfg = yml.read('./conf/config.yml');
 else {
 	console.log('Missing config. Creating file and generating new site secret value.');

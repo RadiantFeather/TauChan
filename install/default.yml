@@ -2,6 +2,7 @@ version: 0.0.1
 site:
   name: Tauchan Instance
   secret: thiswillbegeneratedwhenyouruntheappinstallation
+  devmode: true
 database:
   host: localhost
   port: 5433
@@ -13,3 +14,4 @@ options:
   disable_usermade_boards: false
   reserve_single_char_boards: true
   require_valid_email: false
+  email_field: true

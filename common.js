@@ -6,15 +6,13 @@ var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	tpl = require('jade'),
 	request = require('request'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	
-cfg = yml.read.sync('./conf/config.yml'),
-db = pgp(cfg.database);
+	db = pgp(req.app.locals.cfg.database);
 // var socket = require('socekt.io');
 var _ = {};
 
 _.loadBoard = function(req,res){
 	let done = false;
-	db.one('SELECT * FROM boards WHERE board = ${board}', {
+	db.one('SELECT * FROM boards WHERE board = ${board};', {
 		board: req.params.board
 	}).then((data) => {
 		done = true;
@@ -31,5 +29,6 @@ _.loadUser = function(req,res,next){
 	res.locals.user = {auth:()=>true};
 	return next();
 };
+
 
 module.exports = _;

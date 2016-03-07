@@ -2,8 +2,7 @@
 -- Encrypt and validate passwords with crypt-md5
 --
 CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER AS $$
-DECLARE
-	r BOOLEAN;
+DECLARE r BOOLEAN;
 BEGIN
 	IF (TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND NEW.passphrase IS NOT NULL AND OLD.passphrase = crypt(NEW.passphrase, OLD.passphrase))) THEN
 		NEW.passphrase := crypt(NEW.passphrase,gen_salt('crypt-md5'));
@@ -16,8 +15,7 @@ CREATE TRIGGER hash_password
 	EXECUTE PROCEDURE hash_password();
 	
 CREATE OR REPLACE FUNCTION fetch_user(_user VARCHAR(32), _pass VARCHAR(64)) RETURNS RECORD AS $$
-DECLARE
-	r RECORD;
+DECLARE r RECORD;
 BEGIN
 	SELECT * INTO r FROM users WHERE username = _user AND (passphrase = crypt(_pass, passphrase));
 	RETURN r;
@@ -27,8 +25,7 @@ END;$$ LANGUAGE plpgsql;
 -- Compiles post numbers that have cited the requested post into a JSON array
 --
 CREATE OR REPLACE FUNCTION fetch_cites(_board VARCHAR(32), _thread INTEGER, _post INTEGER) RETURNS JSON AS $$
-DECLARE
-	target RECORD; rv INTEGER[];
+DECLARE target RECORD; rv INTEGER[];
 BEGIN
 	FOR target IN SELECT board,thread,post FROM cites WHERE board = _board AND thread = _thread AND cites.targets ? CONCAT_WS('/',_board,_thread,_post) ORDER BY post ASC LOOP
 		rv := rv || target.post;
@@ -40,11 +37,10 @@ END;$$ LANGUAGE plpgsql;
 -- Compiles media locations into a correctly ordered JSON array
 --
 CREATE OR REPLACE FUNCTION fetch_media(_board VARCHAR(32), _post INTEGER) RETURNS JSON AS $$
-DECLARE
-	target RECORD; rv TEXT[];
+DECLARE target RECORD; rv JSON[];
 BEGIN
-	FOR target IN SELECT loc FROM media WHERE board = _board AND post = _post ORDER BY sort ASC LOOP
-		rv := rv || target.loc;
+	FOR target IN SELECT loc,thumb,mediatype,nsfw,uploadname FROM media WHERE board = _board AND post = _post ORDER BY sort ASC LOOP
+		rv := rv || target::JSON;
 	END LOOP;
 	RETURN array_to_json(rv);
 END;$$ LANGUAGE plpgsql;
@@ -53,8 +49,7 @@ END;$$ LANGUAGE plpgsql;
 -- Concats the cite values for proper indexing support
 --
 CREATE OR REPLACE FUNCTION clean_cites() RETURNS TRIGGER AS $$
-DECLARE
-	target RECORD; rv TEXT[];
+DECLARE target RECORD; rv TEXT[];
 BEGIN
 	IF (jsonb_array_length(NEW.targets) > 0) THEN
 		FOR target IN SELECT board,thread,post FROM jsonb_populate_recordset(NULL::TEXT,NEW.targets) LOOP
@@ -88,8 +83,7 @@ CREATE TRIGGER order_media
 -- Manage the post sequences since it's relied on per board.
 --
 CREATE OR REPLACE FUNCTION board_seq() RETURNS TRIGGER AS $$
-DECLARE
-	temp BIGINT;
+DECLARE temp BIGINT;
 BEGIN
 	IF (TG_OP = 'INSERT') THEN
 		EXECUTE format('CREATE SEQUENCE %I MINVALUE 1 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
@@ -121,11 +115,9 @@ CREATE OR REPLACE VIEW post AS
 	FROM posts p, threads t, (VALUES ('1'::JSON,'1'::JSONB)) AS _(media,cites);
 	
 CREATE OR REPLACE FUNCTION post() RETURNS TRIGGER AS $$
-DECLARE
-	b RECORD; m RECORD; h JSONB;
-	i BIGINT;
+DECLARE b RECORD; m RECORD; h JSONB; i BIGINT;
 BEGIN
-	SELECT bumplimit,threadlimit,postlimit,noname INTO b FROM boards WHERE board = NEW.board;
+	SELECT bumplimit,threadlimit,postlimit,noname,archivethreads INTO b FROM boards WHERE board = NEW.board;
 	SELECT nextval(concat_ws('_',NEW.board,'post','seq')) INTO NEW.post;
 	IF (NEW.thread IS NULL) THEN NEW.thread := NEW.post; END IF;
 	IF (NEW.name = '') THEN NEW.name := NULL; END IF;
@@ -162,12 +154,14 @@ BEGIN
 		);
 	END IF;
 	
-	UPDATE threads SET archived = NOW() WHERE op IN ( --Archive threads that have fallen past the board thread limit
-		SELECT op FROM threads
-		WHERE board = NEW.board
-		ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
-		OFFSET b.threadlimit
-	);
+	IF (b.archivethreads IS TRUE) THEN
+		UPDATE threads SET archived = NOW() WHERE op IN ( --Archive threads that have fallen past the board thread limit
+			SELECT op FROM threads
+			WHERE board = NEW.board
+			ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
+			OFFSET b.threadlimit
+		);
+	END IF;
 	
 	SELECT COUNT(1) INTO i FROM posts WHERE board = NEW.board AND thread = NEW.thread AND post <> NEW.thread;
 	IF (i <= b.bumplimit) THEN
@@ -196,14 +190,12 @@ CREATE TRIGGER post
 -- Pre-new_post-insert check to validate board requirements for media
 --
 CREATE OR REPLACE FUNCTION check_media(_board VARCHAR(32), _thread INTEGER, _hashes JSONB) RETURNS VOID AS $$
-DECLARE
-	found_hash TEXT;
-	b RECORD; i BIGINT;
+DECLARE found_hash TEXT; b RECORD; i BIGINT;
 BEGIN
-	SELECT imglimit,perthreadunique INTO b FROM boards WHERE board = _board;
+	SELECT imagelimit,imageuploadlimit,perthreadunique INTO b FROM boards WHERE board = _board;
 	SELECT hash INTO found_hash FROM media WHERE board = _board AND ((b.perthreadunique AND thread = _thread) OR TRUE) AND _hashes ? hash LIMIT 1;
 	SELECT COUNT(1) INTO i FROM media WHERE board = _board AND thread = _thread;
-	IF (jsonb_array_length(_hashes,1) > 0 AND i + jsonb_array_length(_hashes,1) > b.imglimit) THEN 
+	IF (jsonb_array_length(_hashes,1) > 0 AND i + jsonb_array_length(_hashes,1) > b.imagelimit) THEN 
 		RAISE check_violation	--Validate thread image limit
 			USING MESSAGE = 'New post failed.',
 			DETAIL = 'Thread has reached the image limit.',
@@ -214,6 +206,11 @@ BEGIN
 			DETAIL = 'Duplicate image found.',
 			HINT = found_hash,
 			CONSTRAINT = 'duplicate_image_found';
+	ELSIF (jsonb_array_length(_hashes,1) > 0 AND jsonb_array_length(_hashes,1) > b.imageuploadlimit) THEN
+		RAISE check_violation
+			USING MESSAGE = 'Media upload failed.',
+			DETAIL = 'Uploaded image count exceeds allowed amount.',
+			CONSTRAINT = 'image_upload_limit_reached';
 	END IF;
 END;$$ LANGUAGE plpgsql;
 
@@ -274,13 +271,11 @@ CREATE TRIGGER ban
 -------------------------------------------
 -- Function for masking user IPs (with optional hashing).
 --
-CREATE OR REPLACE FUNCTION mask_ip(_ip CIDR, _board VARCHAR(32) DEFAULT '_', _salt TEXT DEFAULT NULL) RETURNS TEXT AS $$
-DECLARE
-	f SMALLINT := 1;
-	r TEXT; l INT := 0;
+CREATE OR REPLACE FUNCTION mask_ip(_ip CIDR, _board VARCHAR(32), _salt TEXT DEFAULT NULL) RETURNS TEXT AS $$
+DECLARE f SMALLINT := 1; r TEXT; l INT := 0;
 BEGIN
 	IF (_salt IS NOT NULL) THEN
-		r := substring(encode(digest(_salt||_ip||_board,'sha1'),'hex') from 1 for 16);
+		r := encode(digest(_salt||_ip||_board,'sha1'),'hex');
 	ELSE
 		IF (family(_ip) = 6) THEN f := 4; END IF;
 		r := host(set_masklen(_ip,16*f))::TEXT; -- Hide the back half of the IP
@@ -294,3 +289,18 @@ BEGIN
 	END IF;
 	RETURN r;
 END;$$ LANGUAGE plpgsql;
+
+-------------------------------------------
+-- Function for determining the page a thread is located on.
+--
+CREATE OF REPLACE FUNCTION fetch_page(_board VARCHAR(32), _thread INTEGER) RETURNS SMALLINT AS $$
+DECLARE r RECORD;
+BEGIN
+	SELECT COUNT(1) FILTER (WHERE t.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + 1 AS page INTO r FROM (
+		SELECT t.op, COUNT(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n 
+		FROM threads t WHERE t.board = _board AND t.archived IS NULL
+		ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC, t.op DESC
+	) x WHERE x.op = _thread LIMIT 1;
+	RETURN r.page::SMALLINT;
+END;$$ LANGUAGE plpgsql;
+

@@ -6,8 +6,7 @@ var pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	multer = require('multer'),
 	cache = require('redis'),
 	tpl = require('jade'),
-	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	cfg = yml.read.sync('./conf/config.yml');
+	yml = {read: require('read-yaml'), write: require('write-yaml')};
 
 var handlers = {},_ = {},
 	db = pgp(cfg.database);

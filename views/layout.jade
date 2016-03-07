@@ -1,0 +1,19 @@
+doctype html
+html
+	head
+		block head
+			meta(rel="description" content="Tauchan Development Site")
+			meta(rel="keywords" content="image,board,node,js,forum,imageboard,anonymous")
+		block script
+			script.
+				document.documentElement.classList.add('js');
+	body(class=#{page.type})
+		section#header
+			block header
+		section#main
+			span#top
+			block content
+		section#footer
+			block footer
+			span#bottom
+		

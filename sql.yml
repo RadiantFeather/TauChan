@@ -1,10 +1,11 @@
 view:
   thread: '
-    SELECT * FROM (
+    WITH page AS SELECT fetch_page(${board},${thread})
+    SELECT x.*, page FROM (
       SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, 
-      (p.post = t.op) AS is_op, cl.localstamp, cl.globalstamp, 
+      (p.post = t.op) AS is_op, cl.localstamp, cl.globalstamp, fetch_media(p.board,p.post) AS media
       fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, t.archived,
-      fetch_media(p.board,p.post) AS media 
+      mask_ip(p.ip,p.board) AS ip_mask, mask_ip(p.ip,p.board,${salt}) AS ip_hash
       FROM threads t, (posts p 
         LEFT OUTER JOIN cites c USING (board,post))
         LEFT OUTER JOIN clean cl USING (board,post)
@@ -31,13 +32,14 @@ view:
   '
 
   board_index: '
-    WITH board AS (SELECT stickylimit, cyclelimit, pinnedlimit, lockedlimit, standardlimit FROM boards WHERE board = ${board})
-    SELECT x.* FROM (
+    WITH board AS (SELECT pinnedlimit, stickylimit, cyclelimit, lockedlimit, standardlimit FROM boards WHERE board = ${board})
+    SELECT x.*, COUNT(1) OVER (PARTITION BY x.thread) - 1 AS visible FROM (
       SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post ASC) AS m,
         COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
+        COUNT(1) OVER (PARTITION BY p.thread) - 1 AS total,
         p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw, c.targets AS cites,
-        cl.localstamp, cl.globalstamp, (p.post = t.op) AS is_op,
-        fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media
+        cl.localstamp, cl.globalstamp, (p.post = t.op) AS is_op, mask_ip(p.ip::CIDR,p.board) AS ipmask, mask_ip(p.ip::CIDR,p.board,${salt}) AS longhash
+        fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media, substring(mask_ip(p.ip::CIDR,p.board,${salt}) FROM 1 TO 16) AS shorthash
       FROM threads t, (posts p 
         LEFT OUTER JOIN cites c USING (board,post))
         LEFT OUTER JOIN clean cl USING (board,post)
@@ -128,6 +130,11 @@ view:
       LIMIT 100 OFFSET ${page} * 100
     ) x
     ORDER BY created ASC;
+  '
+  
+  custom: '
+    SELECT title,markup FROM pages 
+    WHERE board = ${board} AND page = ${page};
   '
   
 modify:
