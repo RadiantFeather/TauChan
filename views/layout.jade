@@ -10,9 +10,11 @@ html
 	body(class=#{page.type})
 		section#header
 			block header
+		block nav
 		section#main
 			span#top
 			block content
+		block nav
 		section#footer
 			block footer
 			span#bottom

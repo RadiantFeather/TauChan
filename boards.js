@@ -48,8 +48,9 @@ _.thread = function(req,res) {	// thread view
 			board: res.locals.board,
 			user: res.locals.user,
 			data: data,
+			thread: data[0],
 			title: strip_markdown(data[0].markdown),
-			page: {type:'thread',param:req.params.page}
+			page: {type:(data[0].archived===null?'thread':'archive'),param:req.params.page}
 		});
 		// res.send(data);
 	}).catch(function(err) {
