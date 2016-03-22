@@ -4,10 +4,10 @@ html
 		block head
 			meta(rel="description" content="Tauchan Development Site")
 			meta(rel="keywords" content="image,board,node,js,forum,imageboard,anonymous")
+		script.
+			document.documentElement.classList.add('js');
 		block script
-			script.
-				document.documentElement.classList.add('js');
-	body(class=#{page.type})
+	body
 		section#header
 			block header
 		block nav

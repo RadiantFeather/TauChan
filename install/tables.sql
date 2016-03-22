@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS boards (
 	board VARCHAR(32) PRIMARY KEY,
 	title VARCHAR(64) NOT NULL,
+	subtitle VARCHAR(128),
 	listed BOOLEAN NOT NULL DEFAULT TRUE,
 	nsfw BOOLEAN NOT NULL DEFAULT TRUE,
 	created TIMESTAMP DEFAULT NOW(),
@@ -13,11 +14,11 @@ CREATE TABLE IF NOT EXISTS boards (
 	cyclelimit SMALLINT DEFAULT 3 CONSTRAINT max_cycle_preview_limit CHECK (cyclelimit <= 10),
 	archivedlimit SMALLINT DEFAULT 3 CONSTRAINT max_archived_preview_limit CHECK (archivedlimit <= 10),
 	standardlimit SMALLINT DEFAULT 5 CONSTRAINT max_preview_limit CHECK (standardlimit <= 10),
-	threadlimit SMALLINT DEFAULT 50 CONSTRAINT max_thread_limit CHECK (threadlimit <= 150),
+	threadlimit SMALLINT DEFAULT 50 CONSTRAINT max_thread_limit CHECK (threadlimit <= 150 AND threadlimit >= 10),
 	bumplimit SMALLINT DEFAULT 150 CONSTRAINT max_bump_limit CHECK (bumplimit <= 500),
 	imagelimit SMALLINT DEFAULT 250 CONSTRAINT max_image_limit CHECK (imagelimit <= 750),
-	postlimit SMALLINT DEFAULT 300 CONSTRAINT max_post_limit CHECK (postlimit <= 1000),
-	imageuploadlimit SMALLINT DEFAULT 1 CONSTRAINT max_image_upload_limit CHECK (imageuploadlimit <= 4),
+	postlimit SMALLINT DEFAULT 300 CONSTRAINT max_post_limit CHECK (postlimit <= 1000 AND postlimit >= 100),
+	mediauploadlimit SMALLINT DEFAULT 1 CONSTRAINT max_image_upload_limit CHECK (mediauploadlimit <= 4),
 	archivedlifespan INTERVAL DEFAULT '3 days' CONSTRAINT  max_archived_lifespan CHECK (archivedlifespan <= '7 days'::INTERVAL),
 	perthreadunique BOOLEAN DEFAULT FALSE,
 	archivethreads BOOLEAN DEFAULT TRUE,
@@ -206,17 +207,20 @@ CREATE INDEX cite_targets ON cites USING GIN (targets);
 
 CREATE TABLE IF NOT EXISTS media (
 	hash TEXT,
-	loc TEXT NOT NULL,
+	src TEXT NOT NULL,
 	thumb TEXT NOT NULL,
 	board VARCHAR(32),
 	thread INTEGER NOT NULL,
 	post INTEGER NOT NULL,
 	mediatype CHAR(3) NOT NULL,
 	nsfw BOOLEAN NOT NULL DEFAULT FALSE,
-	uploadname TEXT,
+	deleted BOOLEAN DEFAULT FALSE,
+	processed BOOLEAN DEFAULT FALSE,
+	meta JSON,
 	sort SMALLINT,
 	FOREIGN KEY (board, post) REFERENCES posts (board, post) 
-		ON DELETE CASCADE ON UPDATE CASCADE
+		ON DELETE CASCADE ON UPDATE CASCADE,
+	UNIQUE (sort,board,post)
 );
 CREATE INDEX media_hash ON media (hash);
 

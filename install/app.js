@@ -36,19 +36,27 @@ function updatable(stale,fresh) {
 	}
 	return false;
 }
+
+function exists(path) {
+	try {
+		fs.statSync(path);
+		return true;
+	} catch (e) {
+		return false;
+	}
+}
+
 const dcfg = yml.read('./install/default.yml');
 
-if (!fs.existsSync('./assets')) fs.mkdirSync('./assets');
-if (!fs.existsSync('./cache')) fs.mkdirSync('./cache');
-if (!fs.existsSync('./conf')) fs.mkdirSync('./conf');
+if (!exists('./assets')) fs.mkdirSync('./assets/_');
+if (!exists('./cache')) fs.mkdirSync('./cache/uploads');
+if (!exists('./conf')) fs.mkdirSync('./conf');
 
-if (fs.existsSync('./conf/config.yml')) cfg = yml.read('./conf/config.yml');
+if (exists('./conf/config.yml')) cfg = yml.read('./conf/config.yml');
 else {
 	console.log('Missing config. Creating file and generating new site secret value.');
 	cfg = yml.read('./install/default.yml');
-	let hash = crypto.createHash('sha256');
-	hash.update(Math.random().toString());
-	cfg.site.secret = hash.digest('hex');
+	cfg.site.secret = crypto.createHash('sha256').update(Math.random().toString()).digest('hex');
 	yml.write('./conf/config.yml',cfg);
 }
 	
@@ -75,14 +83,14 @@ if (!cfg.database) return pgp.end(),console.log('Unable to load database configu
 var sql = (file) => pgp.QueryFile(file,{debug: true, minify: false}),
 	db = pgp(cfg.database);
 
-if (!fs.existsSync('./conf/installed') || yn.test(prompt('Do you want to configure the database? (y/n): '))) {
+if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the database? (y/n): '))) {
 	let secret,
 	versions = fs.readdirSync('./install').filter((cur)=>{ 
 		let c = cur.split('/'), ver = /update\.(\d+\.\d+\.\d+)\.sql$/.exec(c[c.length-1]);
 		if (ver !== null) console.log(VERSION.stale,ver[1],updatable(VERSION.stale,ver[1]));
 		return (ver !== null && updatable(VERSION.stale,ver[1])); 
 	});
-	if (fs.existsSync('./conf/installed') && versions.length) {
+	if (exists('./conf/installed') && versions.length) {
 		if (yn.test(prompt('Updates are available. Would you like to update the site database? (y/n): '))) {
 			let done = false;
 			db.tx((self)=>{
@@ -99,8 +107,8 @@ if (!fs.existsSync('./conf/installed') || yn.test(prompt('Do you want to configu
 		}
 		cfg.version = VERSION.fresh;
 	}
-	else if (!fs.existsSync('./conf/installed') || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
-		if (fs.existsSync('./conf/installed')) {
+	else if (!exists('./conf/installed') || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
+		if (exists('./conf/installed')) {
 			console.log('These operations are destructive. Please eneter the site secret from the config file to continue: ');
 			if (prompt('Secret: ',/\w+/) != cfg.site.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
 			console.log('Secret matched. Proceeding.');
@@ -160,11 +168,16 @@ if (!fs.existsSync('./conf/installed') || yn.test(prompt('Do you want to configu
 
 cfg.site.name = prompt("What do you want the site's name to be? (Leave empty for existing value): ") || cfg.site.name;
 
-for (var key in dcfg.options) if (dcfg.options.hasOwnProperty(key)) {
-	if (!cfg.options.hasOwnProperty(key))
-		cfg.options[key] = dcfg.options[key];
+function consolidateKeys(stale,fresh) {
+	for (var key in dcfg.options) if (dcfg.options.hasOwnProperty(key)) {
+		if (!cfg.options.hasOwnProperty(key))
+			cfg.options[key] = dcfg.options[key];
+		else if (typeof dcfg.options[key] === 'object' && !(dcfg.options[key] instanceof Array))
+			consolidateKeys(cfg.options[key],dcfg.options[key]);
+	}
 }
-if (yn.test(prompt('Do you want to configure the additional options available for the app? (y/n): '))) {
+consolidateKeys(cfg,dcfg);
+if (yn.test(prompt('Do you want to configure the additional boolean options available for the app? (y/n): '))) {
 	console.log('Answer the following questions with either a yes or no. (y/n is fine as well)');
 	let questions = yml.read('./install/options.yml'), options = dcfg.options, missed = [];
 	for (var key in options) { if (options.hasOwnProperty(key)) { 

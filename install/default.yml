@@ -1,7 +1,8 @@
 version: 0.0.1
+port: 3000
 site:
-  name: Tauchan Instance
-  secret: thiswillbegeneratedwhenyouruntheappinstallation
+  name: Tauchan Imageboard
+  secret: this_will_be_generated_when_you_run_the_app_installation
   devmode: true
 database:
   host: localhost
@@ -14,4 +15,6 @@ options:
   disable_usermade_boards: false
   reserve_single_char_boards: true
   require_valid_email: false
-  email_field: true
+values:
+  max_upload_size_in_kb: 8096
+  cdn_domain: localhost

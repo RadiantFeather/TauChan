@@ -1,32 +1,37 @@
 view:
   thread: '
-    WITH page AS SELECT fetch_page(${board},${thread})
-    SELECT x.*, page FROM (
+    WITH page AS (SELECT fetch_page(${board},${thread}) AS page)
+    SELECT x.*, page.page FROM (
       SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, 
-      (p.post = t.op) AS is_op, cl.localstamp, cl.globalstamp, fetch_media(p.board,p.post) AS media
-      fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, t.archived,
-      mask_ip(p.ip,p.board) AS ip_mask, mask_ip(p.ip,p.board,${salt}) AS ip_hash
+        (p.post = t.op) AS is_op, cl.localstamp, cl.globalstamp, fetch_media(p.board,p.post) AS media,
+        fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, t.archived,
+        mask_ip(p.ip::CIDR,p.board) AS ipmask, mask_ip(p.ip::CIDR,p.board,${salt}) AS longhash,
+        substring(mask_ip(p.ip::CIDR,p.board,${salt}) FROM 1 FOR 16) AS shorthash
       FROM threads t, (posts p 
         LEFT OUTER JOIN cites c USING (board,post))
         LEFT OUTER JOIN clean cl USING (board,post)
       WHERE p.board = ${board} AND p.thread = ${thread} AND t.board = p.board AND t.op = p.thread 
       ORDER BY (p.post = t.op) DESC, p.posted DESC 
       LIMIT ${limit} + 1
-    ) x 
+    ) x, page
     ORDER BY is_op DESC, posted ASC;
   '
 
   catalog: '
-    WITH board AS (SELECT threadlimit FROM boards WHERE board = ${board})
     SELECT t.*, (SELECT COUNT(1) FROM posts p WHERE p.board = t.board AND p.thread = t.op AND p.post <> t.op) AS replies,
-      (SELECT COUNT(1) FROM media m WHERE m.board = t.board AND m.thread = t.op) AS images,
-      COUNT(1) FILTER (WHERE t.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + 1 AS page
+    (SELECT COUNT(1) FROM media m WHERE m.board = t.board AND m.thread = t.op) AS images,
+    COUNT(1) FILTER (WHERE t.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + 1 AS page
     FROM (
-      SELECT t.*, p.markdown AS markup, p.subject, m.loc AS image, COUNT(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n
-      FROM threads t LEFT OUTER JOIN media m ON (m.board = t.board AND m.post = t.op AND m.sort = 0), board b, posts p
+      SELECT t.*, p.markdown, p.subject, m.thumb, m.nsfw, m.deleted,
+        COUNT(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n
+      FROM threads t LEFT OUTER JOIN LATERAL (
+        SELECT * FROM media
+        WHERE thread = t.op AND board = t.board
+        ORDER BY deleted ASC, sort ASC LIMIT 1
+      ) AS m ON (thread = t.op AND m.board = t.board), posts p 
       WHERE t.board = ${board} AND p.post = t.op
         AND p.board = t.board AND t.archived IS NULL
-      ORDER BY pinned DESC, sticky DESC, bumped DESC
+      ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC
       LIMIT ${limit}
     ) t;
   '
@@ -38,8 +43,8 @@ view:
         COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
         COUNT(1) OVER (PARTITION BY p.thread) - 1 AS total,
         p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw, c.targets AS cites,
-        cl.localstamp, cl.globalstamp, (p.post = t.op) AS is_op, mask_ip(p.ip::CIDR,p.board) AS ipmask, mask_ip(p.ip::CIDR,p.board,${salt}) AS longhash
-        fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media, substring(mask_ip(p.ip::CIDR,p.board,${salt}) FROM 1 TO 16) AS shorthash
+        cl.localstamp, cl.globalstamp, (p.post = t.op) AS is_op, mask_ip(p.ip::CIDR,p.board) AS ipmask, mask_ip(p.ip::CIDR,p.board,${salt}) AS longhash,
+        fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media, substring(mask_ip(p.ip::CIDR,p.board,${salt}) FROM 1 FOR 16) AS shorthash
       FROM threads t, (posts p 
         LEFT OUTER JOIN cites c USING (board,post))
         LEFT OUTER JOIN clean cl USING (board,post)

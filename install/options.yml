@@ -1,4 +1,5 @@
-hash_ip_mask: 'Should the IP mask be hashed for all board managers?'
+hash_ip_mask: 'Should the IP mask be hashed for unauthorized board managers?'
 disable_usermade_boards: 'Restrict board creation to global managers only?'
-reserve_single_char_boards: 'Reserve single character board creation (like /a/ and /x/) for global managers?'
+reserve_single_char_boards: 'Prevent users from claiming single character boards (like /a/ and /x/)?'
 require_valid_email: 'Require a validated email for a user to create a board?'
+external_cdn: 'Do you have or are you going to setup an external CDN on a subdomain of this site?'

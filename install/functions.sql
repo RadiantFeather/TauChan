@@ -39,7 +39,7 @@ END;$$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION fetch_media(_board VARCHAR(32), _post INTEGER) RETURNS JSON AS $$
 DECLARE target RECORD; rv JSON[];
 BEGIN
-	FOR target IN SELECT loc,thumb,mediatype,nsfw,uploadname FROM media WHERE board = _board AND post = _post ORDER BY sort ASC LOOP
+	FOR target IN SELECT * FROM media WHERE board = _board AND post = _post ORDER BY sort ASC LOOP
 		rv := rv || target::JSON;
 	END LOOP;
 	RETURN array_to_json(rv);
@@ -117,7 +117,7 @@ CREATE OR REPLACE VIEW post AS
 CREATE OR REPLACE FUNCTION post() RETURNS TRIGGER AS $$
 DECLARE b RECORD; m RECORD; h JSONB; i BIGINT;
 BEGIN
-	SELECT bumplimit,threadlimit,postlimit,noname,archivethreads INTO b FROM boards WHERE board = NEW.board;
+	SELECT bumplimit,threadlimit,postlimit,noname,archivethreads,archivedlifespan INTO b FROM boards WHERE board = NEW.board;
 	SELECT nextval(concat_ws('_',NEW.board,'post','seq')) INTO NEW.post;
 	IF (NEW.thread IS NULL) THEN NEW.thread := NEW.post; END IF;
 	IF (NEW.name = '') THEN NEW.name := NULL; END IF;
@@ -155,7 +155,18 @@ BEGIN
 	END IF;
 	
 	IF (b.archivethreads IS TRUE) THEN
-		UPDATE threads SET archived = NOW() WHERE op IN ( --Archive threads that have fallen past the board thread limit
+		DELETE FROM posts p USING threads t --Delete threads that have expired past their archived lifespan
+		WHERE p.post = p.thread AND p.post = t.op 
+			AND t.archived IS NOT NULL AND NEW.posted - t.archived > b.archivedlifespan;
+		UPDATE threads SET archived = NEW.posted WHERE op IN ( --Archive threads that have fallen past the board thread limit
+			SELECT op FROM threads
+			WHERE board = NEW.board
+			ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
+			OFFSET b.threadlimit
+		);
+	ELSE 
+		DELETE FROM posts p USING threads t --Delete threads that have fallen past the board thread limit
+		WHERE p.post IN (
 			SELECT op FROM threads
 			WHERE board = NEW.board
 			ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
@@ -168,8 +179,8 @@ BEGIN
 		UPDATE boards SET bumped = NEW.posted WHERE board = NEW.board; --Update recent post bump for board
 	END IF;
 	IF (NEW.media IS NOT NULL) THEN
-		FOR m IN SELECT * FROM json_to_recordset(NEW.media) AS _(hash TEXT, board VARCHAR(32), thread INTEGER, post INTEGER, nsfw BOOLEAN, loc TEXT) LOOP
-			INSERT INTO media (hash,board,thread,post,nsfw,loc) VALUES (m.hash,m.board,m.thread,m.post,m.nsfw,m.loc);
+		FOR m IN SELECT * FROM json_to_recordset(NEW.media) AS _(hash TEXT, board VARCHAR(32), thread INTEGER, post INTEGER, nsfw BOOLEAN, src TEXT, thumb TEXT, meta JSON) LOOP
+			INSERT INTO media (hash,board,thread,post,nsfw,src,thumb,meta) VALUES (m.hash,m.board,m.thread,m.post,m.nsfw,m.src,m.thumb,m.meta);
 		END LOOP;
 	END IF;
 	IF (NEW.cites IS NOT NULL) THEN
@@ -192,8 +203,8 @@ CREATE TRIGGER post
 CREATE OR REPLACE FUNCTION check_media(_board VARCHAR(32), _thread INTEGER, _hashes JSONB) RETURNS VOID AS $$
 DECLARE found_hash TEXT; b RECORD; i BIGINT;
 BEGIN
-	SELECT imagelimit,imageuploadlimit,perthreadunique INTO b FROM boards WHERE board = _board;
-	SELECT hash INTO found_hash FROM media WHERE board = _board AND ((b.perthreadunique AND thread = _thread) OR TRUE) AND _hashes ? hash LIMIT 1;
+	SELECT imagelimit,mediauploadlimit,perthreadunique INTO b FROM boards WHERE board = _board;
+	SELECT hash INTO found_hash FROM media WHERE board = _board AND ((b.perthreadunique IS TRUE AND thread = _thread) OR b.perthreadunique IS FALSE) AND _hashes ? hash LIMIT 1;
 	SELECT COUNT(1) INTO i FROM media WHERE board = _board AND thread = _thread;
 	IF (jsonb_array_length(_hashes,1) > 0 AND i + jsonb_array_length(_hashes,1) > b.imagelimit) THEN 
 		RAISE check_violation	--Validate thread image limit
@@ -206,7 +217,7 @@ BEGIN
 			DETAIL = 'Duplicate image found.',
 			HINT = found_hash,
 			CONSTRAINT = 'duplicate_image_found';
-	ELSIF (jsonb_array_length(_hashes,1) > 0 AND jsonb_array_length(_hashes,1) > b.imageuploadlimit) THEN
+	ELSIF (jsonb_array_length(_hashes,1) > 0 AND jsonb_array_length(_hashes,1) > b.mediauploadlimit) THEN
 		RAISE check_violation
 			USING MESSAGE = 'Media upload failed.',
 			DETAIL = 'Uploaded image count exceeds allowed amount.',
@@ -293,10 +304,10 @@ END;$$ LANGUAGE plpgsql;
 -------------------------------------------
 -- Function for determining the page a thread is located on.
 --
-CREATE OF REPLACE FUNCTION fetch_page(_board VARCHAR(32), _thread INTEGER) RETURNS SMALLINT AS $$
+CREATE OR REPLACE FUNCTION fetch_page(_board VARCHAR(32), _thread INTEGER) RETURNS SMALLINT AS $$
 DECLARE r RECORD;
 BEGIN
-	SELECT COUNT(1) FILTER (WHERE t.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + 1 AS page INTO r FROM (
+	SELECT COUNT(1) FILTER (WHERE x.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + 1 AS page INTO r FROM (
 		SELECT t.op, COUNT(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n 
 		FROM threads t WHERE t.board = _board AND t.archived IS NULL
 		ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC, t.op DESC
