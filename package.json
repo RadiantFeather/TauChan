@@ -2,7 +2,7 @@
   "name": "TauChan",
   "version": "0.0.1",
   "description": "The next generation image board platform",
-  "author": "The TauChan Team <tauchan@sugar.horse>",
+  "author": "The TauChan Team <tauchan@pink.horse>",
   "contributors": [
     {
       "name": "Xaekai",
@@ -27,12 +27,13 @@
   },
   "dependencies": {
     "bluebird": "^3.3.3",
-    "cookie-parser": "latest",
+    "cookie": "latest",
+	"cookie-parser": "latest",
     "deasync": "^0.1.4",
     "easyimage": "^2.1.0",
     "express": "latest",
     "fluent-ffmpeg": "^2.0.1",
-    "jade": "latest",
+    "pug": "latest",
     "multer": "latest",
     "pg-promise": "latest",
     "read-yaml": "latest",
@@ -40,7 +41,9 @@
     "request": "latest",
     "socket.io": "latest",
     "socket.io-client": "latest",
-    "write-yaml": "latest"
+    "write-yaml": "latest",
+	"node-html-encoder": "latest",
+	"express-session": "latest"
   },
   "license": "MIT"
 }

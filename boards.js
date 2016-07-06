@@ -4,8 +4,6 @@ var fs = require('fs'),
 	// socket = require('socekt.io'),
 	deasync = require('deasync'),
 	// cache = require('redis'),
-	// tpl = require('jade'),
-	// yml = {read: require('read-yaml'), write: require('write-yaml')},
 	pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
 	db = pgp(GLOBAL.cfg.database),
 	handlers = {},
@@ -19,7 +17,7 @@ var fs = require('fs'),
 				cb(null, 'cache/uploads/');
 			},
 			filename: (req, file, cb) => {
-				cb(null, Date.now() + '.' + file.originalname.split('.')[file.originalname.split('.').length-1]);
+				cb(null, Date.now() + '.' + file.originalname);
 			}
 		})
 		,files: 4
@@ -31,30 +29,47 @@ var fs = require('fs'),
  */
 
 _.index = function(req,res,next) { 	// board index
-	// res.send('Index: '+ req.params.board);
 	db.any(GLOBAL.sql.view.board_index, {
 		board: req.params.board,
 		page: req.query.page ? parseInt(req.query.page) : 0,
-		salt: req.app.locals.cfg.site.secret
+		salt: GLOBAL.cfg.site.secret
 	}).then((data)=>{
 		res.render('threads.jade',{
 			board: res.locals.board,
 			user: res.locals.user,
 			data: data,
 			cdn: res.locals.cdn,
-			sitename: req.app.locals.cfg.site.name,
-			page: {type:'index',param:''}
+			sitename: GLOBAL.cfg.site.name,
+			page: {type:'index',param:'index'}
 		});
 		// res.send(data);
 	}).catch((err)=>{
-		console.log(err);
+		res.status(500);
+		return next(err);
+	});
+};
+
+_.archive = function(req,res,next) {	// archive view
+	db.any(GLOBAL.sql.view.archive, {
+		board: req.params.board,
+		page: req.query.page ? parseInt(req.query.page) : 0,
+		salt: GLOBAL.cfg.site.secret
+	}).then((data)=>{
+		res.render('threads.jade',{
+			board: res.locals.board,
+			user: res.locals.user,
+			data: data,
+			cdn: res.locals.cdn,
+			sitename: GLOBAL.cfg.site.name,
+			page: {type:'index',param:'archive'}
+		});
+	}).catch((err)=>{
 		res.status(500);
 		return next(err);
 	});
 };
 
 _.thread = function(req,res,next) {	// thread view
-	// res.send('Thread: '+ req.params.board +'/'+ req.params.page);
 	db.any(GLOBAL.sql.view.thread, {
 		board: req.params.board,
 		thread: parseInt(req.params.page),
@@ -70,16 +85,13 @@ _.thread = function(req,res,next) {	// thread view
 			sitename: GLOBAL.cfg.site.name,
 			page: {type:(data[0].archived===null?'thread':'archive'),param:req.params.page}
 		});
-		// res.send(data);
 	}).catch((err)=>{
-		console.log(err);
 		res.status(404);
 		return next(err);
 	});
 };
 
 _.catalog = function(req,res,next) {
-	// res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
 	db.any(GLOBAL.sql.view.catalog, {
 		board: req.params.board,
 		limit: res.locals.board.threadlimit
@@ -95,14 +107,12 @@ _.catalog = function(req,res,next) {
 			page: {type:'catalog',param:'catalog'}
 		}); 
 	}).catch((err)=>{
-		console.log(err);
 		res.status(500);
 		return next(err);
 	});
 };
 
 _.pages = function(req,res,next) { // custom board pages
-	// res.send('Custom Page: '+ req.params.board +'/'+ req.params.page);
 	db.one(GLOBAL.sql.view.custom, req.params).then((data)=>{
 		res.render('custom.jade',{
 			board: res.locals.board,
@@ -112,7 +122,6 @@ _.pages = function(req,res,next) { // custom board pages
 			page: {type:'custom',param:req.params.page}
 		});
 	}).catch((err)=>{
-		console.log(err);
 		res.status(404);
 		return next(err);
 	});
@@ -155,31 +164,42 @@ _.index = _.catalog = function(req,res,next) { // New thread
 
 _.thread = function(req,res,next) { // New reply to thread
 	parseUpload.any()(req,res,(err)=>{
-		res.locals.trackfiles = req.files.reduce((a,b)=>{return a.push(b.path);},[]);
+		res.locals.trackfiles = [];
+		if (req.files) req.files.forEach((item)=>{res.locals.trackfiles.push(item.path);});
+		console.log('trackable',res.locals.trackfiles);
 		if (err) return next(err);
-		
 		if (req.files.reduce((a,b)=>{ return a+b.size;},0) > (GLOBAL.cfg.values.max_upload_size_in_kb * 1024))
 			return next(new Error('Files size exceeds the maximum upload size limit.'));
-		
-		let post = {};
-		post.media = GLOBAL.lib.processPostMedia(req,res,next);
-		// if (post.media.length > res.locals.board.mediauploadlimit)
-			// return next(new Error('File count exceeds the board\'s media upload limit.'));
-		// let done = null;
-		// db.none('SELECT check_media($[board],$[thread],$[hashes]::JSONB);',{
-			// board: req.params.board,
-			// thread: req.params.page,
-			// hashes: pgp.as.json(post.media.reduce((a,b)=>{return a.push(b.hash);},[]));
-		// }).then((data)=>{done = true;}).catch((err)=>{
-			// console.log(err)
-			// res.status(500);
-			// next(err);
-			// done = false;
-		// });
-		// while(done===null)deasync.runLoopOnce();
-		// if(done===false) return next('Uncaught Error Occurred.');
-		
-		res.send('Check console.');
+		let post = {}, parts = ['name', 'trip', 'capcode', 'subject','email'];
+		parts.forEach((part)=>{ post[part] = req.body[part]!==undefined?req.body[part]:null; });
+		post.board = req.params.board;
+		post.thread = pgp.as.number(parseInt(req.params.page));
+		post.ip = req.ip;
+		post.sage = pgp.as.bool(!!req.body.sage);
+		if (post.name && post.name.indexOf('#') != -1){
+			req.body.trip = post.name.substr(post.name.indexOf('#')+1);
+			post.name = post.name.splice(0,post.name.indexOf('#'));
+			if (!req.body.trip || (req.body.trip.indexOf('#') != -1 && req.body.trip.length < 2))
+				req.body.trip = null;
+			post.trip = GLOBAL.lib.processTrip(req,res,next);
+			if (post.trip && post.trip.indexOf(' ## ') == 0) {
+				post.capcode = post.trip;
+				post.trip = null;
+			}
+		}
+		post.markdown = req.body.markdown = GLOBAL.lib.processMarkdown(req,res,next);
+		post.markup = GLOBAL.lib.processMarkup(req,res,next);
+		post.media = pgp.as.json(GLOBAL.lib.processPostMedia(req,res,next));
+		post.cites = pgp.as.json((post.markdown.match(/(?:^| |\n)>>\d+(?:$| |\n)/g)||[]).forEach((item,i,arr)=>{
+			arr[i] = [post.board,post.page,item.trim().substr(2)].join('/');
+		}));
+		db.one(GLOBAL.sql.modify.new_reply,post).then((data)=>{
+			console.log('Success.');
+			res.redirect('/'+data.board+'/'+data.thread+'#'+data.post);
+		}).catch((err)=>{
+			res.status(500);
+			return next(err);
+		});
 	});
 };
 

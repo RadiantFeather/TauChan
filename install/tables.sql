@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS posts (
 	thread INTEGER,
 	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
 	posted TIMESTAMP NOT NULL DEFAULT NOW(),
-	ip INET NOT NULL DEFAULT '::',
+	ip INET NOT NULL,
 	edited TIMESTAMP,
 	name VARCHAR(32),
 	trip VARCHAR(16),
@@ -75,93 +75,6 @@ CREATE INDEX post_threads ON posts (thread);
 CREATE INDEX post_times ON posts (posted);
 CREATE VIEW recent_posts AS SELECT * FROM posts 
 	WHERE posted >= NOW() - '1 hour'::INTERVAL OFFSET 0; -- Yes this works
-/*
-WITH _ AS (SELECT * FROM (VALUES (?::TEXT,?::INET,?::INT,?::INT)) AS _(board,ip,limit,page))
-SELECT p.* FROM posts p, _
-	WHERE board = _.board AND ip = _.ip
-	ORDER BY posted DESC
-	LIMIT _.limit OFFSET _.page * _.limit + _.limit;
-	--Post History View (unverified) CALLWITH (board.id, user.ip, search.limit, search.page)
-	
-WITH _ AS (SELECT * FROM (VALUES (?,?,?)) AS _(board,limit,page))
-SELECT p.* FROM posts p, _
-	WHERE p.board = _.board ORDER BY posted DESC
-	LIMIT _.limit OFFSET _.limit * _.page + _.limit;
-	--Recent Posts View (unverified) CALLWITH (board.id, search.limit, search.page)
-	
-SELECT x.* 
-	FROM (
-		SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, 
-			(p.post = t.op) AS is_op, cl.local AS local_clean, cl.global AS global_clean, 
-			fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, 
-			fetch_media(p.board,p.post) AS media
-		FROM posts p, threads t , clean cl, cites c,
-		WHERE p.board = ? AND t.board = p.board AND p.thread = ? AND t.op = p.thread
-			AND cl.board = p.board AND cl.post = p.post AND c.board = p.board AND c.post = p.post
-		ORDER BY (p.post = t.op) DESC, p.posted DESC;
-		LIMIT ? + 1
-	) x
-	ORDER BY x.is_op DESC, x.posted ASC;
-	--Thread view (verified) CALLWITH (board.id, thread.id, search.replylimit)
-	
-WITH _ AS (SELECT board, stickylimit, cyclelimit, lockedlimit, standardlimit, ?::INTEGER AS page FROM boards WHERE board = ?)
-SELECT x.*
-	FROM (
-		--Fetch Raw Data
-		SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post ASC) AS m, --Enumerate the correct post order per thread
-			COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n, --Enumerate the threads
-			p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw, c.targets AS cites,
-			cl.local AS local_clean, cl.global AS global_clean, (p.post = t.op) AS is_op,
-			fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media
-		FROM posts p, threads t, cites c, clean cl, _
-		WHERE p.board = _.board AND t.board = p.board AND p.thread = t.op 
-			AND c.board = p.board AND c.post = p.post AND t.archived IS NULL
-			AND cl.board = p.board AND cl.post = p.post
-		ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC --Proper sorting
-	) x, _
-	WHERE (
-		(x.pinned AND x.m <= _.pinnedlimit + 1) --Filter threads for preview limit values
-		OR (x.sticky AND x.m <= _.stickylimit + 1) 
-		OR (x.cycle AND x.m <= _.cyclelimit + 1)
-		OR (x.locked AND x.m <= _.lockedlimit + 1)
-		OR x.m <= _.standardlimit + 1
-		) AND x.n > (_.page * 10) AND x.n <= (_.page * 10) + 10; --LIMIT + OFFSET filter proxy
-	--Index View (unverified) CALLWITH (search.page, board.id)
-	
-WITH _ AS (SELECT board, archivedlimit, archivedlifespan, ? AS page FROM boards WHERE board = ?)
-SELECT x.*
-	FROM (
-		--Fetch Raw Data
-		SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post DESC) AS m, --Enumerate the correct post order per thread
-			COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n, --Enumerate the threads
-			p.*, t.archived, t.bumped, (p.post = t.op) AS is_op, FETCH_media(p.board,p.post) as media
-		FROM posts p, threads t, _
-		WHERE p.board = _.board AND p.thread = t.op AND t.archived < NOW() - _.archivedlifespan
-		ORDER BY t.archived DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC --Proper sorting
-	) x, _
-	WHERE (x.m <= _.archivedlimit + 1) --Filterd threads for archived preview limit
-	AND x.n > (_.page * 10) AND x.n <= (_.page * 10) + 10; --LIMIT + OFFSET filter proxy
-	--Archive View (unverified) CALLWITH (search.page, board.id)
-	
-UPDATE posts SET archived = NOW()
-	WHERE thread IN (
-		WITH _ AS (SELECT board, threadlimit FROM boards WHERE board = ?)
-		SELECT t.op FROM threads t, _
-		WHERE t.board = _.board
-		ORDER BY t.sticky DESC, t.anchor DESC, t.bumped DESC, t.op DESC
-		OFFSET _.threadlimit
-	);
-	--Vaccuum threads (needs reverified) CALLWITH (board.id)
-	
-DELETE FROM posts
-	WHERE thread IN (
-		WITH _ AS (SELECT board, archivedlimit, perpagelimit FROM boards WHERE b.board = ?)
-		SELECT t.op FROM threads t, _
-		WHERE t.board = _.board AND t.archived IS NOT NULL AND t.archived < NOW() - _.archivedlifespan
-	)
-	RETURNING *;
-	--Vaccuum archive (unverified) CALLWITH (board.id)
-*/
 
 CREATE TABLE IF NOT EXISTS threads (
 	op INTEGER,
@@ -180,19 +93,6 @@ CREATE TABLE IF NOT EXISTS threads (
 		ON DELETE CASCADE ON UPDATE CASCADE
 );
 CREATE INDEX catalog_sort ON threads (board, pinned, sticky, cycle, bumped);
-/*
-WITH _ AS (SELECT board, threadlimit FROM boards WHERE board = ?)
-SELECT t.*, (SELECT COUNT(1) FROM posts p WHERE p.board = t.board AND p.thread = t.op AND p.post <> t.op) AS replies,
-	(SELECT COUNT(1) FROM media m WHERE m.board = t.board AND m.thread = t.op) AS images,
-	COUNT(1) FILTER (WHERE x.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS page --Enumerate the pages
-	FROM (
-		SELECT *,COUNT(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) - 1 AS n --Enumerate the threads
-		FROM threads t, _ WHERE t.board = _.board AND t.archived IS NULL
-		ORDER BY pinned DESC, sticky DESC, bumped DESC
-		LIMIT _.threadlimit
-	) t;
-	--Catalog view (needs reverified) CALLWITH (board.id)
-*/
 
 CREATE TABLE IF NOT EXISTS cites (
 	board VARCHAR(32) NOT NULL,
@@ -227,6 +127,7 @@ CREATE INDEX media_hash ON media (hash);
 CREATE TABLE IF NOT EXISTS users (
 	id SERIAL PRIMARY KEY,
 	username VARCHAR(32) NOT NULL UNIQUE,
+	screenname VARCHAR(32),
 	passphrase VARCHAR(64) NOT NULL,
 	email TEXT UNIQUE,
 	validated BOOLEAN NOT NULL DEFAULT FALSE,
@@ -234,24 +135,26 @@ CREATE TABLE IF NOT EXISTS users (
 	token TEXT UNIQUE
 );
 
-INSERT INTO users VALUES (0,'SYSTEM','','',TRUE); --Passphrase-less user for system driven database operations that require a user
+INSERT INTO users VALUES (0,'','SYSTEM','','',TRUE,TRUE,NULL); --Passphrase-less user for system driven database operations that require a user
 
-CREATE TABLE IF NOT EXISTS flags (
+CREATE TABLE IF NOT EXISTS roles (
 	role VARCHAR(16) NOT NULL,
 	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
 	flags JSONB NOT NULL DEFAULT '{}',
+	capcode TEXT NOT NULL,
 	PRIMARY KEY (role, board)
 );
 
-CREATE TABLE IF NOT EXISTS roles (
+CREATE TABLE IF NOT EXISTS assign (
 	id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
 	board VARCHAR(32) NOT NULL,
 	role VARCHAR(16) NOT NULL,
-	FOREIGN KEY (board,role) REFERENCES flags (board,role) ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (board,role) REFERENCES roles (board,role) ON DELETE CASCADE ON UPDATE CASCADE,
 	UNIQUE (id, board)
 );
 /*
-SELECT users.*,roles.role FROM users,roles WHERE roles.user = users.id AND roles.board = ?
+SELECT u.*,r.flags,r.capcode FROM fetch_user(${user},${pass}) u, assign a, roles r 
+WHERE u.id = a.id AND r.board = ${board} AND r.board = a.board AND r.role = a.role;
 */
 
 CREATE TABLE IF NOT EXISTS bans (
@@ -260,12 +163,13 @@ CREATE TABLE IF NOT EXISTS bans (
 	created TIMESTAMP NOT NULL DEFAULT NOW(),
 	expires INTERVAL NOT NULL CHECK (expires >= '0'),
 	creator INTEGER NOT NULL DEFAULT 0 REFERENCES users (id) ON DELETE SET DEFAULT,
-	reason TEXT NOT NULL DEFAULT 'No Reason Given',
+	reason VARCHAR(128) NOT NULL DEFAULT 'No Reason Given',
 	seen BOOLEAN NOT NULL DEFAULT FALSE,
 	post JSON,
 	PRIMARY KEY (ip, board),
 	FOREIGN KEY (board) REFERENCES boards (board) ON DELETE CASCADE ON UPDATE CASCADE,
-	CONSTRAINT ip_is_banned EXCLUDE USING GIST (ip WITH &&) WHERE (board = board OR board = '_') --Reject bans that are already contained by a range ban (including global bans)
+	CONSTRAINT ip_is_banned EXCLUDE USING GIST (ip WITH &&) WHERE (board = board OR board = '_') 
+	-- ^ Reject bans that are already contained by a range ban (including global bans)
 );
 CREATE INDEX ON bans USING GIST (ip);
 
@@ -303,8 +207,8 @@ CREATE TABLE IF NOT EXISTS reports (
 	board VARCHAR(32) NOT NULL DEFAULT '_',
 	created TIMESTAMP NOT NULL DEFAULT NOW(),
 	post INTEGER NOT NULL,
-	dismissed BOOLEAN DEFAULT FALSE,
-	reason VARCHAR(128) NOT NULL DEFAULT 'Unspecified Reason.',
+	dismissed TIMESTAMP,
+	reason VARCHAR(128) NOT NULL DEFAULT 'No reason given.',
 	FOREIGN KEY (board, post) REFERENCES posts (board, post) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -313,7 +217,7 @@ CREATE INDEX report_ips ON reports USING GIST (ip);
 SELECT r.post, r.created, r.reason, to_json(p) AS content,
 	FROM posts p, reports r
 	WHERE p.board = ? AND p.board = r.board AND p.post = r.post
-		AND r.dismissed IS FALSE
+		AND r.dismissed IS NULL
 	ORDER BY p.post ASC, r.created ASC;
 	--Reports View (unverified) CALLWITH (board.id)
 */
@@ -344,10 +248,9 @@ CREATE TABLE IF NOT EXISTS news (
 	created TIMESTAMP NOT NULL DEFAULT NOW(),
 	edited TIMESTAMP,
 	title VARCHAR(64),
-	markdown VARCHAR(2048),
+	markdown VARCHAR(4096),
 	markup TEXT
 );
-
 
 CREATE TABLE IF NOT EXISTS clean (
 	board VARCHAR(32) NOT NULL,
@@ -365,7 +268,7 @@ CREATE TABLE IF NOT EXISTS pages (
 	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE,
 	page VARCHAR(16) NOT NULL,
 	title VARCHAR(32),
-	markdown VARCHAR(2048),
+	markdown VARCHAR(4096),
 	markup TEXT,
 	PRIMARY KEY (board, page)
 );

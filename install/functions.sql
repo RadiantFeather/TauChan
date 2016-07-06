@@ -6,6 +6,16 @@ DECLARE r BOOLEAN;
 BEGIN
 	IF (TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND NEW.passphrase IS NOT NULL AND OLD.passphrase = crypt(NEW.passphrase, OLD.passphrase))) THEN
 		NEW.passphrase := crypt(NEW.passphrase,gen_salt('crypt-md5'));
+	ELSIF (NEW.passphrase IS NULL) THEN
+		RAISE not_null_violation
+			USING MESSAGE = 'Passphrase is required.',
+			DETAIL = 'Passphrase was empty or invalid.',
+			CONSTRAINT = 'missing_passphrase';
+	ELSE
+		RAISE check_violation
+			USING MESSAGE = 'New passphrase failed.',
+			DETAIL = 'Passphrase mismatched or is invalid.',
+			CONSTRAINT = 'invalid_passphrase';
 	END IF;
 END;$$ LANGUAGE plpgsql;
 
@@ -17,7 +27,11 @@ CREATE TRIGGER hash_password
 CREATE OR REPLACE FUNCTION fetch_user(_user VARCHAR(32), _pass VARCHAR(64)) RETURNS RECORD AS $$
 DECLARE r RECORD;
 BEGIN
-	SELECT * INTO r FROM users WHERE username = _user AND (passphrase = crypt(_pass, passphrase));
+	IF (_pass IS NOT NULL) THEN
+		SELECT * INTO r FROM users WHERE username = _user AND (passphrase = crypt(_pass, passphrase));
+	ELSE
+		SELECT * INTO r FROM users WHERE token = _user;
+	END IF;
 	RETURN r;
 END;$$ LANGUAGE plpgsql;
 
@@ -86,7 +100,7 @@ CREATE OR REPLACE FUNCTION board_seq() RETURNS TRIGGER AS $$
 DECLARE temp BIGINT;
 BEGIN
 	IF (TG_OP = 'INSERT') THEN
-		EXECUTE format('CREATE SEQUENCE %I MINVALUE 1 OWNED BY boards.board',concat_ws('_',NEW.board,'post','seq'));
+		EXECUTE format('CREATE SEQUENCE %I MINVALUE 1',concat_ws('_',NEW.board,'post','seq'));
 		RETURN NEW;
 	ELSIF (TG_OP = 'DELETE') THEN
 		EXECUTE format('DROP SEQUENCE IF EXISTS %I',concat_ws('_',OLD.board,'post','seq'));
@@ -115,7 +129,7 @@ CREATE OR REPLACE VIEW post AS
 	FROM posts p, threads t, (VALUES ('1'::JSON,'1'::JSONB)) AS _(media,cites);
 	
 CREATE OR REPLACE FUNCTION post() RETURNS TRIGGER AS $$
-DECLARE b RECORD; m RECORD; h JSONB; i BIGINT;
+DECLARE b RECORD; m RECORD; n RECORD; h JSONB; i BIGINT;
 BEGIN
 	SELECT bumplimit,threadlimit,postlimit,noname,archivethreads,archivedlifespan INTO b FROM boards WHERE board = NEW.board;
 	SELECT nextval(concat_ws('_',NEW.board,'post','seq')) INTO NEW.post;
@@ -137,8 +151,10 @@ BEGIN
 			CONSTRAINT = 'thread_reply_limit_reached';
 	END IF;
 	
-	INSERT INTO posts(post, thread, board, posted, ip, name, trip, subject, email, capcode, markdown, markup) VALUES
-		(NEW.post, NEW.thread, NEW.board, NEW.posted, NEW.ip, NEW.name, NEW.trip, NEW.subject, NEW.email, NEW.capcode, NEW.markdown, NEW.markup);
+	INSERT INTO posts(post, thread, board, posted, ip, name, trip, subject, email, capcode, markdown, markup) VALUES (
+		NEW.post, NEW.thread, NEW.board, NEW.posted, NEW.ip, NEW.name, NEW.trip, 
+		NEW.subject, NEW.email, NEW.capcode, NEW.markdown, NEW.markup
+	);
 	
 	IF (NEW.post = NEW.thread) THEN
 		IF (NEW.pinned IS TRUE) THEN	--Only one pinned thread allowed per board and pinned thread must be a sticky
@@ -147,11 +163,13 @@ BEGIN
 		END IF;
 		INSERT INTO threads (op,board,bumped,pinned,sticky,anchor,cycle,locked,sage,nsfw) 
 			VALUES (NEW.thread, NEW.board, NEW.posted, 
-			coalesce(new.pinned,FALSE), coalesce(NEW.sticky,FALSE), 
+			coalesce(NEW.pinned,FALSE), coalesce(NEW.sticky,FALSE), 
 			coalesce(NEW.anchor,FALSE), coalesce(NEW.cycle,FALSE), 
 			coalesce(NEW.locked,FALSE), coalesce(NEW.sage,FALSE), 
 			coalesce(NEW.nsfw,FALSE)
 		);
+	ELSIF (NEW.sage IS FALSE) THEN --Bump threads for non-sage replies.
+		UPDATE threads SET bumped = NEW.posted WHERE op = NEW.thread AND sage = FALSE;
 	END IF;
 	
 	IF (b.archivethreads IS TRUE) THEN
@@ -180,7 +198,7 @@ BEGIN
 	END IF;
 	IF (NEW.media IS NOT NULL) THEN
 		FOR m IN SELECT * FROM json_to_recordset(NEW.media) AS _(hash TEXT, board VARCHAR(32), thread INTEGER, post INTEGER, nsfw BOOLEAN, src TEXT, thumb TEXT, meta JSON) LOOP
-			INSERT INTO media (hash,board,thread,post,nsfw,src,thumb,meta) VALUES (m.hash,m.board,m.thread,m.post,m.nsfw,m.src,m.thumb,m.meta);
+			INSERT INTO media (hash,board,thread,post,nsfw,src,thumb,meta) VALUES (m.hash,NEW.board,NEW.thread,NEW.post,m.nsfw,m.src,m.thumb,m.meta);
 		END LOOP;
 	END IF;
 	IF (NEW.cites IS NOT NULL) THEN
@@ -229,7 +247,7 @@ END;$$ LANGUAGE plpgsql;
 -- Function for handling a ban user request.
 --
 CREATE OR REPLACE VIEW ban AS
-	SELECT b.board, b.creator, b.reason, b.expires, _.notice, _.range 
+	SELECT b.board, b.creator, b.reason, b.expires, _.notice, _.range, _.post
 	FROM bans b, (VALUES (0,NULL::VARCHAR(128),0)) AS _(post,notice,range);
 	
 CREATE OR REPLACE FUNCTION ban() RETURNS TRIGGER AS $$

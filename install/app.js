@@ -16,7 +16,7 @@ function prompt(question,validate,notempty) {
 			else console.log('Invalid input.');
 			res = undefined;
 		}
-		rl.question(question, (input) => res = input);
+		rl.question(question, (input)=>{res = input;});
 		while (res === undefined) deasync.runLoopOnce();
 	} while ((notempty && res === '') || (validate && !validate.test(res)));
 	rl.close();
@@ -45,12 +45,25 @@ function exists(path) {
 		return false;
 	}
 }
+function mkdir(path){
+	if (exists(path)) return;
+	let i=-1, dirs = path.split('/');
+	while (++i < dirs.length) {
+		if (dirs[i] == '' || dirs[i] == '.' || dirs[i] == '..') {
+			dirs.splice(i--,1);
+			continue;
+		}
+		let p = './'+dirs.slice(0,i+1).join('/');
+		try { fs.statSync(p); } 
+		catch (e) { fs.mkdirSync(p); }
+	}
+};
 
 const dcfg = yml.read('./install/default.yml');
 
-if (!exists('./assets')) fs.mkdirSync('./assets/_');
-if (!exists('./cache')) fs.mkdirSync('./cache/uploads');
-if (!exists('./conf')) fs.mkdirSync('./conf');
+if (!exists('./assets/_')) mkdir('./assets/_');
+if (!exists('./cache/uploads')) mkdir('./cache/uploads');
+if (!exists('./conf')) mkdir('./conf');
 
 if (exists('./conf/config.yml')) cfg = yml.read('./conf/config.yml');
 else {
@@ -108,8 +121,8 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 		cfg.version = VERSION.fresh;
 	}
 	else if (!exists('./conf/installed') || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
-		if (exists('./conf/installed')) {
-			console.log('These operations are destructive. Please eneter the site secret from the config file to continue: ');
+		if (!cfg.site.devmode && exists('./conf/installed')) {
+			console.log('These operations are destructive. Please enter the site secret from the config file to continue: ');
 			if (prompt('Secret: ',/\w+/) != cfg.site.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
 			console.log('Secret matched. Proceeding.');
 		}
@@ -127,7 +140,7 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 		while (done === false) deasync.runLoopOnce();
 		if (done === null) return pgp.end(),console.log('Postgres version check failed. Exiting.');
 		if (!dbname || dbname != 'PostgreSQL') 
-			return pgp.end(),console.log('Connection is not a postgres database. Please make sure you have postgres 9.5.0 or greater installed.');
+			return pgp.end(),console.log('Connection is not a postgres database. Please make sure you have postgres 9.5.0 or greater installed and running.');
 		let pgv = pgversion.split('.');
 		if (parseInt(pgv[0]) < 9 && parseInt(pgv[1]) < 5 && parseint(v[2]) < 0) 
 			return pgp.end(),console.log('Postgres version mismatch. Connection is running '+pgversion+', please upgrade to at least 9.5.0. Exiting.');
@@ -145,10 +158,21 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 		if (done === null) return pgp.end(),console.log('Wipe failed. Exiting.');
 	
 		console.log('Installing the database...');
+		if (!exists('./conf/installed')){
+			done = false;
+			// db.any(sql('./install/setup.sql')).then((data)=>{
+				// done = true;
+			// }).catch((err)) => {
+				// console.log(err);
+				// console.error('Must have superuser database access for the first time installation.');
+				// console.log('It can be changed back after if you wish.');
+			// });
+			// while (done === false) deasync.runLoopOnce();
+			// if (done === null) return pgp.end(),console.log('Install failed. Exiting.');
+		}
 		done = false;
 		db.tx((self) => {
 			return self.batch([
-				self.none(sql('./install/setup.sql')),
 				self.none(sql('./install/tables.sql')),
 				self.none(sql('./install/functions.sql'))
 			]);
@@ -169,11 +193,11 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 cfg.site.name = prompt("What do you want the site's name to be? (Leave empty for existing value): ") || cfg.site.name;
 
 function consolidateKeys(stale,fresh) {
-	for (var key in dcfg.options) if (dcfg.options.hasOwnProperty(key)) {
-		if (!cfg.options.hasOwnProperty(key))
-			cfg.options[key] = dcfg.options[key];
-		else if (typeof dcfg.options[key] === 'object' && !(dcfg.options[key] instanceof Array))
-			consolidateKeys(cfg.options[key],dcfg.options[key]);
+	for (var key in stale.options) if (fresh.options.hasOwnProperty(key)) {
+		if (!stale.options.hasOwnProperty(key))
+			stale.options[key] = fresh.options[key];
+		else if (typeof fresh.options[key] === 'object' && !(fresh.options[key] instanceof Array))
+			consolidateKeys(stale.options[key],fresh.options[key]);
 	}
 }
 consolidateKeys(cfg,dcfg);

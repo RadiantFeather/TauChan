@@ -18,3 +18,31 @@ options:
 values:
   max_upload_size_in_kb: 8096
   cdn_domain: localhost
+  poster_id_length: 10
+capcodes:
+  - Admin
+  - Owner
+  - Manager
+custom_tripcodes:
+  '#demotrip': '4ctual_tr!p'
+  '##demosecuretr!p': '4ctual_$ecur3_tr!p'
+suppress_markdown:
+  all: '@!'
+  paragraph: '@@'
+  open: '@>'
+  close: '<@'
+markdown:
+  - key: '__'
+    brick: false
+    exclusivetext: false
+    exclusiveline: false
+    multiline: true
+    open: '<u>'
+    close: '</u>'
+  - key: '**'
+    brick: false
+    exclusivetext: false
+    exclusiveline: false
+    multiline: false
+    open: '<span class="spoiler">'
+    close: '</span>'

@@ -14,7 +14,7 @@ view:
       ORDER BY (p.post = t.op) DESC, p.posted DESC 
       LIMIT ${limit} + 1
     ) x, page
-    ORDER BY is_op DESC, posted ASC;
+    ORDER BY (x.post = x.thread) DESC, posted ASC;
   '
 
   catalog: '
@@ -33,7 +33,8 @@ view:
         AND p.board = t.board AND t.archived IS NULL
       ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC
       LIMIT ${limit}
-    ) t;
+    ) t
+    ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC;
   '
 
   board_index: '
@@ -57,7 +58,8 @@ view:
       OR (x.cycle AND x.m <= b.cyclelimit + 1)
       OR (x.locked AND x.m <= b.lockedlimit + 1)
       OR x.m <= b.standardlimit + 1
-    ) AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10;
+    ) AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10
+    ORDER BY x.pinned DESC, x.sticky DESC, x.bumped DESC, x.thread DESC, (x.post = x.thread) DESC, x.post ASC;
   '
   
   archive: '
@@ -71,7 +73,8 @@ view:
       ORDER BY t.archived DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC
     ) x, board b
     WHERE (x.m <= b.archivedlimit + 1)
-    AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10;
+    AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10
+    ORDER BY x.archived DESC, x.bumped DESC, x.thread DESC, (x.post = x.thread) DESC, x.post ASC;
   '
 
   recent_posts: '
@@ -114,7 +117,7 @@ view:
     SELECT b.ip, b.board, b.created, b.reason, b.post, a.created AS appealed, a.approved
     (b.created + b.expires - NOW()) AS expires_in, (b.ip >> a.ip) AS ranged
     FROM bans b, appeals a
-    WHERE (a.board = ? OR a.board = '_') AND b.board = a.board 
+    WHERE (a.board = ${board} OR a.board = '_') AND b.board = a.board 
       AND a.ip = ${ip} AND b.ip >>= a.ip
     ORDER BY b.board ASC;
   "
@@ -122,7 +125,7 @@ view:
   reports: '
     SELECT r.post, r.created, r.reason, to_json(p) AS content,
     FROM posts p, reports r
-    WHERE p.board = ? AND p.board = r.board AND p.post = r.post
+    WHERE p.board = ${board} AND p.board = r.board AND p.post = r.post
       AND r.dismissed IS FALSE
     ORDER BY p.post ASC, r.created ASC;
   '
@@ -142,7 +145,36 @@ view:
     WHERE board = ${board} AND page = ${page};
   '
   
+  user: '
+    SELECT u.screenname,u.validated,u.global,r.flags,r.capcode
+    FROM fetch_user(${user},${pass}) u, assign a, roles r
+    WHERE u.id = a.id AND r.board = ${board} 
+      AND r.board = a.board AND r.role = a.role;
+  '
+  
 modify:
+  new_reply: '
+    INSERT INTO post (
+      board, ip, thread, name, trip, subject,
+      email, capcode, sage, markdown, markup
+    ) VALUES (
+      ${board},${ip},${thread},${name},${trip},${subject},
+      ${email},${capcode},${sage},${markdown},${markup}
+    ) RETURNING post,board,thread;
+  '
+  
+  new_thread: '
+    INSERT INTO post (
+      board, ip, name, trip, subject, sage,
+      email, capcode, markdown, markup, 
+      pinned, sticky, anchor, cycle, locked, nsfw
+    ) VALUES (
+      ${board},${ip},${name},${trip},${subject}, ${sage},
+      ${email},${capcode},${markdown},${markup},
+      ${pinned},${sticky},${anchor},${cycle},${locked},${nsfw} 
+    ) RETURNING post,board,thread;
+  '
+  
   vaccuum_thread: '
     UPDATE posts SET archived = NOW()
     WHERE thread IN (
@@ -163,3 +195,8 @@ modify:
     )
     RETURNING *;
   '
+  
+  user_token: '
+    UPDATE users SET token = ${token} WHERE username = ${user} AND passphrase = crypt(passphrase, ${pass});
+  '
+  
