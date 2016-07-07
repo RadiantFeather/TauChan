@@ -268,6 +268,7 @@ CREATE TABLE IF NOT EXISTS pages (
 	board VARCHAR(32) NOT NULL REFERENCES boards (board) ON DELETE CASCADE,
 	page VARCHAR(16) NOT NULL,
 	title VARCHAR(32),
+	listed BOOLEAN DEFAULT TRUE,
 	markdown VARCHAR(4096),
 	markup TEXT,
 	PRIMARY KEY (board, page)
