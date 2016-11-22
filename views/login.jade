@@ -1,0 +1,15 @@
+extends layout
+
+block content
+	form(id="login",method="POST",action="",enctype="multipart/form-data")
+		- if (err && (DEV || status != 500))
+			h4._error= err.message
+		- else if (err)
+			h4._error The username or passphrase provided was incorrect.
+		label Username
+			input(name="username",type="text",placeholder="Username",value=(data&&data.username?data.username:''))
+		label Passphrase
+			input(name="passphrase",type="password",placeholder="Passphrase")
+		label Remember Me
+			input(name="rememberme",type="checkbox",checked=false)
+		input(type="submit",value="Login")

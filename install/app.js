@@ -50,8 +50,8 @@ function mkdir(path){
 	let i=-1, dirs = path.split('/');
 	while (++i < dirs.length) {
 		if (dirs[i] == '' || dirs[i] == '.' || dirs[i] == '..') {
-			dirs.splice(i--,1);
-			continue;
+			dirs.splice(i,1);
+			--i; continue;
 		}
 		let p = './'+dirs.slice(0,i+1).join('/');
 		try { fs.statSync(p); } 
@@ -61,7 +61,7 @@ function mkdir(path){
 
 const dcfg = yml.read('./install/default.yml');
 
-if (!exists('./assets/_')) mkdir('./assets/_');
+if (!exists('./assets/_/media')) mkdir('./assets/_/media');
 if (!exists('./cache/uploads')) mkdir('./cache/uploads');
 if (!exists('./conf')) mkdir('./conf');
 
@@ -69,7 +69,7 @@ if (exists('./conf/config.yml')) cfg = yml.read('./conf/config.yml');
 else {
 	console.log('Missing config. Creating file and generating new site secret value.');
 	cfg = yml.read('./install/default.yml');
-	cfg.site.secret = crypto.createHash('sha256').update(Math.random().toString()).digest('hex');
+	cfg.secret = crypto.createHash('sha256').update(Math.random().toString()).digest('hex');
 	yml.write('./conf/config.yml',cfg);
 }
 	
@@ -97,8 +97,7 @@ var sql = (file) => pgp.QueryFile(file,{debug: true, minify: false}),
 	db = pgp(cfg.database);
 
 if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the database? (y/n): '))) {
-	let secret,
-	versions = fs.readdirSync('./install').filter((cur)=>{ 
+	let secret, versions = fs.readdirSync('./install').filter((cur)=>{ 
 		let c = cur.split('/'), ver = /update\.(\d+\.\d+\.\d+)\.sql$/.exec(c[c.length-1]);
 		if (ver !== null) console.log(VERSION.stale,ver[1],updatable(VERSION.stale,ver[1]));
 		return (ver !== null && updatable(VERSION.stale,ver[1])); 
@@ -121,9 +120,9 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 		cfg.version = VERSION.fresh;
 	}
 	else if (!exists('./conf/installed') || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
-		if (!cfg.site.devmode && exists('./conf/installed')) {
+		if (!cfg.devmode && exists('./conf/installed')) {
 			console.log('These operations are destructive. Please enter the site secret from the config file to continue: ');
-			if (prompt('Secret: ',/\w+/) != cfg.site.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
+			if (prompt('Secret: ',/\w+/) != cfg.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
 			console.log('Secret matched. Proceeding.');
 		}
 		
@@ -190,7 +189,7 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 	yml.write('./conf/config.yml',cfg);
 }
 
-cfg.site.name = prompt("What do you want the site's name to be? (Leave empty for existing value): ") || cfg.site.name;
+cfg.site.name = prompt("What do you want the site's name to be? (Leave empty for existing value '"+cfg.site.name+"'): ") || cfg.site.name;
 
 function consolidateKeys(stale,fresh) {
 	for (var key in stale.options) if (fresh.options.hasOwnProperty(key)) {

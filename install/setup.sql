@@ -7,4 +7,4 @@ AND am.amname = 'gist'
 AND opc.opcname = 'inet_ops'
 AND opc.opcdefault = FALSE; -- Fix for GIST not using inet_ops as default inet opclass for some bloody reason.
 
-CREATE TYPE LOGLEVEL AS ENUM ('info','notice','warning','error');
+CREATE TYPE LOGLEVEL AS ENUM ('info','notice','warning','error','server');

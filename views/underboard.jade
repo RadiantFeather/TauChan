@@ -1,0 +1,45 @@
+extends layout
+
+block header
+	h1 #{SITE.name} Moderation Page
+	h3 Welcome #{user.screenname}
+	
+block prescript
+	script
+		| window.PAGE.board = '_';
+		| window.PAGE.type = 'mod';
+		| window.PAGE.current = 'index';
+		
+block footer
+	h4 Footer Placeholder
+
+block content
+	- if (data.length == 0)
+		h4: a(href="/_/createBoard") Create a board
+			| or wait to be added to an existing one.
+	- else
+		table
+			tr
+				th Board
+				th Role
+				th Capcode
+				th Actions
+			- each item in data
+				tr
+					td
+						a(href="/#{item.board}/") /#{item.board}/
+					td #{item.role}
+					td ###{item.capcode}
+					td
+						- if (user.auth('board.view_logs',item.board))
+							a(href="/#{item.board}/logs") Logs
+						- if (user.auth('board.manage_reports',item.board))
+							a(href="/#{item.board}/reports") Reports
+						- if (user.auth('board.view_history',item.board))
+							a(href="/#{item.board}/history") Recent Posts
+						- if (user.auth('board.view_bans',item.board))
+							a(href="/#{item.board}/bans") Bans
+						- if (user.auth('board.manage_pages',item.board))
+							a(href="/#{item.board}/pages") Manage Custom Pages
+			
+	

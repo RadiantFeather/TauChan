@@ -33,7 +33,7 @@
     "easyimage": "^2.1.0",
     "express": "latest",
     "fluent-ffmpeg": "^2.0.1",
-    "pug": "latest",
+    "jade": "latest",
     "multer": "latest",
     "pg-promise": "latest",
     "read-yaml": "latest",

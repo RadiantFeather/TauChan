@@ -1,13 +1,30 @@
 "use strict";
-String.prototype.splice = function(i,c,a){
-	return this.slice(0,i)+(add||'')+this.slice(index+count);
-};
 var fs = require('fs');
 var _exists = function(path){
 	try {
 		fs.statSync(path);
 		return true;
 	} catch (e) { return false; }
+};
+Error.prototype.setloc = function(str){ this.loc = str; return this; };
+Error.prototype.setmsg = function(str){ this.message = str; return this; };
+Error.prototype.setstatus = function(status){
+	if (typeof status !== 'number') throw 'Error status must be an integer.';
+	status = parseInt(status);
+	this.status = status;
+	return this;
+};
+Error.prototype.withlog = function(level){
+	if (typeof level !== 'string') throw 'Error log level must be a string.';
+	this.log = level;
+	return this;
+};
+Error.prototype.withrender = function(view){
+	if (typeof view !== 'string') throw 'Error view render must be a string.';
+	if (!this.status) this.setstatus(409);
+	this.setdata = function(data){this.data = data; delete this.setdata; return this;};
+	this.render = view;
+	return this;
 };
 if (!_exists('./conf/installed')) return console.log('App has not been installed yet. Please run the /install/app.js script to setup the application.');
 if (!_exists('./conf/config.yml')) return console.log('Missing config file. Please run the /install/app.js script to setup the config file.');
@@ -19,52 +36,61 @@ var express = require('express'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')};
 
 // Configuations
+GLOBAL.pgp = {promiseLib: require('bluebird'), capSQL:true};
 GLOBAL.sql = yml.read.sync('./sql.yml');
 GLOBAL.cfg = yml.read.sync('./conf/config.yml');
+GLOBAL.flags = yml.read.sync('./flags.yml');
+
+if (GLOBAL.cfg.values.cdn_domain == 'localhost') GLOBAL.cdn = '';
+else if (GLOBAL.cfg.values.cdn_domain.indexOf('://')<0)
+	GLOBAL.cdn = GLOBAL.cfg.values.cdn_domain?'//'+GLOBAL.cfg.values.cdn_domain:'';
+
+// Global flag registry for user auth permissions
+if (GLOBAL.cfg.devmode) {
+	GLOBAL.regflag = function(cat,flag){
+		if (typeof cat != 'string') cat = 'undefined';
+		if (!GLOBAL.flags[cat]) GLOBAL.flags[cat] = {};
+		GLOBAL.flags[cat][flag] = '';
+		yml.write('./flags.yml',GLOBAL.flags,()=>{});
+	};
+}
 
 // Common functions
 GLOBAL.lib = require('./lib');
-
-let flags = {};
-GLOBAL.register_flag = function(cat,flag){
-	if (!flags[cat]) flags[cat] = [];
-	flags.forEach((item)=>{flags[cat].push(flag)});
-};
 
 // Page request handlers
 var global = require('./global'),
 	boards = require('./boards'),
 	middle = require('./middleware');
 	
+GLOBAL.flags = flags;
 var app = express();
-app.locals.flags = flags;
 
-app.use((req,res,next)=>{
-	req.now = Date.now();
-	if (GLOBAL.cfg.site.devmode) {
-		GLOBAL.cfg = yml.read.sync('./conf/config.yml');
-		GLOBAL.sql = yml.read.sync('./sql.yml');
-	}
-	if (GLOBAL.cfg.values.cdn_domain.indexOf('://') == -1)
-		res.locals.cdn = GLOBAL.cfg.values.cdn_domain?'http'+(res.secure?'s://':'://')+GLOBAL.cfg.values.cdn_domain:'';
-	if (res.locals.cdn == 'localhost') res.locals.cdn = '';
-	return next();
+// Persistent locals for templates
+app.locals.CDN = GLOBAL.cdn;
+app.locals.SITE = GLOBAL.cfg.site;
+app.locals.DEV = GLOBAL.cfg.devmode;
+app.locals.F_POSTID = GLOBAL.lib.posterID;
+app.locals.F_TOINTERVAL = GLOBAL.lib.toInterval;
+app.locals.F_UTC = (timestamp,mode)=>{
+	if (mode == 1) return (new Date(timestamp)).toUTCString();
+	else if (mode == 2) return (new Date(timestamp)).toLocaleString();
+	else return (new Date(timestamp)).toISOString();
+};
+app.locals.CLIENTDEPS = [
+	'vQuery.js',
+	'socket.io.js',
+	'common.css',
+	'icons.css'
+].forEach((item,i,arr)=>{
+	if (GLOBAL.cfg.external_sources)
+		arr[i] = GLOBAL.cfg.external_sources[item]||GLOBAL.cdn+'/_/'+item;
+	else arr[i] = GLOBAL.cdn+'/_/'+item;
 });
-// app.use(cookieParser());
-// app.use(function(req,res,next) {
-	// req.cookie = (key,val,options)=>{
-		// options = options || {};
-		// if (val == null) {
-			// val = '';
-			// options.maxAge = 0;
-		// } else val = val.toString();
-		// res.setHeader('Set-Cookie',cookie.serialize(key,val,options));
-		// return req;
-	// };
-	// return next();
-// });
+
+app.use(cookieParser());
 app.use(session({
-	secret: GLOBAL.cfg.site.secret,
+	secret: GLOBAL.cfg.secret,
 	name: 'sid',
 	saveUninitialized: false,
 	resave: false,
@@ -75,84 +101,149 @@ app.use(session({
 		maxAge: 1000*60*60*24*3
 	}
 })); // TODO: implement Redis into sessions
-app.use(middle.loadUser);
 
-app.all('/_/:page/:action?/:data?',middle.loadGlobal,(req,res,next)=>{
-	if (global[req.method] && global[req.method][req.params.page]) // global preset page
-		global.get[req.params.page](req,res,next);
-	else {
-		res.status(404);
-		return next(new Error('Page not found'));
+app.use((req,res,next)=>{
+	if (req.method == 'GET') {
+		let opts = {httpOnly:true};
+		if (!req.cookies.curpage) res.cookie('lastpage', req.path, opts);
+		else res.cookie('lastpage', req.cookies.curpage, opts);
+		res.cookie('curpage', req.path, opts);
 	}
+	if (GLOBAL.cfg.devmode) {
+		GLOBAL.cfg = yml.read.sync('./conf/config.yml');
+		GLOBAL.sql = yml.read.sync('./sql.yml');
+		GLOBAL.flags = yml.read.sync('./flags.yml');
+	}
+	res.locals.NOW = Date.now();
+	res.locals.META = {};
+	return next();
 });
-if (!GLOBAL.cfg.values.cdn_domain) {
-app.get('/:board/media/:file*',(req,res,next)=>{ // fileserve 
+
+app.get('/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
+	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
+	let options = {
+		root: __dirname,
+		dotfiles: 'deny',
+		headers: {
+			'x-timestamp': res.locals.NOW,
+			'x-sent': true
+		}
+	};
+	if (req.params.ext == 'html' && !_exists('./'+req.params.file+'.'+req.params.ext)) {
+		res.cookie('curpage',req.path,{httpOnly:true});		
+		// view for custom global pages
+		db.one(GLOBAL.sql.view.page, {
+			board: '_',
+			page: req.params.file
+		}).then((data)=>{
+			res.locals.page = {type:'custom',param:req.params.page};
+			res.render('page.jade',{data: data}); // TODO
+		}).catch((err)=>{
+			return next(err.setstatus(404).setloc('global page serve'));
+		});
+	} else if ((GLOBAL.cfg.root_whitelist||[]).indexOf(req.params.file+'.'+req.params.ext) > -1) {
+		res.sendFile(req.params.file+'.'+req.params.ext,options, function (err) {
+			if (err) res.sendStatus(err.status).end();
+		});
+	} else res.sendStatus(403).end();
+});
+
+app.get('/_/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
+	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
+	let options = {
+		root: __dirname +'/static/',
+		dotfiles: 'deny',
+		headers: {
+			'x-timestamp': res.locals.NOW,
+			'x-sent': true
+		}
+	};
+	res.sendFile(req.params.file+'.'+req.params.ext, options, function (err) {
+		if (err) {
+		  console.log('file error: ', req.params.file+'.'+req.params.ext, err);
+		  res.sendStatus(err.status).end();
+		}
+	});
+});
+if (!GLOBAL.cfg.values.cdn_domain || GLOBAL.cfg.values.cdn_domain == 'localhost') {
+app.get('/:board/media/:file',(req,res,next)=>{ // board fileserve
+	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
 	let options = {
 		root: __dirname +'/assets/'+ req.params.board +'/media/',
 		dotfiles: 'deny',
 		headers: {
-			'x-timestamp': Date.now(),
+			'x-timestamp': res.locals.NOW,
 			'x-sent': true
 		}
 	};
 	res.sendFile(req.params.file, options, function (err) {
 		if (err) {
-		  console.log(err);
+		  console.log('file error: ', req.params.file, err);
 		  res.status(err.status).end();
 		}
 	});
 });
 }
 
-app.get('/favicon.ico',(req,res,next)=>{
-	let options = {
-		root: __dirname,
-		dotfiles: 'deny',
-		headers: {
-			'x-timestamp': Date.now(),
-			'x-sent': true
-		}
-	};
-	res.sendFile('favicon.ico',options, function (err) {
-		if (err){
-			res.status(err.status).end();
-		}
-	});
+app.use('/_',middle.loadUser);
+app.use('/:board',middle.loadUser);
+app.use('/',middle.loadUser);
+
+app.all('/_/:page/:action?/:data?',middle.loadGlobal,(req,res,next)=>{
+	let err;
+	if (global[req.method] && global[req.method][req.params.page]) // global preset page
+		if (global[req.method][req.params.page].reg && !res.locals.user.reg)
+			res.redirect('/_/login');
+		else if (global[req.method][req.params.page].auth)
+			if ((err=global[req.method][req.params.page].auth(req,res,next))===true)
+				global[req.method][req.params.page](req,res,next);
+			else
+				return next(err instanceof Error?err.setstatus(403):(new Error(err.messge||'Unauthorized')).setstatus(403));
+		else global[req.method][req.params.page](req,res,next);
+	else
+		return next((new Error('Page not found')).setstatus(404).setloc('global page route'));
 });
 
 app.all('/:board/:page/:action?/:data?',middle.loadBoard,(req,res,next)=>{
-	if (boards[req.method] && boards[req.method][req.params.page] && req.params.page != 'thread') 
-		boards[req.method][req.params.page](req,res,next);
-	else if (boards[req.method] && boards[req.method].thread && /^\d+$/.test(req.params.page)) boards[req.method].thread(req,res,next);
-	else if (boards[req.method] && boards[req.method].pages) boards[req.method].pages(req,res,next); // Run as a custom board page
-	else {
-		res.status(404);
-		return next(new Error('Page not found'));
-	}
+	let err;
+	if (boards[req.method] && boards[req.method][req.params.page] && req.params.page != 'thread')
+		if (boards[req.method][req.params.page].reg && !res.locals.user.reg)
+			res.redirect('/_/login');
+		else if (boards[req.method][req.params.page].auth)
+			if ((err=boards[req.method][req.params.page].auth(req,res,next))===true)
+				boards[req.method][req.params.page](req,res,next);
+			else
+				return next(err instanceof Error?err.setstatus(403):(new Error(err.message||'Unauthorized')).setstatus(403));
+		else boards[req.method][req.params.page](req,res,next);
+	else if (boards[req.method] && boards[req.method].thread && /^\d+$/.test(req.params.page)) 
+		boards[req.method].thread(req,res,next);
+	else if (req.method == 'GET' && boards[req.method] && boards[req.method].pages) 
+		boards[req.method].pages(req,res,next); // Run as a custom board page
+	else
+		return next((new Error('Page not found')).setstatus(404).setloc('board page route'));
 });
 
 app.all('/_',middle.loadGlobal,(req,res,next)=>{
 	if (global[req.method] && global[req.method].index)
 		global[req.method].index(req,res,next);
-	else {
-		res.status(404);
-		return next(new Error('Page not found'));
-	}
+	else
+		return next((new Error('Page not found')).setstatus(404).setloc('underboard route'));
 });
 app.all('/:board',middle.loadBoard,(req,res,next)=>{
-	if (boards[req.method] && boards[req.method].index) boards[req.method].index(req,res,next);
-	else {
-		res.status(404);
-		return next(new Error('Page not found'));
-	}
+	if (boards[req.method] && boards[req.method].index) 
+		boards[req.method].index(req,res,next);
+	else
+		return next((new Error('Page not found')).setstatus(404).setloc('board route'));
 });
 
 app.get('/',(req,res,next)=>{
-	res.send('Overboard page.');
+	if (global.index)
+		global.index(req,res,next);
+	else
+		return next((new Error('Page not found')).setstatus(404).setloc('overboard route'));
 });
 
-app.use(middle.handleAjaxError);
-app.use(middle.handleError);
+app.use(middle.handleAjaxError,middle.handleError);
 
 app.listen(GLOBAL.cfg.port,()=>{
   console.log('Now listening on port '+GLOBAL.cfg.port+'.');

@@ -1,0 +1,26 @@
+._error {color:#e91e63;}
+._warning {color:#ffeb3b;}
+._notice {color: #03a9f4;}
+._info {color:#808080;}
+
+
+fieldset >label{
+	white-space:nowrap;
+	display:inline-block;
+}
+fieldset >label:not(:last-child){
+	margin-left:1em;
+}
+input{
+	padding-left:0.2em;
+	padding-right:0.2em;
+}
+.brick:before{content:"[";}	.brick:after{content:"]";}
+.brace:before{content:"{";}	.brace:after{content:"}";}
+.bend:before{content:"<";}	.bend:after{content:">";}
+.bow:before:after{content:"/";}
+
+nav:empty{
+	display:none;
+}
+.spoiler{color:black;background-color:black;} .spoiler:hover{color:white;}

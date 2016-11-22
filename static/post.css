@@ -1,0 +1,118 @@
+.post .postid:before{
+	content:"ID: ";
+}
+.post .quote:before{
+	content:"#";
+}
+.post .info >*,
+.post .media .meta >* {
+	margin-right:8px;
+}
+
+.post .clean.global:before { content:"Acceptable on this board: ("; }
+.post .clean.local:before { content:"Globally acceptable: ("; }
+.post .clean.global:after,
+.post .clean.local:after { content:")"; }
+
+
+
+.menu{
+	position:relative;
+}
+.menu >input.toggle {
+	display:none;
+}
+.menu >input.toggle +label:after{
+	width:0;
+	height:0;
+	content:"";
+	display:inline-block;
+	border-left:0.5em solid;
+	border-right:none;
+	border-top:0.4em solid transparent;
+	border-bottom:0.4em solid transparent;
+	margin-left:0.25em;
+	margin-top:0;
+}
+.menu >input.toggle:checked +label:after{
+	border-left:0.4em solid transparent;
+	border-right:0.4em solid transparent;
+	border-top:0.5em solid;
+	border-bottom:none;
+	margin-left:0;
+	margin-top:0.25em;
+}
+.menu >input.toggle +label +ul{
+	display:none;
+	list-style:none;
+	position:absolute;
+	top:0;
+	left:100%;
+}
+.menu >input.toggle:checked +label +ul{
+	display:block;
+}
+
+html:not(.js) .media .file .nsfw +.thumb, 
+.media .file .full,
+.media.open .file .thumb, 
+.media.open .file .nsfw
+{ display:none; }
+html:not(.js) .media .file .nsfw,
+html:not(.js) .media .file .thumb,
+.media .file .thumb,
+.media.open .file .full
+{ display:block; }
+.media.open .file .thumb
+{ display:none!important; }
+
+.media .item { display:inline-block; }
+.media .filewrap {
+	position:relative;
+}
+
+.media .filewrap .spoiler,
+.media .filewrap .delete {
+	transition:0.5s;
+	position: absolute;
+	font-size:65px;
+	opacity:0.0;
+}
+.media .filewrap .spoiler {
+	top:0;
+	left:0;
+}
+.media .filewrap .delete {
+	bottom:0;
+	right:0;
+}
+.media .filewrap .spoiler >a,
+.media .filewrap .delete >a {
+	position:absolute;
+	font-size:0.4em;
+}
+.media .filewrap .spoiler >a {
+	bottom:1em;
+	left:0.5em;
+	color:white;
+}
+.media .filewrap .delete >a {
+	top:1.5em;
+	right:0.3em;
+	color:red;
+}
+.media .filewrap:hover .spoiler,
+.media .filewrap:hover .delete {
+	opacity:0.5;
+}
+.media .filewrap:hover .spoiler >a,
+.media .filewrap:hover .delete >a {
+	opacity:1.0;
+}
+
+.media .file .thumb,
+.media .file .nsfw
+{ height:auto; max-width:200px; max-width:25vw; }
+
+.media.one { display:inline-block; }
+.media.many, .media.one.open { display:block; }

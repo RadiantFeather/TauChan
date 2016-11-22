@@ -1,0 +1,30 @@
+nav .stats >*:not(:last-child):after{
+	content:" / ";
+}
+nav .quicklinks >*{
+	margin-right:8px;
+}
+
+.thread .post.reply {
+	border-width: 2px;
+	border-style: solid;
+	margin-top: 10px;
+	padding: 5px;
+}
+.thread.post.op {
+	margin-top: 5px;
+	border-top-width: 1px;
+	border-top-style: solid;
+	padding-top: 5px;
+}
+
+.thread.post.op {
+	border-top-color: #000;
+}
+.thread .post.reply {
+	border-color: #333;
+}
+
+nav .pages:before { content: "[ "; }
+nav .pages:after { content: " ]"; }
+nav .pages span:not(:last-child):after { content: " | "; }

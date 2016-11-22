@@ -1,9 +1,16 @@
 version: 0.0.1
 port: 3000
+devmode: true
+secret: this_will_be_generated_when_you_install_the_app_installation
 site:
   name: Tauchan Imageboard
-  secret: this_will_be_generated_when_you_run_the_app_installation
-  devmode: true
+  desc: An imageboard based on the tauchan imageboard framework.
+  keywords:
+    - anonymous
+    - imageboard
+    - tauchan framework
+    - nodejs
+    - forum
 database:
   host: localhost
   port: 5433
@@ -19,30 +26,49 @@ values:
   max_upload_size_in_kb: 8096
   cdn_domain: localhost
   poster_id_length: 10
+  max_custom_board_pages: 10
+  tag_cloud_count: 25
 capcodes:
   - Admin
   - Owner
   - Manager
 custom_tripcodes:
   '#demotrip': '4ctual_tr!p'
-  '##demosecuretr!p': '4ctual_$ecur3_tr!p'
-suppress_markdown:
-  all: '@!'
-  paragraph: '@@'
-  open: '@>'
-  close: '<@'
+  '##demosecuretrip': '4ctual_$ecur3_tr!p'
+root_whitelist:
+  - favicon.ico
+external_sources:
+  'socket.io.js': 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/sockei.io.min.js'
 markdown:
-  - key: '__'
-    brick: false
-    exclusivetext: false
-    exclusiveline: false
-    multiline: true
-    open: '<u>'
-    close: '</u>'
-  - key: '**'
-    brick: false
-    exclusivetext: false
-    exclusiveline: false
-    multiline: false
-    open: '<span class="spoiler">'
-    close: '</span>'
+  suppress:
+    all: '@!'
+    paragraph: '@@'
+    open: '@>'
+    close: '<@'
+  list:
+    - key: '--'
+      inc: true
+    - key: '-1'
+      inc: true
+      class: 'number'
+    - key: '-A'
+      inc: true
+      class: 'bigalpha'
+    - key: '-a'
+      inc: true
+      class: 'smallalpha'
+  custom:
+    -	key: '__'
+      brick: false
+      exclusivetext: false
+      exclusiveline: false
+      multiline: true
+      open: '<u>'
+      close: '</u>'
+    - key: '**'
+      brick: false
+      exclusivetext: false
+      exclusiveline: false
+      multiline: false
+      open: '<span class="spoiler">'
+      close: '</span>'

@@ -1,7 +1,8 @@
 extends layout
 
 block content
-	h1= message
-	- if (error !== undefined && GLOBAL.cfg.devmode)
-		h2= status
-		pre !{stack}
+	h1= status
+	h3(style="white-space:pre-line;")= err.message
+	- if (err.stack !== undefined && DEV)
+		pre: code !{err.stack}
+	a(href="!{err.back}") Return

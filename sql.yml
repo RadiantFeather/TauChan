@@ -1,12 +1,43 @@
 view:
+  boards: "
+    SELECT b.*, 
+      (SELECT SETVAL(
+        CONCAT_WS('_', b.board, 'post', 'seq'),
+        NEXTVAL(CONCAT_WS('_', b.board, 'post', 'seq')),
+        false
+      )) AS post_count,
+      (SELECT COUNT(1) FROM recent_posts WHERE board = b.board) AS posts_per_hour, 
+      (SELECT COUNT(DISTINCT ip) FROM recent_posts WHERE board = b.board) AS active_users
+    FROM boards b
+    WHERE listed = TRUE
+  "
+  
+  overboard: "
+    SELECT x.*, COUNT(1) OVER () AS total
+    FROM (
+      SELECT b.*, 
+        (SELECT SETVAL(
+          CONCAT_WS('_', b.board, 'post', 'seq'),
+          NEXTVAL(CONCAT_WS('_', b.board, 'post', 'seq')),
+          FALSE
+        )) AS post_count,
+        (SELECT COUNT(1) FROM recent_posts WHERE board = b.board) AS posts_per_hour, 
+        (SELECT COUNT(DISTINCT ip) FROM recent_posts WHERE board = b.board) AS active_users
+      FROM boards b
+      WHERE listed = TRUE
+      AND ${all:raw} AND ${any:raw} AND ${none:raw} AND nsfw IS NOT ${nsfw:raw}
+    ) x
+    ORDER BY x.active_users DESC, x.posts_per_hour DESC, x.post_count DESC
+    LIMIT 50 OFFSET 50 * (${page}-1);
+  "
+  
   thread: '
     WITH page AS (SELECT fetch_page(${board},${thread}) AS page)
     SELECT x.*, page.page FROM (
       SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, 
         (p.post = t.op) AS is_op, cl.localstamp, cl.globalstamp, fetch_media(p.board,p.post) AS media,
         fetch_cites(p.board,p.thread,p.post) AS targets, c.targets AS cites, t.archived,
-        mask_ip(p.ip::CIDR,p.board) AS ipmask, mask_ip(p.ip::CIDR,p.board,${salt}) AS longhash,
-        substring(mask_ip(p.ip::CIDR,p.board,${salt}) FROM 1 FOR 16) AS shorthash
+        mask_ip(p.ip::CIDR,p.board) AS mask
       FROM threads t, (posts p 
         LEFT OUTER JOIN cites c USING (board,post))
         LEFT OUTER JOIN clean cl USING (board,post)
@@ -22,13 +53,13 @@ view:
     (SELECT COUNT(1) FROM media m WHERE m.board = t.board AND m.thread = t.op) AS images,
     COUNT(1) FILTER (WHERE t.n % 10 = 0) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) + 1 AS page
     FROM (
-      SELECT t.*, p.markdown, p.subject, m.thumb, m.nsfw, m.deleted,
+      SELECT t.*, p.markup, p.subject, m.thumb, m.nsfw, m.deleted,
         COUNT(1) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n
       FROM threads t LEFT OUTER JOIN LATERAL (
         SELECT * FROM media
-        WHERE thread = t.op AND board = t.board
-        ORDER BY deleted ASC, sort ASC LIMIT 1
-      ) AS m ON (thread = t.op AND m.board = t.board), posts p 
+        WHERE post = t.op AND board = t.board AND deleted = FALSE
+        ORDER BY sort ASC LIMIT 1
+      ) AS m ON (m.post = t.op AND m.board = t.board), posts p 
       WHERE t.board = ${board} AND p.post = t.op
         AND p.board = t.board AND t.archived IS NULL
       ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC
@@ -39,18 +70,19 @@ view:
 
   board_index: '
     WITH board AS (SELECT pinnedlimit, stickylimit, cyclelimit, lockedlimit, standardlimit FROM boards WHERE board = ${board})
-    SELECT x.*, COUNT(1) OVER (PARTITION BY x.thread) - 1 AS visible FROM (
-      SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post ASC) AS m,
+    SELECT x.*, CEIL(COUNT(1) FILTER (WHERE x.post = x.thread) OVER () / 10.0) AS pages, 
+      COUNT(1) OVER (PARTITION BY x.thread) - 1 AS visible 
+    FROM (
+      SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post DESC) AS m,
         COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
         COUNT(1) OVER (PARTITION BY p.thread) - 1 AS total,
         p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw, c.targets AS cites,
-        cl.localstamp, cl.globalstamp, (p.post = t.op) AS is_op, mask_ip(p.ip::CIDR,p.board) AS ipmask, mask_ip(p.ip::CIDR,p.board,${salt}) AS longhash,
-        fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media, substring(mask_ip(p.ip::CIDR,p.board,${salt}) FROM 1 FOR 16) AS shorthash
+        cl.localstamp, cl.globalstamp, mask_ip(p.ip::CIDR,p.board) AS mask,
+        fetch_cites(p.board,p.thread,p.post) AS targets, fetch_media(p.board,p.post) AS media 
       FROM threads t, (posts p 
         LEFT OUTER JOIN cites c USING (board,post))
         LEFT OUTER JOIN clean cl USING (board,post)
       WHERE p.board = ${board} AND t.board = p.board AND p.thread = t.op AND t.archived IS NULL
-      ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC
     ) x, board b
     WHERE (
       (x.pinned AND x.m <= b.pinnedlimit + 1)
@@ -58,22 +90,22 @@ view:
       OR (x.cycle AND x.m <= b.cyclelimit + 1)
       OR (x.locked AND x.m <= b.lockedlimit + 1)
       OR x.m <= b.standardlimit + 1
-    ) AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10
+    ) AND x.n > (${page} - 1) * 10 AND x.n <= (${page} - 1) * 10 + 10
     ORDER BY x.pinned DESC, x.sticky DESC, x.bumped DESC, x.thread DESC, (x.post = x.thread) DESC, x.post ASC;
   '
   
   archive: '
     WITH board AS (SELECT archivedlimit, archivedlifespan FROM boards WHERE board = ${board})
-    SELECT x.* FROM (
+    SELECT x.*, CEIL(COUNT(1) FILTER (WHERE x.post = x.thread) OVER () / 10.0) AS pages
+    FROM (
       SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post DESC) AS m,
         COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
-        p.*, t.archived, t.bumped, (p.post = t.op) AS is_op, fetch_media(p.board,p.post) as media
+        p.*, t.archived, t.bumped, fetch_media(p.board,p.post) as media
       FROM posts p, threads t, board b
       WHERE p.board = ${board} AND p.thread = t.op AND t.archived < NOW() - b.archivedlifespan
-      ORDER BY t.archived DESC, t.bumped DESC, p.thread DESC, (p.post = t.op) DESC, p.post ASC
     ) x, board b
     WHERE (x.m <= b.archivedlimit + 1)
-    AND x.n > ${page} * 10 AND x.n <= ${page} * 10 + 10
+    AND x.n > (${page} - 1) * 10 AND x.n <= (${page} - 1) * 10 + 10
     ORDER BY x.archived DESC, x.bumped DESC, x.thread DESC, (x.post = x.thread) DESC, x.post ASC;
   '
 
@@ -89,28 +121,14 @@ view:
     ORDER BY posted DESC
     LIMIT ${limit} OFFSET ${page} * ${limit};
   '
-
-  boards_list: "
-    SELECT * FROM (
-      SELECT b.*, CURRVAL(CONCAT_WS('_', b.board, 'post', 'seq')) AS post_count,
-        (SELECT COUNT(1) FROM recent_posts WHERE board = b.board) AS posts_per_hour, 
-        (SELECT COUNT(DISTINCT ip) FROM recent_posts WHERE board = b.board) AS active_users
-      FROM boards b
-      WHERE listed = TRUE
-        AND tags ?& ${require}::TEXT[]
-        AND tags ?| ${optional}::TEXT[]
-        AND NOT tags ?| ${ignore}::TEXT[]
-    ) x
-    ORDER BY active_users DESC, posts_per_hour DESC, post_count DESC
-    LIMIT 50 OFFSET 50 * ${page};
-  "
   
   is_banned: "
-    SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged
-    FROM bans b, appeals a
-    WHERE (a.board = ${board} OR a.board = '_') AND b.board = a.board
-      AND a.ip = ${ip} AND b.ip >>= a.ip
-      AND a.approved IS NOT NULL;
+    SELECT b.ip,b.board,b.created,b.reason,b.post,(b.ip >> a.ip) AS ranged,
+      (b.created + b.expires - NOW()) AS expires_in
+    FROM bans b LEFT OUTER JOIN appeals a ON (b.board = a.board AND b.ip >>= a.ip)
+    WHERE (a.board = ${board} OR a.board = '_') AND a.ip = ${ip}
+      AND a.approved IS NOT NULL
+    ORDER BY (b.board = '_') DESC, b.created DESC;
   "
   
   bans: "
@@ -121,6 +139,22 @@ view:
       AND a.ip = ${ip} AND b.ip >>= a.ip
     ORDER BY b.board ASC;
   "
+  
+  banned: "
+    SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged
+    FROM bans b, appeals a
+    WHERE (a.board = ${board} OR a.board = '_') AND b.board = a.board
+      AND a.ip = ${ip} AND b.ip >>= a.ip
+      AND a.approved IS NOT NULL;
+  "
+  
+  banned_all: '
+    SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged
+    FROM bans b, appeals a
+    WHERE b.board = a.board
+      AND a.ip = ${ip} AND b.ip >>= a.ip
+      AND a.approved IS NOT NULL;
+  '
   
   reports: '
     SELECT r.post, r.created, r.reason, to_json(p) AS content,
@@ -140,37 +174,52 @@ view:
     ORDER BY created ASC;
   '
   
-  custom: '
-    SELECT title,markup FROM pages 
+  page: '
+    SELECT title,markup,markdown FROM pages 
     WHERE board = ${board} AND page = ${page};
   '
   
+  pages: '
+    SELECT page,title FROM pages
+    WHERE board = ${board};
+  '
+  
   user: '
-    SELECT u.screenname,u.validated,u.global,r.flags,r.capcode
-    FROM fetch_user(${user},${pass}) u, assign a, roles r
-    WHERE u.id = a.id AND r.board = ${board} 
-      AND r.board = a.board AND r.role = a.role;
+    SELECT u.id,u.username,u.email,u.screenname,
+      u.verified,u.global,fetch_user_roles(u.id) AS roles
+    FROM fetch_user(${user},${pass}) u;
+  '
+  
+  user_roles: '
+    SELECT r.board,r.capcode,r.role,r.flags
+    FROM assign a RIGHT OUTER JOIN roles r 
+      ON (a.board = r.board AND a.role = r.role)
+    WHERE a.id = ${id};
   '
   
 modify:
   new_reply: '
     INSERT INTO post (
       board, ip, thread, name, trip, subject,
-      email, capcode, sage, markdown, markup
+      email, capcode, sage, markdown, markup,
+      media, cites, hash
     ) VALUES (
       ${board},${ip},${thread},${name},${trip},${subject},
-      ${email},${capcode},${sage},${markdown},${markup}
+      ${email},${capcode},${sage},${markdown},${markup},
+      ${media:raw},${cites:raw},${hash}
     ) RETURNING post,board,thread;
   '
   
   new_thread: '
     INSERT INTO post (
       board, ip, name, trip, subject, sage,
-      email, capcode, markdown, markup, 
+      email, capcode, markdown, markup,
+      media, cites, hash,
       pinned, sticky, anchor, cycle, locked, nsfw
     ) VALUES (
       ${board},${ip},${name},${trip},${subject}, ${sage},
       ${email},${capcode},${markdown},${markup},
+      ${media:raw},${cites:raw},${hash},
       ${pinned},${sticky},${anchor},${cycle},${locked},${nsfw} 
     ) RETURNING post,board,thread;
   '
@@ -191,12 +240,35 @@ modify:
     WHERE thread IN (
       WITH archivedlimit AS (SELECT archivedlimit FROM boards WHERE board = ${board})
       SELECT t.op FROM threads t
-      WHERE t.board = ${board} AND t.archived IS NOT NULL AND t.archived < NOW() - archivedlifespan
+      WHERE t.board = ${board} AND t.featured = FALSE
+        AND t.archived IS NOT NULL AND t.archived < NOW() - archivedlifespan
     )
     RETURNING *;
   '
   
   user_token: '
-    UPDATE users SET token = ${token} WHERE username = ${user} AND passphrase = crypt(passphrase, ${pass});
+    UPDATE users SET token = ${token} WHERE username = ${user};
   '
   
+  new_user: '
+    INSERT INTO users (username,screenname,passphrase,email,token) 
+    VALUES (${user},${nick},${pass},${email},${token});
+  '
+  
+  new_board: "
+    DO $$BEGIN
+      INSERT INTO boards (${keys:raw}) VALUES (${values:raw});
+      INSERT INTO roles (role, board, capcode) VALUES ('owner',${board:raw},'Owner');
+      INSERT INTO assign (id,role,board) VALUES (${id},'owner',${board:raw});
+    END;$$ LANGUAGE plpgsql;
+  "
+  
+  new_log: '
+    INSERT INTO logs (board,username,level,detail) 
+    VALUES (${board},${username},${level},${detail});
+  '
+  
+  ban_post: '
+    INSERT INTO ban (board,creator,reason,expires,notice,range,post) 
+    VALUES (${board},${user},${reason},${expires},${bantext},${range},${post});
+  '

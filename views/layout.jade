@@ -1,21 +1,40 @@
+mixin stylesheet(file)
+	link(rel="stylesheet", type="text/css", href='/_/'+file+'.css')
+
 doctype html
 html
 	head
+		title #{META.title||SITE.name}
+		meta(rel="description", content=META.desc||SITE.desc||"")
+		meta(rel="keywords", content=(SITE.keywords||[]).concat(META.keywords||[]).join(','))
+		meta(name="robots",content="index,nofollow,noarchive")
+		meta(name="PAGE", 
+			data-board=board?board.board:'_', 
+			data-type=page&&page.type?page.type:'', 
+			data-current=page&&page.param?page.param:'',
+			data-CDN=CDN)
+		- if (CLIENTDEPS)
+			- each dep in CLIENTDEPS
+				- if (dep.substr(dep.length-4,4)=='.css')
+					link.dependency(rel="stylesheet", type="text/css", href=dep)
+				- else
+					script.dependency(src="",data-src=dep)
+		script(src="/_/init.js")
 		block head
-			meta(rel="description" content="Tauchan Development Site")
-			meta(rel="keywords" content="image,board,node,js,forum,imageboard,anonymous")
-		script.
-			document.documentElement.classList.add('js');
-		block script
 	body
 		section#header
+			- if (user && user.reg)
+				h1 Hello #{user.screenname||'Anonymous'}
 			block header
-		block nav
+		nav
+			block nav
 		section#main
 			span#top
 			block content
-		block nav
+		nav
+			block nav
 		section#footer
 			block footer
 			span#bottom
-		
+			p This page layout request was completed in #{NOW *-1 + Date.now()}ms
+		block scripts

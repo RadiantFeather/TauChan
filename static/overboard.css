@@ -1,0 +1,30 @@
+#tags,#boardlist {
+	display:inline-block;
+}
+#tags {
+	float:left;
+}
+#cloud {
+	width:200px;
+	font-size:125%;
+}
+
+#cloud >*:not(legend) {
+	display:inline-block;
+	margin:0;
+	margin-right:6px;
+}
+
+#boardlist nav {
+	margin-top: 6px;
+	margin-bottom: 6px;
+}
+
+#boardlist nav >* {
+	margin-right:6px;
+}
+
+#boardlist nav aside {
+	float:right;
+	display:inline-block;
+}

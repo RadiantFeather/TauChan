@@ -1,0 +1,32 @@
+post:
+  post_delete: 'delete a post'
+  post_ban: 'ban an IP'
+  media_delete: 'delete media from a post'
+  media_spoiler: 'spoiler media in a post'
+  
+thread:
+  thread_autosage: 'set flag to prevent new replies bumping the thread'
+  thread_pin: 'set flag to keep thread at the very top of the board (only one allowed per board)'
+  thread_sticky: 'set flag to keep thread above normal threads'
+  thread_cycle: 'set flag to have old posts truncated in favor of new posts in a thread'
+  thread_anchor: 'set flag to keep thread on the board even if autosaged or bumplimit is active'
+  thread_lock: 'set flag to prevent unauthorized users from posting in the thread'
+  thread_archive: 'archive or revive a thread'
+  thread_feature: 'mark as a featured thread that will permanently stay in the archive (can still be reported on)'
+  
+board:
+  view_ip: 'see the raw IP for each poster'
+  view_ipmask: 'see the partially masked IP for each poster'
+  view_iphash: 'see the encrypted hex IP value for each poster'
+  view_reports: 'manage reports made for posts'
+  view_history: 'see the post history for the entire board'
+  reply_locked: 'post in locked threads'
+  reply_archive: 'post in archived threads'
+  manage_reports: 'view, escalate and delete reports'
+  manage_pages: 'edit custom board pages'
+  
+site:
+  board_create: 'create a new board'
+
+undefined:
+

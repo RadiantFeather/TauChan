@@ -1,36 +1,24 @@
 extends layout
 
-block script
-	script
-		| window.PAGE = {};
-		| window.PAGE.board = '#{board.board}';
-		- if (page.type)
-			| window.PAGE.type = '#{page.type}';
-			- if (page.type != 'index') 
-				| window.PAGE.current = '#{data[0].thread}';
-			- else 
-				| window.PAGE.current = 'index';
-
 block content
-	div.threads
-		- var i = -1
-		- while (++i >= 0 && i < data.length)
-			div.thread(id="#{data[i].op}")
-				div.media
-					- var classtype = data[i].thumb===null?'missing': data[i].deleted?'deleted': data[i].nsfw?'spoiler': '';
-					a.file(class=classtype, href="/#{board.board}/#{data[i].op}")
-						- if (data[i].thumb === null)
-							img(src="#{cdn}#{board.missingimg}")
-						- else if (!data[i].deleted)
-							- if (data[i].nsfw)
-								img(src="#{cdn}#{board.spoilerimg}")
-							img(src="#{cdn}#{data[i].thumb}")
-						- else
-							img(src="#{cdn}#{board.deletedimg}")
-				span.meta
-					span.replies #{data[i].replies}
-					span.images #{data[i].images}
-					span.page #{data[i].page}
-				- if (data[i].subject !== null)
-					span.subject #{data[i].subject}
-				div.content #{data[i].markdown}
+	- var i = -1
+	- while (++i >= 0 && i < data.length)
+		article.thread(id="#{data[i].op}")
+			div.media
+				- var classtype = data[i].thumb===null?'missing': data[i].deleted?'deleted': data[i].nsfw?'spoiler': '';
+				a.file(class=classtype, href="/#{board.board}/#{data[i].op}")
+					- if (data[i].thumb === null)
+						img(src="#{CDN}#{board.missingimg}",alt="No image available")
+					- else if (!data[i].deleted)
+						- if (data[i].nsfw)
+							img.nsfw(src="#{CDN}#{board.spoilerimg}",alt="Image is spoilered")
+						img(src="#{CDN}#{data[i].thumb}",alt="Thumbnail")
+					- else
+						img(src="#{CDN}#{board.deletedimg}",alt="Image is deleted")
+			span.meta
+				span.replies #{data[i].replies}
+				span.images #{data[i].images}
+				span.page #{data[i].page}
+			- if (data[i].subject !== null)
+				span.subject #{data[i].subject}
+			div.content !{data[i].markup}

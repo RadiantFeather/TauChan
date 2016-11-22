@@ -2,36 +2,31 @@
 var fs = require('fs'),
 	deasync = require('deasync'),
 	// cache = require('redis'),
-	// socket = require('socekt.io'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	pgp = require('pg-promise')({ promiseLib: require('bluebird') }),
+	pgp = require('pg-promise')(GLOBAL.pgp),
 	db = pgp(GLOBAL.cfg.database),
 	_ = {};
 	
 function loadBoardAssets(board,data,paths){
 	let i = -1;
 	while(++i < paths.length) {
-		try {
-			fs.statSync('./assets/'+board);
-		} catch (e) {
-			fs.mkdirSync('./assets/'+board);
-		}
+		GLOBAL.lib.mkdir('./assets/'+board);
 		try {
 			let f = fs.statSync('./assets/'+board+'/'+paths[i].path);
 			if (f.isDirectory()) {
 				try {
-					data[paths[i].key] = fs.readdirSync('./assets/'+board+'/'+paths[i].path).map((cur)=>{return '/'+board+'/files/'+paths[i].path+'/'+cur;});
+					data[paths[i].key] = fs.readdirSync('./assets/'+board+'/'+paths[i].path).map((cur)=>{return '/'+board+'/media/'+paths[i].path+'/'+cur;});
 				} catch(e) {
-					data[paths[i].key] = fs.readdirSync('./assets/_/'+paths[i].path).map((cur)=>{return '/_/files/'+paths[i].path+'/'+cur;});
+					data[paths[i].key] = fs.readdirSync('./static/'+paths[i].path).map((cur)=>{return '/_/static/'+paths[i].path+'/'+cur;});
 				}
 				if (!data[paths[i].key].length)
-					data[paths[i].key] = fs.readdirSync('./assets/_/'+paths[i].path).map((cur)=>{return '/_/files/'+paths[i].path+'/'+cur;});
+					data[paths[i].key] = fs.readdirSync('./static/'+paths[i].path).map((cur)=>{return '/_/static/'+paths[i].path+'/'+cur;});
 			}
-			else if (f.isFile()) data[paths[i].key] = '/'+board+'/files/'+paths[i].path;
+			else if (f.isFile()) data[paths[i].key] = '/'+board+'/media/'+paths[i].path;
 		} catch (e) {
 			try {
-				fs.statSync('/_/files/'+paths[i].path);
-				data[paths[i].key] = '/_/files/'+paths[i].path;
+				fs.statSync('./static/'+paths[i].path);
+				data[paths[i].key] = '/_/static/'+paths[i].path;
 			} catch(e) {
 				data[paths[i].key] = '';
 			}
@@ -40,8 +35,6 @@ function loadBoardAssets(board,data,paths){
 }
 
 _.loadBoard = function(req,res,next){
-	// cache board assets
-	let done = false;
 	db.one('SELECT * FROM boards WHERE board = ${board};', {
 		board: req.params.board
 	}).then((data) => {
@@ -55,58 +48,38 @@ _.loadBoard = function(req,res,next){
 			// ,{key:'flags',path:'flags'}
 		]);
 		res.locals.board = data;
-		done = true;
+		// cache board assets
+		next();
 	}).catch((err) => {
-		return next(err);
-		done = null;
+		// GLOBAL.lib.logError('middle.loadBoard',err);
+		next(err.setstatus(404));
 	});
-	while (done === false) deasync.runLoopOnce();
-	return (done === true ? next() : false);
 };
 
 _.loadUser = function(req,res,next){
-	let auth = function(board,flag){
-		if (!this.reg) return false;
-		if (typeof flag == 'string') flag = [flag];
-		let i = -1;
-		while (++i < flag.length) {
-			if (!this.flags[flag[i]]) 
-				return false;
-		}
-		return true;
-	};
-	let anon = {
-		reg:false
-		,ip:req.ip
-		,validated: false
-		,global: false
-		,screenname: null
-		,capcode:null
-		,flags: {}
-		,auth:auth
-	};
-	if (!req.session.user){ // no user token present, assume anonymous user
-		res.locals.user = anon;
+	if (res.locals.user) return next(); // User has already been defined, skip
+	if (req.session.user){ // User data is present, set with new IP and board references
+		res.locals.user = new GLOBAL.lib.User(req.session.user,req.params.board,req.ip);
 		return next();
 	}
-	wait = true;
+	if (!req.cookies.user){ // No cookie present, assume anonymous user
+		req.session.user = null;
+		res.locals.user = new GLOBAL.lib.User(null,req.params.board,req.ip);
+		return next();
+	}
 	db.one(GLOBAL.sql.view.user,{
-		user: req.session.user,
+		user: req.cookies.user,
 		pass: null,
 		board: req.params.board || '_'
 	}).then((data)=>{
-		res.locals.user = data;
-		res.locals.user.reg = true;
-		res.locals.user.ip = req.ip;
-		res.locals.user.auth = auth;
-		wait = false;
+		req.session.user = data;
+		res.locals.user = new GLOBAL.lib.User(data,req.params.board,req.ip);
+		next();
 	}).catch((err)=>{ // user token failed, assume anonymous user
 		req.session.user = null;
-		res.locals.user = anon;
-		wait = false;
+		res.locals.user = new GLOBAL.lib.User(null,req.params.board,req.ip);
+		next();
 	});
-	while (wait) deasync.runLoopOnce();
-	return next();
 };
 
 _.loadGlobal = function(req,res,next){ // don't know if we'll actually need this but it's here if so.
@@ -114,14 +87,26 @@ _.loadGlobal = function(req,res,next){ // don't know if we'll actually need this
 };
 
 _.handleAjaxError = function(err,req,res,next){
+	if (err.status) res.status(err.status);
+	err.xhr = req.xhr;
 	if (!req.xhr) return next(err);
-	console.log('ajax error', err);
-	res.send(err);
+	if (err.log) GLOBAL.lib.log(err.log,err);
+	console.log('Ajax Error');
+	console.log(err);
+	res.json({success:false,data:{status:res.statusCode||500,message:err.message}});
 };
 
 _.handleError = function(err,req,res,next){
-	console.log('request error', err);
-	res.render('error.jade',err);
+	if (err.log) GLOBAL.lib.log(err.log,err);
+	let x,y=[];
+	for (x in req.params){
+		y.push(x+': '+req.params[x]);
+	}
+	console.log('Request Error');
+	console.log(err);
+	err.back = req.cookies.lastpage;
+	if (err.sendStatus) res.sendStatus(res.statusCode);
+	else res.render(err.render||'error.jade',{status:res.statusCode||500,err:err,data:err.data||null});
 	let tf = res.locals.trackfiles;
 	res.end();
 	if (tf && tf.length) {

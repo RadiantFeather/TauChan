@@ -1,0 +1,89 @@
+max_posts_per_board: 250
+num_of_boards: 600
+boards: 
+  - board: 'b'
+    title: 'Random'
+    tags: 
+      - random
+      - social
+      - world
+      - memes
+  - board: 'a'
+    title: 'Anime'
+    nsfw: false
+    tags: 
+      - anime
+      - cartoon
+      - animation
+      - memes
+  - board: 'news'
+    title: 'World News and Happenings'
+    nsfw: false
+    tags: 
+      - news
+      - world
+      - politics
+      - information
+  - board: 'pol'
+    title: 'Pollitically Incorrect'
+    tags: 
+      - politics
+      - memes
+      - discussion
+  - board: 'isis'
+    title: 'Terrorist Activities'
+    listed: false
+    tags: 
+      - discussion
+      - world
+      - social
+  - board: 'pone'
+    title: 'My Little Pony'
+    nsfw: false
+    tags: 
+    - pony
+    - toys
+    - cartoon
+    - animation
+    - discussion
+
+tags:
+  - random
+  - social
+  - world
+  - memes
+  - animation
+  - cartoon
+  - anime
+  - news
+  - politics
+  - information
+  - discussion
+  - pony
+  - toys
+  
+posts:
+  - board: 'b'
+    markdown: "__MEMES! \n@@CAN NOT GET ENOUGH MEMES!"
+  - board: 'b'
+    markdown: "**I** drooled ****on my grillfriend's ice-cream. [spoiler]I __wonder [spoiler]if she noticed...[/spoiler]__[/spoiler]"
+  - board: 'a'
+    markdown: "@!This thread belongs to __SquidGirl__. The squidvasion continues!"
+  - board: 'a'
+    markdown: "Waifu [code][/code]thread."
+  - board: 'a'
+    markdown: "__Palm-top **Tiger**__ is best tiger."
+  - board: 'news'
+    markdown: 'Greece got\\n raped again.'
+  - board: 'news'
+    markdown: "Can't stump the trump."
+  - board: 'pol'
+    markdown: "@@Hitler did __nothing__ wrong.\nHe just[spoiler][spoiler][spoiler][spoiler][/spoiler][/spoiler][/spoiler][/spoiler] wanted **perfection**."
+  - board: 'pol'
+    markdown: "**__Putin@> is [spoiler]right[/spoiler] on the <@money**."
+  - board: 'pone'
+    markdown: "==HEY __ANON__!\n==**@>WHAT'S@> UP<@?<@**____**=="
+  - board: 'pone'
+    markdown: "**__``Claim your waifu before \n@@some other [spoiler]faggot[/spoiler] gets her!\n``**"
+  - board: 'isis'
+    markdown: "Two new recruits [code]to the DurkaDurka[/code] division."

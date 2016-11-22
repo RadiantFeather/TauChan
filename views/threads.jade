@@ -1,22 +1,31 @@
 extends layout
 
-mixin actions(board,post)
-	label.menu
-		input.toggle(type="checkbox")
+mixin actions(board,post,ip)
+	span.menu
+		input.toggle(id="postactions#{post}_toggle",type="checkbox")
+		label(for="postactions#{post}_toggle")
 		ul.postactions
-			li: a(href="/#{board}/#{post.post}/report", target="_blank") Report
-			- if (user.auth(board,'delete_post') || post.ip == user.ip)
-				li: a(href="/#{board}/#{post.post}/delete", target="_blank") Delete
-			- if (user.auth(board,'ban_user'))
-				li: a(href="/#{board}/#{post.post}/ban", target="_blank") Ban
-			- if (user.auth(board,['ban_user','delete_post']))
-				li: a(href="/#{board}/#{post.post}/bnd", target="_blank") Ban & Delete
+			li: a(href="/#{board}/report/#{post}", target="_blank") Report
+			- if (user.auth('thread.post_delete')||user.ip == ip)
+				li: a(href="/#{board}/delete/#{post}", target="_blank") Delete
+			- if (user.auth('thread.post_ban'))
+				li: a(href="/#{board}/ban/#{post}", target="_blank") Ban
+			- if (user.auth(['thread.post_ban','thread.post_delete']))
+				li: a(href="/#{board}/bnd/#{post}", target="_blank") Ban & Delete
 				
-mixin mediaitem(m)
-	div.item(class="#{m.mediatype}"+(m.deleted?' deleted':m.nsfw?' nsfw':''))
+mixin mactions(m)
+	- if (!m.nsfw && (user.auth('post.media_spoiler')||user.ip == m.ip))
+		div.spoiler.icon-cornerTL
+			a.icon-mute(title="spoiler",href="/#{m.board}/spoilerMedia/#{m.post}/#{m.sort}")
+	- if (!m.deleted && (user.auth('post.media_delete')||user.ip == m.ip))
+		div.delete.icon-cornerBR
+			a.icon-trashcan(title="delete",href="/#{m.board}/deleteMedia/#{m.post}/#{m.sort}")
+
+mixin mediaitem(m,ip)
+	div.item(class={[m.mediatype]:true,'deleted':!!m.deleted,'nsfw':!!m.nsfw})
 		- if (m.mediatype == 'img') //- Raw image
 			span.meta
-				a.file.brick(href="#{cdn}#{m.src}") #{m.meta.title}
+				a.url.brick(href="#{CDN}#{m.src}",target="_blank") #{m.meta.title}
 				- if (m.meta.dims)
 					span.dims #{m.meta.dims}
 				- if (m.meta.dims && m.meta.size)
@@ -24,27 +33,27 @@ mixin mediaitem(m)
 				- if (m.meta.size)
 					span.size #{m.meta.size}
 			- if (m.deleted)
-				img.deleted(src="#{cdn}#{board.deletedimg}")
+				img.deleted(src="#{CDN}#{board.deletedimg}",alt="Image is deleted")
 			- else
-				a.file(href="#{cdn}#{m.src}", onclick="return toggleImage(this),false;", target="_blank")
-					- if (m.nsfw)
-						img.nsfw(src="#{cdn}#{board.spoilerimg}")
-					img.thumb(src="#{cdn}#{m.thumb}")
-					img.full(src="#{cdn}#{m.src}")
+				div.filewrap
+					a.file(href="#{CDN}#{m.src}",onclick="this.parentNode.parentNode.parentNode.classList.toggle('open');return false;",target="_blank")
+						- if (m.nsfw)
+							img.nsfw(src="#{CDN}#{board.spoilerimg}",alt="Image is spoilered")
+						img.thumb(src="#{CDN}#{m.thumb}",alt="Thumbnail")
+						img.full(src="#{CDN}#{m.src}",alt="Full size")
+					+mactions(m)
+
 		//- - else if (m.mediatype == 'vid') //- Raw video
 		//- - else if (m.mediatype == 'aud') //- Raw audio
 		//- - else if (m.mediatype == 'you') //- Youtube
 		//- - else if (m.mediatype == 'dly') //- Dailymotion
+		//- - else if (m.mediatype == 'snd') //- Soundcloud
 		//- - else if (m.mediatype == 'voc') //- Vocaroo
 		//- - else if (m.mediatype == 'liv') //- Livestream
 		//- - else if (m.mediatype == 'twi') //- Twitch
 		//- - else if (m.mediatype == 'box') //- Hitbox
 		//- - else if (m.mediatype == 'ust') //- Ustream
 		
-		- if (user.auth(m.board,'delete_media'))
-			a.delete.brick(href="/#{m.board}/#{m.post}/delete/#{m.hash}")
-		- if (!m.nsfw && user.auth(m.board,'spoiler_media'))
-			a.spoiler.brick(href="/#{m.board}/#{m.post}/spoiler/#{m.hash}")
 
 mixin state(t)
 	span.is
@@ -58,36 +67,33 @@ mixin state(t)
 			span.cycle
 		- if (t.nsfw)
 			span.nsfw
+			
+mixin date_time(classes,val)
+	time(class=classes,
+		datetime=F_UTC(val,0),
+		data-interval=F_TOINTERVAL(NOW - (new Date(val)).getTime()), 
+		data-time=F_UTC(val,1)
+	)= F_UTC(val,2)
 
 block head
-	- if (page.type == 'index')
-		title /#{board.board}/ - #{sitename}
-		meta(rel="description" content="/#{board.board}/ - #{board.title}: #{board.subtitle||''}")
-	- else if (page.type == 'thread' || page.type == 'archive')
-		title /#{board.board}/ - #{data[0].subject || title}
-		meta(rel="description" content="")
-	meta(rel="keywords" content="image,board,node,js,forum,imageboard,anonymous,/#{board.board}/")
-
-append script
-	script
-		| window.PAGE = {};
-		| window.PAGE.board = '#{board.board}';
-		| window.PAGE.type = '#{page.type}';
-		| window.PAGE.current = '#{page.param}';
-		
+	+stylesheet('thread')
+	+stylesheet('post')
+	
 block header
-	- if (page.type == 'archive')
+	- if (page.type == 'archive' && !user.auth('board.reply_archive'))
 		h1 Thread is archived.
 		h3 Replies are disabled.
 	- else
 		input#showPostForm(type="checkbox" hidden=true)
-		label.brick(for="showPostForm")
-			h1 
-				= (page.type=='index'?"New Thread":page.type=='thread'?"New Reply":"New Post")
+		label(for="showPostForm")
+			- if (page.type=='index')
+				h1.brick New Thread
+			- else if (page.type == 'thread')
+				h1.brick New Reply
 		form#newpost(method="POST", enctype="multipart/form-data", action=(page.type=='index'&&page.param=='archive'?"/#{board.board}":""))
 			table
 				tr: td Name
-					td: input(name="name", type="text", placeholder="#{board.noname}")
+					td: input(name="name", type="text", placeholder=board.noname)
 				- if (board.emailsubmit)
 					tr: td Email
 						td: input(name="email", type="text", placeholder="or sage")
@@ -106,15 +112,41 @@ block header
 									label NSFW
 										input(type="checkbox", name="spoiler_media#{i}")
 									input(type="file", name="media#{i}", accept="image/*,video/*,audio/*", placeholder="External Media")
-			div.options
+				- if (page.type=='index')
+					tr: td Thread Options 
+						td: div.options
+							- if (board.nsfw == false)
+								label NSFW
+									input(type="checkbox", name="nsfw")
+							- if (user.auth('thread.thread_autosage'))
+								label Autosage
+									input(type="checkbox", name="sage")
+							- if (user.auth('thread.thread_pin'))
+								label Pin
+									input(type="checkbox", name="pinned")
+							- if (user.auth('thread.thread_sticky'))
+								label Sticky
+									input(type="checkbox", name="sticky")
+							- if (user.auth('thread.thread_cycle'))
+								label Cycle
+									input(type="checkbox", name="cycle")
+							- if (user.auth('thread.thread_anchor'))
+								label Anchor
+									input(type="checkbox", name="anchor")
+								
 block content
 	- var i = -1
+	- if (data.length == 0)
+		- if (page.type == 'thread')
+			h1 No posts have been made.
+		- else
+			h1 No threads have been made.
 	- while (++i < data.length)
 		- if (data[i].post == data[i].thread)
-			div.thread.post.op(id="#{data[i].post}")
-				div.info
+			article.thread.post.op(id="#{data[i].post}")
+				header.info
 					- if (data[i].email !== null)
-						a.name(href="mailto:#{data[i].email}"): span.name #{data[i].name}
+						a.name(href="mailto:#{data[i].email}") #{data[i].name}
 					- else
 						span.name #{data[i].name}
 					- if (data[i].trip !== null)
@@ -123,38 +155,42 @@ block content
 						span.capcode #{data[i].capcode}
 					- if (data[i].subject !== null)
 						span.subject #{data[i].subject}
-					- if (user.auth(board.board,'view_ip'))
+					- if (user.auth('board.view_ip'))
 						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ip}
-					- else if (user.auth(board.board,'view_ipmask'))
-						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ipmask}
-					- else if (user.auth(board.board,'view_iphash'))
-						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].shorthash}
-					span.timestamp #{data[i].posted}
+					- else if (user.auth('board.view_ipmask'))
+						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].mask}
+					- else if (user.auth('board.view_iphash'))
+						a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].longhash.substr(0,16)}
+					+date_time('stamp', data[i].posted)
+					- if (board.postids)
+						span.postid= F_POSTID(user.ip,data[i].board,data[i].thread)
 					a.quote(href=(page.type=='index'?"/#{board.board}/#{data[i].thread}##{data[i].post}":"##{data[i].post}"), onclick="if('#{page.type}'=='thread')return quotePost(#{data[i].post}),false;") #{data[i].post}
 					+state(data[i])
-					+actions(board.board,data[i])
+					+actions(board.board,data[i].post,data[i].ip)
 					span.cited
 						- if (data[i].targets !== null)
 							- each t in data[i].targets
-								a.cite(href="##{t.post}")
+								cite: a(href="##{t.post}")
 				div.media(class=(data[i].media === null ? 'none' : data[i].media.length > 1 ? 'many' : data[i].media.length == 1 ? 'one' : 'none'))
 					- if (data[i].media !== null)
 						- each m in data[i].media
-							+mediaitem(m)
+							+mediaitem(m,data[i].ip)
 				span.content !{data[i].markup}
 				- if (data[i].banned !== null)
 					div.banned #{data[i].banned}
+				- if (board.publicedits && data[i].edited !== null)
+					+date_time('edited', data[i].edited)
 				- if (data[i].globalstamp !== null)
-					div.clean Globally acceptable: (#{data[i].globalstamp})
+					+date_time('clean global', data[i].globalstamp)
 				- else if (data[i].localstamp !== null)
-					div.clean Acceptable on this board: (#{data[i].localstamp})
+					+date_time('clean local', data[i].localstamp)
 				- if (page.type == 'index' && data[i].total - data[i].visible > 0)
 					i There are #{data[i].total - data[i].visible} hidden posts. Click
 						a(href="/#{board.board}/#{data[i].thread}") HERE
 						| to view.
-				- while (data[++i] && data[i].post != data[i].thread)
-					div.post.reply(id="#{data[i].post}")
-						div.info
+				- while (data[i+1] && data[i+1].post != data[i+1].thread && ++i)
+					article.post.reply(id="#{data[i].post}")
+						header.info
 							- if (data[i].email !== null)
 								a.name(href="mailto:#{data[i].email}"): span.name #{data[i].name}
 							- else
@@ -165,61 +201,76 @@ block content
 								span.capcode #{data[i].capcode}
 							- if (data[i].subject !== null)
 								span.subject #{data[i].subject}
-							- if (user.auth(board.board,'view_ip'))
+							- if (user.auth('board.view_ip'))
 								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ip}
-							- else if (user.auth(board.board,'view_ipmask'))
-								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].ipmask}
-							- else if (user.auth(board.board,'view_iphash'))
-								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].shorthash}
-							span.timestamp #{data[i].posted}
+							- else if (user.auth('board.view_ipmask'))
+								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].mask}
+							- else if (user.auth('board.view_iphash'))
+								a.ip.brick(href="/#{board.board}/history/#{data[i].longhash}") #{data[i].longhash.substr(0,16)}
+							+date_time('stamp', data[i].posted)
+							- if (board.postids)
+								span.postid= F_POSTID(user.ip,data[i].board,data[i].thread)
 							a.quote(href=(page.type=='index'?"/#{board.board}/#{data[i].thread}##{data[i].post}":"##{data[i].post}"), onclick="if('#{page.type}'=='thread')return quotePost(#{data[i].post}),false;") #{data[i].post}
-							+actions(board.board,data[i].post)
+							+actions(board.board,data[i].post,data[i].ip)
 							span.cited
 								- if (data[i].targets !== null)
 									- each t in data[i].targets
-										a.cite(href="##{t.post}")
+										cite: a(href="##{t.post}") >>#{t.post}
 						div.media(class=(data[i].media === null ? 'none' : data[i].media.length > 1 ? 'many' : data[i].media.length == 1 ? 'one' : 'none'))
 							- if (data[i].media !== null)
 								- each m in data[i].media
-									+mediaitem(m)
+									+mediaitem(m,data[i].ip)
 						span.content !{data[i].markup}
 						- if (data[i].banned !== null)
 							div.banned #{data[i].banned}
+						- if (board.publicedits && data[i].edited !== null)
+							+date_time('edited', data[i].edited)
 						- if (data[i].globalstamp !== null)
-							div.clean Globally acceptable: (#{data[i].globalstamp})
+							+date_time('clean global', data[i].globalstamp)
 						- else if (data[i].localstamp !== null)
-							div.clean Acceptable on this board: (#{data[i].localstamp})
+							+date_time('clean local', data[i].localstamp)
 block nav
-	nav
-		- if (page.type == 'thread')
+	- if (page.type == 'thread')
+		span.quicklinks
+			a.index.brick(href="/#{board.board}/") Index
+			a.catalog.brick(href="/#{board.board}/catalog", target="_blank") Catalog
+			a.to.brick(href="#top") Top
+			a.update.brick(href="/#{board.board}/#{page.param}#bottom", onclick="return updateThread(#{page.param}),false;") Update
+		span.stats
+			- if (data[0].featured)
+				span.is-featured Featured
+			- if (data[0].pinned)
+				span.is-pinned Pinned
+			- else if (data[0].sticky)
+				span.is-sticky Sticky
+			- if (data[0].locked)
+				span.is-locked Locked
+			- else if (data[0].cycle)
+				span.is-cycle Cycle
+			- if (data[0].nsfw)
+				span.is-nsfw NSFW
+			span.replies #{data.length-1}
+			span.images
+				= data.reduce((a,b)=>{return a+(b.media===null?0:b.media.length);},0)
+			span.posters
+				= data.reduce((a,b)=>{if(a.indexOf(b.ip)==-1)a.push(b.ip);return a;},[]).length
+			span.page #{data[0].page}
+	- else if (page.type == 'index')
+		- if (page.param == 'index')
+			span.quicklinks
+				a.catalog.brick(href="/#{board.board}/catalog") Catalog
+				a.archive.brick(href="/#{board.board}/archive") Archive
+			if (data.length)
+				span.pages
+					- var i = 0
+					- while (++i <= data[0].pages)
+						span: a(href=(i!=curpage)?"/#{board.board}/?page="+(i):false) #{i}
+		- else if (page.param == 'archive')
 			span.quicklinks
 				a.index.brick(href="/#{board.board}/") Index
-				a.catalog.brick(href="/#{board.board}/catalog", target="_blank") Catalog
-				a.top.brick(href="#top") Top
-				a.update.brick(href="/#{board.board}/#{page.param}#bottom", onclick="return updateThread(#{page.param}),false;") Update
-			span.stats
-				- if (data[0].pinned)
-					span.is-pinned Pinned
-				- else if (data[0].sticky)
-					span.is-sticky Sticky
-				- if (data[0].locked)
-					span.is-locked Locked
-				- else if (data[0].cycle)
-					span.is-cycle Cycle
-				- if (data[0].nsfw)
-					span.is-nsfw NSFW
-				span.replies #{data.length-1}
-				span.images
-					= data.reduce((a,b)=>{return a+(b.media===null?0:b.media.length);},0)
-				span.posters
-					= data.reduce((a,b)=>{if(a.indexOf(b.ip)==-1)a.push(b.ip);return a;},[]).length
-				span.page #{data[0].page}
-		- else if (page.type == 'index')
-			- if (page.param == 'index')
-				span.quicklinks
-					a.catalog.brick(href="/#{board.board}/catalog", target="_blank") Catalog
-					a.archive.brick(href="/#{board.board}/archive", target="_blank") Archive
-			- else if (page.param == 'archive')
-				span.quicklinks
-					a.index.brick(href="/#{board.board}/") Index
-					a.catalog.brick(href="/#{board.board}/catalog", target="_blank") Catalog
+				a.catalog.brick(href="/#{board.board}/catalog") Catalog
+			if (data.length)
+				span.pages
+					- var i = 0
+					- while (++i <= data[0].pages)
+						span: a(href=(i!=curpage)?"/#{board.board}/?page="+(i):false) #{i}}
