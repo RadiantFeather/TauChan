@@ -1,8 +1,10 @@
 {
   "name": "TauChan",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "The next generation image board platform",
   "author": "The TauChan Team <tauchan@pink.horse>",
+  "license": "MIT",
+  "main": "app.js",
   "contributors": [
     {
       "name": "Xaekai",
@@ -45,6 +47,5 @@
     "socket.io": "latest",
     "socket.io-client": "latest",
     "write-yaml": "latest"
-  },
-  "license": "MIT"
+  }
 }

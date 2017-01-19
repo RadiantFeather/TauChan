@@ -1,16 +1,14 @@
 "use strict";
-String.prototype.splice = function(i,c,a){
-	return this.slice(0,i)+(a||'')+this.slice(i+c);
-};
 var fs = require('fs'),
 	deasync = require('deasync'),
 	// cache = require('redis'),
 	// socket = require('socekt.io'),
 	crypto = require('crypto'),
 	qs = require('querystring'),
-	ffmpeg = require('fluent-ffmpeg'),
-	encoder = new require('node-html-encoder').Encoder('entity'),
-	easyimg = require('easyimage'),
+	// ffmpeg = require('fluent-ffmpeg'),
+	request = require('request'),
+	encoder = new (require('node-html-encoder')).Encoder('entity'),
+	easyimg = require('easyimage'), gm = require('gm'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
 	reeeee = {
 		imgur: /^https:\/\/(?:i\.)?imgur\.com\/[^/.]+\.(?:jpg|png|gif)+/i
@@ -19,8 +17,8 @@ var fs = require('fs'),
 			/^https?:\/\/youtu\.be/i
 		],
 		dailymotion: [
-			'^https?://www.dailymotion.com/video/[a-zA-Z0-9]+',
-			'^https?://dai.ly/[a-zA-Z0-9]+'
+			/^https?:\/\/www.dailymotion.com\/video\/[a-zA-Z0-9]+/i,
+			/^https?:\/\/dai.ly\/[a-zA-Z0-9]+/i
 		]
 		
 	},
@@ -212,7 +210,7 @@ function parseExternalMedia(url) {
 			id = m.domainString()=='dai.ly'?m.uri[0]:m.uri[1].split('_')[0];
 			if (!id) return err;
 			r.mediatype = 'dly';
-			s = new URL('https://www.dailymotion.com/embed/video/'+id+'?quality=480&sharing-enable=false&endscreen-enable=false')
+			s = new URL('https://www.dailymotion.com/embed/video/'+id+'?quality=480&sharing-enable=false&endscreen-enable=false');
 			if (m.query.start) s.query.start = m.query.start;
 			r.src = s.stringify();
 			r.href = 'https://dai.ly/'+id;
@@ -236,7 +234,7 @@ function parseExternalMedia(url) {
 			break;
 	}
 	return r;
-};
+}
 
 function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta mediatype nsfw
 	let r={meta:{}};
@@ -300,10 +298,10 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 			break;
 		default:
 			let err = 'Unsupported media type: '+ file.mimetype.toLowerCase() +' - '+ file.originalName;
-			return (new Error(err)).setstatus(415)
+			return (new Error(err)).setstatus(415);
 	}
 	return r;
-};
+}
 	
 _.processPostMedia = function(board,body,files,trackfiles) {
 	this.mkdir('./assets/'+board.board+'/media');
@@ -486,7 +484,7 @@ _.processMarkup = function(markdown){
 			// check for the suppression close key first.
 			if (markup.slice(cursor+suppress.open.length).indexOf(suppress.close) != -1){
 				// close depths
-				let i = 0, c = 0;
+				let i = 0;
 				while (++i <= depth.length){
 					let t = depth[depth.length-i];
 					// prevent unnecessary empty nodes from being generated
@@ -732,11 +730,11 @@ function User(data,board,ip){
 	this.ip = ip;
 	this.currentBoard = board||'';
 	this.reg = data?true:false;
-};
+}
 
 // Global flag registry for user auth permissions
 if (GLOBAL.cfg.devmode) {
-	let RegFlag = (cat,flag)=>{
+	var RegFlag = (cat,flag)=>{
 		if (typeof cat != 'string') cat = 'undefined';
 		if (!GLOBAL.flags[cat]) GLOBAL.flags[cat] = {};
 		GLOBAL.flags[cat][flag] = '';

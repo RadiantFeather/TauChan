@@ -1,9 +1,12 @@
 "use strict";
+String.prototype.splice = function(i,c,a){
+	return this.slice(0,i)+(a||'')+this.slice(i+c);
+};
 Object.merge = function() {
     var obj = {}, i = 0, j = arguments.length;
     for(; i < j; i++) 
 		if(typeof arguments[i] === 'object') 
-			for(key in arguments[i]) 
+			for(let key in arguments[i]) 
 				if(arguments[i].hasOwnProperty(key)) 
 					obj[key] = arguments[i][key];
     return obj;
