@@ -1,8 +1,10 @@
 {
   "name": "TauChan",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "The next generation image board platform",
   "author": "The TauChan Team <tauchan@pink.horse>",
+  "license": "MIT",
+  "main": "app.js",
   "contributors": [
     {
       "name": "Xaekai",
@@ -26,25 +28,23 @@
     "url": "https://github.com/TauChan/alpha/issues"
   },
   "dependencies": {
-    "bluebird": "^3.3.3",
-    "cookie": "latest",
-    "cookie-parser": "latest",
-    "deasync": "^0.1.4",
-    "easyimage": "^2.1.0",
-    "express": "latest",
-    "express-session": "latest",
-    "fluent-ffmpeg": "^2.0.1",
+    "bluebird": "^3.4.7",
+    "cookie": "^0.3.1",
+    "cookie-parser": "^1.4.3",
+    "deasync": "^0.1.9",
+    "express": "^4.14.0",
+    "express-session": "^1.14.2",
+    "fluent-ffmpeg": "^2.1.0",
     "gm": "^1.23.0",
-    "jade": "latest",
-    "multer": "latest",
-    "node-html-encoder": "latest",
-    "pg-promise": "latest",
-    "read-yaml": "latest",
-    "redis": "latest",
-    "request": "latest",
-    "socket.io": "latest",
-    "socket.io-client": "latest",
-    "write-yaml": "latest"
-  },
-  "license": "MIT"
+    "jade": "^1.11.0",
+    "multer": "^1.2.1",
+    "node-html-encoder": "0.0.2",
+    "pg-promise": "^5.5.2",
+    "pug": "^2.0.0-beta6",
+    "read-yaml": "^1.0.0",
+    "redis": "^2.6.5",
+    "request": "^2.79.0",
+    "socket.io": "^1.7.2",
+    "write-yaml": "^0.2.2"
+  }
 }

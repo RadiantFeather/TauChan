@@ -34,8 +34,11 @@ var global = require('./global'),
 	boards = require('./boards'),
 	middle = require('./middleware');
 
-GLOBAL.flags = flags;
 var app = express();
+
+// override using the old jade engine
+// uncomment only when pug has hit official release!
+// app.engine('pug', require('pug').__express);
 
 // Persistent locals for templates
 app.locals.CDN = GLOBAL.cdn;
