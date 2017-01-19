@@ -1,7 +1,7 @@
 extends layout
 
 block content
-	form(id="createBoard",method="POST",action="",enctype="multipart/form-data")
+	form#createBoard(method="POST",action="",enctype="multipart/form-data")
 		- if (err && (DEV || status != 500))
 			h4._error= err.message
 		- else if (err)

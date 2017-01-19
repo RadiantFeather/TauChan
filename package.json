@@ -28,22 +28,23 @@
   "dependencies": {
     "bluebird": "^3.3.3",
     "cookie": "latest",
-	"cookie-parser": "latest",
+    "cookie-parser": "latest",
     "deasync": "^0.1.4",
     "easyimage": "^2.1.0",
     "express": "latest",
+    "express-session": "latest",
     "fluent-ffmpeg": "^2.0.1",
+    "gm": "^1.23.0",
     "jade": "latest",
     "multer": "latest",
+    "node-html-encoder": "latest",
     "pg-promise": "latest",
     "read-yaml": "latest",
     "redis": "latest",
     "request": "latest",
     "socket.io": "latest",
     "socket.io-client": "latest",
-    "write-yaml": "latest",
-	"node-html-encoder": "latest",
-	"express-session": "latest"
+    "write-yaml": "latest"
   },
   "license": "MIT"
 }

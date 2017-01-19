@@ -1,5 +1,7 @@
 mixin stylesheet(file)
-	link(rel="stylesheet", type="text/css", href='/_/'+file+'.css')
+	link(rel="stylesheet", type="text/css", href='/_/'+file)
+mixin scriptsheet(file)
+	script(type="application/javascript", src='/_/'+file)
 
 doctype html
 html

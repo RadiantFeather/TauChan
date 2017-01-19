@@ -125,6 +125,23 @@ CREATE TRIGGER board_seq
 	EXECUTE PROCEDURE board_seq();
 	
 -------------------------------------------
+-- Update necessary tables that utilize username.
+--
+CREATE OR REPLACE FUNCTION username_change() RETURNS TRIGGER AS $$
+BEGIN
+	IF (TG_OP = 'UPDATE' AND OLD.username <> NEW.username) THEN 
+		UPDATE news SET username = NEW.username WHERE username = OLD.username;
+		UPDATE logs SET username = NEW.username WHERE username = OLD.username;
+	END IF;
+	RETURN NEW;
+END;$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER username_change
+	AFTER UPDATE ON users
+	FOR EACH ROW
+	EXECUTE PROCEDURE username_change();
+	
+-------------------------------------------
 -- Proxy function that takes care of managing data for new posts.
 -- 
 CREATE OR REPLACE VIEW post AS 	

@@ -32,6 +32,10 @@ node_modules
 # Optional REPL history
 .node_repl_history
 
-conf/*
-assets/*
-cache/*
+#Optional Cloud9 resources
+.c9
+
+# Generated Content
+conf
+assets
+cache

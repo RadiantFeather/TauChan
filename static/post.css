@@ -4,8 +4,8 @@
 .post .quote:before{
 	content:"#";
 }
-.post .info >*,
-.post .media .meta >* {
+.post .info >*:not(:empty),
+.post .media .meta >*:not(:empty) {
 	margin-right:8px;
 }
 
@@ -21,6 +21,14 @@
 }
 .menu >input.toggle {
 	display:none;
+}
+.menu >input.toggle +label{
+	position:relative;
+}
+.menu >input.toggle +label:after{
+	transition:0.25s;
+	position:absolute;
+	top:0.15em;
 }
 .menu >input.toggle +label:after{
 	width:0;
@@ -48,6 +56,9 @@
 	position:absolute;
 	top:0;
 	left:100%;
+	border-style: solid;
+	border-width: 2px;
+	padding: 5px;
 }
 .menu >input.toggle:checked +label +ul{
 	display:block;

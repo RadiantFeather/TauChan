@@ -31,6 +31,27 @@ view:
     LIMIT 50 OFFSET 50 * (${page}-1);
   "
   
+  overboard2: "
+    SELECT x.*, COUNT(1) OVER () AS total
+    FROM (
+      SELECT b.*, 
+        (SELECT SETVAL(
+          CONCAT_WS('_', b.board, 'post', 'seq'),
+          NEXTVAL(CONCAT_WS('_', b.board, 'post', 'seq')),
+          FALSE
+        )) AS post_count,
+        (SELECT COUNT(1) FROM recent_posts WHERE board = b.board) AS posts_per_hour, 
+        (SELECT COUNT(DISTINCT ip) FROM recent_posts WHERE board = b.board) AS active_users
+      FROM boards b
+      WHERE listed = TRUE
+      AND CASE WHEN ${all} IS NOT NULL THEN tags ?& ${all} ELSE TRUE
+      AND CASE WHEN ${any} IS NOT NULL THEN tags ?| ${any} ELSE TRUE
+      AND CASE WHEN ${none} IS NOT NULL THEN NOT tags ?| ${none} ELSE TRUE
+    ) x
+    ORDER BY x.active_users DESC, x.posts_per_hour DESC, x.post_count DESC
+    LIMIT 50 OFFSET 50 * (${page}-1);
+  "
+  
   thread: '
     WITH page AS (SELECT fetch_page(${board},${thread}) AS page)
     SELECT x.*, page.page FROM (

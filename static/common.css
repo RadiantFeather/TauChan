@@ -3,6 +3,17 @@
 ._notice {color: #03a9f4;}
 ._info {color:#808080;}
 
+input.toggle,
+input.toggle:checked +label.hide,
+input.toggle:checked +label +*.flip,
+input.toggle:not(:checked) +label +*:not(.flip),
+input.toggle:checked +label +*:not(.flip) +*.switch,
+input.toggle:not(:checked) +label +*.flip +*.switch {
+	display:none;
+}
+input.toggle +label {
+	position: relative;
+}
 
 fieldset >label{
 	white-space:nowrap;
@@ -19,8 +30,10 @@ input{
 .brace:before{content:"{";}	.brace:after{content:"}";}
 .bend:before{content:"<";}	.bend:after{content:">";}
 .bow:before:after{content:"/";}
+a.brick,a.brace,a.bend,a.bow {text-decoration:none;}
 
 nav:empty{
 	display:none;
 }
 .spoiler{color:black;background-color:black;} .spoiler:hover{color:white;}
+.important{color:red;font-size:150%;font-weight:bold;}

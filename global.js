@@ -259,15 +259,17 @@ function CSRF(req,res,next) {
 function tagCloud(){
 	let res = [], cloud = {}, total = 0, out = [];
 	let wait = true;
+	console.log('pass 1.2');
 	db.any('SELECT tags FROM boards;').then((data)=>{
 		res = data;
 		wait = false;
 	}).catch((err)=>{
+		console.log(err);
 		wait = null;
 	});
 	while (wait) deasync.runLoopOnce();
-	if (wait === null) console.log('Tag Stats'),console.log(err);
-	
+	if (wait === null) console.log('Tag Stats');
+	console.log('pass 1.5');
 	let i = -1;
 	while (++i < res.length){
 		res[i].tags.forEach((item)=>{
@@ -283,6 +285,7 @@ function tagCloud(){
 }
 
 handlers.index = function(req,res,next){
+	console.log('pass 1');
 	let t = (req.query.tags||'').split(','),
 		nsfw = ['NULL','TRUE','FALSE'].indexOf(req.query.nsfw)>=0? req.query.nsfw:'NULL',
 		all=[],any=[],none=[],
@@ -294,6 +297,7 @@ handlers.index = function(req,res,next){
 	}
 	let tags = tagCloud(GLOBAL.cfg.values.tag_cloud_count||25);
 	// redis cache check/fetch with alternate tags filter?
+	console.log('pass 2');
 	db.any(GLOBAL.sql.view.overboard, {
 		page: parseInt(req.query.page||1),
 		all: all.length?'tags ?& '+pgp.as.array(all)+'::TEXT[]':'TRUE',
@@ -301,6 +305,7 @@ handlers.index = function(req,res,next){
 		none: none.length?'NOT tags ?| '+pgp.as.array(none)+'::TEXT[]':'TRUE',
 		nsfw: {'TRUE':'FALSE','FALSE':'TRUE','NULL':'NULL'}[nsfw]
 	}).then((data)=>{
+		console.log('pass 3');
 		res.locals.page = {type:'index',param:'index'};
 		res.render('overboard.jade',{
 			data: data,

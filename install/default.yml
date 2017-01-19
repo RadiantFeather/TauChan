@@ -38,7 +38,7 @@ custom_tripcodes:
 root_whitelist:
   - favicon.ico
 external_sources:
-  'socket.io.js': 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/sockei.io.min.js'
+  'socket.io.js': 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/socket.io.min.js'
 markdown:
   suppress:
     all: '@!'

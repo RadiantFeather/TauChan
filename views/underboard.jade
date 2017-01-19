@@ -15,8 +15,9 @@ block footer
 
 block content
 	- if (data.length == 0)
-		h4: a(href="/_/createBoard") Create a board
-			| or wait to be added to an existing one.
+		h4
+			a(href="/_/createBoard") Create a board
+			| or get added to an existing one.
 	- else
 		table
 			tr

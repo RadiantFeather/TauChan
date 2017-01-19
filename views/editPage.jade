@@ -1,0 +1,22 @@
+extends layout
+
+block header
+	h1 Create a New Custom Page
+
+block content
+	form#editPage(method="POST",action="",enctype="multipart/form-data")
+		- if (err && (DEV || status != 500))
+			h4._error= err.message
+		- else if (err)
+			h4._error An unknown error occured. Page was unable to be created.
+		label Page ID
+			input(name="page",type="text",pattern="^[a-zA-Z0-9_-]+$",maxLength="16",value=(data&&data.page?data.page:''))
+		label Page Title
+			input(name="title",type="text",maxLength="32",value=(data&&data.title?data.title:''))
+		label Preview
+			input(name="ispreview",type="checkbox",checked=(data&&data.ispreview?true:false))
+		span Page Content
+		textarea(name="markdown",maxLength="4096") !{data&&data.markdown?data.markdown:''}
+		div#preview
+			- if (data&&data.preview)
+				!{data.preview}

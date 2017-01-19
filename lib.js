@@ -12,19 +12,21 @@ var fs = require('fs'),
 	encoder = new require('node-html-encoder').Encoder('entity'),
 	easyimg = require('easyimage'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	// pgp = require('pg-promise')(GLOBAL.pgp),
-	// db = pgp(GLOBAL.cfg.database),
 	reeeee = {
 		imgur: /^https:\/\/(?:i\.)?imgur\.com\/[^/.]+\.(?:jpg|png|gif)+/i
 		,youtube: [
 			/^https?:\/\/(?:www\.)?youtube\.com\/watch/i,
 			/^https?:\/\/youtu\.be/i
 		],
-		//dailymotion:
+		dailymotion: [
+			'^https?://www.dailymotion.com/video/[a-zA-Z0-9]+',
+			'^https?://dai.ly/[a-zA-Z0-9]+'
+		]
 		
 	},
 	
 	_ = {};
+GLOBAL.cfg = GLOBAL.cfg||yml.read.sync('./conf/config.yml');
 	
 _.exists = function(path){
 	try {
@@ -65,59 +67,83 @@ _.toInterval = function(seconds,mode){
 	}
 };
 
-_.urldigest = function(url,decode){
-	let r,s,t,p = {
-		protocol:'', hash:'', port: 80,
-		domain:[], domainstring:'',
-		uri:[], uristring:'',
-		query:{}, querystring:''
-	};
+function URL(url){
+	let r,s,t;
+	
+	this.protocol = '';
+	this.domain = [];
+	this.port = 80;
+	this.uri = [];
+	this.query = {};
+	this.hash = '';
+	
 	t = url;
-	if (t.split('://',1)[0]) {
+	if (t.indexOf('://') >-1 && t.split('://',1)[0]) {
 		t = t.split('://');
-		p.protocol = t.shift();
+		this.protocol = t.shift();
+		if (this.protocol == 'https') this.port = 443;
 		t = t.join('://');
 	}
+	if (t.slice(0,2) == '//') t = t.slice(2);
 	if (t.split('/',1)[0]) {
 		t = t.split('/');
-		p.domainstring = t.shift();
-		if (p.domainstring.indexOf(':') > 0){
-			let x = p.domainstring.split(':');
-			p.port = parseInt(x.pop());
-			p.domainstring = x.pop();
+		s = t.shift();
+		if (s.indexOf(':') > 0){
+			s = s.split(':');
+			this.port = parseInt(s.pop());
+			s = s.pop();
 		}
-		p.domain = p.domain.split('.');
+		this.domain = s.split('.');
 		t = t.join('/');
 	}
 	if (t.split('?',1)[0]) {
 		t = t.split('?');
-		if (decode){
-			p.uristring = decodeUriComponent(t.shift());
-			p.uristring.split('/').forEach((item)=>{p.uri.push(decodeUriComponent(item));});
-		} else {
-			p.uristring = t.shift();
-			p.uri = p.uristring.split('/');
-		}
+		s = t.shift();
+		if (s.indexOf('/')==0) s = s.slice(1);
+		this.uri = s.split('/');
+		this.uri.map((item)=>{return decodeURIComponent(item);});
 		t = t.join('?');
 	}
 	if (t.split('#',1)[0]){
 		t = t.split('#');
-		p.querystring = t.shift();
-		s = p.querystring.split('&');
-		s.forEach((item)=>{
-			if (!item) return;
-			r = item.split('=');
-			if (decode) p.query[r.shift()] = decodeUriComponent(r.join('='));
-			else p.query[r.shift()] = r.join('=');
-		});
+		this.query = qs.parse(t.shift())
 		t = t.join('#');
 	}
-	if (t) p.hash = t;
-	return p;
+	if (t) this.hash = t;
+	
+	return this;
 };
+URL.prototype.protocolString = function(){ return this.domain.length&&this.protocol.length?this.protocol+':':''; };
+URL.prototype.domainString = function(){ return this.domain.length?'//'+this.domain.join('.'):''; };
+URL.prototype.portString = function(){
+	if (this.protocol == 'http'&&this.port == 80) return '';
+	if (this.protocol == 'https'&&this.port == 443) return '';
+	return ':'+this.port;
+};
+URL.prototype.uriString = function(){
+	return this.uri.length?'/'+this.uri.map((item)=>{return encodeURIComponent(item);}).join('/'):'/';
+};
+URL.prototype.queryString = function(){ 
+	return Object.keys(this.query).length?'?'+qs.stringify(this.query):'';
+};
+URL.prototype.hashString = function(){
+	return this.hash.length?'#'+this.hash:'';
+};
+URL.prototype.toString = URL.prototype.stringify = function(){
+	let o;
+	o = this.protocolString()+
+		this.domainString()+
+		this.portString()+
+		this.uriString()+
+		this.queryString()+
+		this.hashString();
+	return o;
+};
+
+_.URL = (str)=>{ return new URL(str);};
 	
 function parseExternalMedia(url) {
-	let m=null,done,key,val,found,r={meta:{}};
+	let s,m=null,done,key,val,found,r={meta:{}};
 	for(key in reeeee) {
 		if (reeeee[key] instanceof Array){
 			for (val of reeeee[key])
@@ -133,7 +159,7 @@ function parseExternalMedia(url) {
 	}
 	let err = new Error(url.substr(0,64)+(url.length>64?'[...]':'')+' did not match any supported embeds.')
 	if (!found) return err;
-	m = _.urldigest(url);
+	m = new URL(url);
 	r.processed = true; // External media do not need to generate thumbnails
 	let id = 'temp';
 	switch (found) { // meta: title size duration dims
@@ -147,24 +173,26 @@ function parseExternalMedia(url) {
 			id = m.uri[0].split('.')[0];
 			r.mediatype = 'img';
 			r.src = 'https://i.imgur.com/'+m.uri[0];
+			r.href = 'https://imgur.com/'+m.uri[0];
 			r.thumb = 'https://i.imgur.com/'+id+'s.jpg';
 			r.hash = crypto.createHash('md5').update(found+'&'+id).digest('hex');
 			r.meta.title = m.uri[0];
 			r.processed = true;
 			break;
 		case 'youtube':
-			id = m.domain=='youtu.be'?m.uri[0]:m.query.v;
+			id = m.domainString()=='youtu.be'?m.uri[0]:m.query.v;
 			if (!id) return err;
 			r.mediatype = 'you';
-			r.src = 'https://www.youtube.com/embed/'+id+'?vq=large&rel=0';
-			if (m.query.t) r.src += '&t='+m.query.t;
+			s = new URL('https://www.youtube.com/embed/'+id+'?vq=large&rel=0');
+			if (m.query.t) s.query.t = m.query.t;
 			else {
-				if (m.query.start) r.src += '&start='+m.query.start;
-				if (m.query.end) r.src += '&end='+m.query.end;
+				if (m.query.start) s.query.start = m.query.start;
+				if (m.query.end) s.query.end = m.query.end;
 			}
-			r.thumb = 'https://img.youtube.com/vi/'+id+'/mqdefault.jpg'
+			r.src = s.stringify();
+			r.thumb = 'https://img.youtube.com/vi/'+id+'/mqdefault.jpg';
 			r.hash = crypto.createHash('md5').update(found+'&'+id).digest('hex');
-			r.meta.link = 'https://youtu.be/'+id;
+			r.href = 'https://youtu.be/'+id;
 			done = false;
 			request({url:'https://youtube.com/get_video_info?video_id='+id,timeout:5},(err,req,res)=>{
 				if (err) {
@@ -172,7 +200,7 @@ function parseExternalMedia(url) {
 					done = true;
 					return;
 				}
-				let data = querystring.parse(res);
+				let data = qs.parse(res);
 				r.meta.title = data.title;
 				r.meta.duration = _.toInterval(data.length_seconds,2);
 				done = true;
@@ -181,24 +209,25 @@ function parseExternalMedia(url) {
 			while (!done) deasync.runLoopOnce();
 			break;
 		case 'dailymotion':
-			id = m.uri[0]=='video'?m.uri[1].split('_')[0]:m.uri[0];
+			id = m.domainString()=='dai.ly'?m.uri[0]:m.uri[1].split('_')[0];
 			if (!id) return err;
 			r.mediatype = 'dly';
-			r.src = '//www.dailymotion.com/embed/video/'+id+'?quality=480&sharing-enable=false&endscreen-enable=false';
-			if (m.query.start) r.src += '&start='+m.query.start;
+			s = new URL('https://www.dailymotion.com/embed/video/'+id+'?quality=480&sharing-enable=false&endscreen-enable=false')
+			if (m.query.start) s.query.start = m.query.start;
+			r.src = s.stringify();
+			r.href = 'https://dai.ly/'+id;
 			r.hash = crypto.createHash('md5').update(found+'&'+id).digest('hex');
 			done = false;
-			request({url:'//api.dailymotion.com/video/'+id+'?fields=title,thumbnail_120_url,tiny_url,duration',timeout:5},(err,req,res)=>{
+			request({url:'https://api.dailymotion.com/video/'+id+'?fields=title,thumbnail_120_url,duration',timeout:5},(err,req,res)=>{
+				let data = qs.parse(res);
 				if (err) {
-					if (!(r.meta.title = m.uri[1].split('_')[1]))
-						r.meta.title = 'Dailymotion Video';
-					done = true
+					try{r.meta.title = m.uri[1].split('_')[1];}
+					catch(e){r.meta.title = 'Dailymotion Video';}
+					done = true;
 					return;
 				}
-				let data = querystring.parse(res);
 				r.thumb = data.thumbnail_120_url;
 				r.meta.title = data.title;
-				r.meta.link = data.tiny_url;
 				r.meta.duration = _.toInterval(data.duration,2);
 				done = true;
 				return;
@@ -221,7 +250,7 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 				r.meta.title = file.originalname;
 				file.path = file.path.replace(/\\/g,'/');
 				let fn = file.path.split('/')[file.path.split('/').length-1];
-				r.src = '/'+board+'/media/'+fn;
+				r.src = r.href = '/'+board+'/media/'+fn;
 				r.thumb = '/'+board+'/media/'+fn+'.thumb.jpg';
 				fs.renameSync(__dirname+'/'+file.path,__dirname+'/assets'+r.src);
 				trackfiles.push('/assets'+r.src);
@@ -654,11 +683,6 @@ _.log = function(level,detail){
 	});
 };
 
-_.getTagCloud = function(){
-	return []; //placeholder
-	// db.any(GLOBAL.sql.view.tags)
-};
-
 _.maskIP = function(ip){
 	let cipher = crypto.createCipher('bf-cbc',GLOBAL.cfg.secret);
 	let mask = cipher.update(ip,'utf8','hex');
@@ -709,9 +733,19 @@ function User(data,board,ip){
 	this.currentBoard = board||'';
 	this.reg = data?true:false;
 };
+
+// Global flag registry for user auth permissions
+if (GLOBAL.cfg.devmode) {
+	let RegFlag = (cat,flag)=>{
+		if (typeof cat != 'string') cat = 'undefined';
+		if (!GLOBAL.flags[cat]) GLOBAL.flags[cat] = {};
+		GLOBAL.flags[cat][flag] = '';
+		yml.write('./flags.yml',GLOBAL.flags,()=>{});
+	};
+}
 User.prototype.auth = function(flag,def,ault){
 	let board = this.currentBoard;
-	if (typeof def == 'string')
+	if (typeof def == 'string')	// allow auth for multiple boards
 		board = def, def = ault;
 	let u = board in this.roles?this.roles[board]:{};
 	if (u.role == 'owner') return true;
@@ -724,7 +758,7 @@ User.prototype.auth = function(flag,def,ault){
 		else flag[i] = ['undefined',flag[i]];
 		if (GLOBAL.cfg.devmode && !(flag[i][1] in GLOBAL.flags[flag[i][0]]))
 			console.log('Please define flag: '+flag[i][0]+' - '+flag[i][1]);
-			GLOBAL.regflag(flag[i][0],flag[i][1]);
+			RegFlag(flag[i][0],flag[i][1]);
 		if (!(flag[i][1] in u.roles[board].flags) && !('global.'+flag[i][1] in u.roles[board].flags))				
 			return !!def;
 		else if (!u.roles[board].flags[flag[i][1]] && !u.roles[board].flags['global.'+flag[i][1]])

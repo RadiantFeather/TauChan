@@ -124,7 +124,7 @@ function genuser(){
 function genpost(board){
 	let out = {};
 	out.board = board?board:Chance.pickone(boards).board;
-	if (threads[out.board].ops.length && Chance.bool({likelihood:75}))
+	if (threads[out.board].ops.length && Chance.bool({likelihood:90}))
 		out.thread = Chance.pickone(threads[out.board].ops);
 	out.markdown = Chance.paragraph({sentences:Chance.natural({min:2,max:10})}).slice(0,2048);
 	out.markup = lib.processMarkup(out.markdown);

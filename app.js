@@ -1,30 +1,11 @@
 "use strict";
 var fs = require('fs');
+require('./extend.js')
 var _exists = function(path){
 	try {
 		fs.statSync(path);
 		return true;
 	} catch (e) { return false; }
-};
-Error.prototype.setloc = function(str){ this.loc = str; return this; };
-Error.prototype.setmsg = function(str){ this.message = str; return this; };
-Error.prototype.setstatus = function(status){
-	if (typeof status !== 'number') throw 'Error status must be an integer.';
-	status = parseInt(status);
-	this.status = status;
-	return this;
-};
-Error.prototype.withlog = function(level){
-	if (typeof level !== 'string') throw 'Error log level must be a string.';
-	this.log = level;
-	return this;
-};
-Error.prototype.withrender = function(view){
-	if (typeof view !== 'string') throw 'Error view render must be a string.';
-	if (!this.status) this.setstatus(409);
-	this.setdata = function(data){this.data = data; delete this.setdata; return this;};
-	this.render = view;
-	return this;
 };
 if (!_exists('./conf/installed')) return console.log('App has not been installed yet. Please run the /install/app.js script to setup the application.');
 if (!_exists('./conf/config.yml')) return console.log('Missing config file. Please run the /install/app.js script to setup the config file.');
@@ -45,16 +26,6 @@ if (GLOBAL.cfg.values.cdn_domain == 'localhost') GLOBAL.cdn = '';
 else if (GLOBAL.cfg.values.cdn_domain.indexOf('://')<0)
 	GLOBAL.cdn = GLOBAL.cfg.values.cdn_domain?'//'+GLOBAL.cfg.values.cdn_domain:'';
 
-// Global flag registry for user auth permissions
-if (GLOBAL.cfg.devmode) {
-	GLOBAL.regflag = function(cat,flag){
-		if (typeof cat != 'string') cat = 'undefined';
-		if (!GLOBAL.flags[cat]) GLOBAL.flags[cat] = {};
-		GLOBAL.flags[cat][flag] = '';
-		yml.write('./flags.yml',GLOBAL.flags,()=>{});
-	};
-}
-
 // Common functions
 GLOBAL.lib = require('./lib');
 
@@ -62,7 +33,7 @@ GLOBAL.lib = require('./lib');
 var global = require('./global'),
 	boards = require('./boards'),
 	middle = require('./middleware');
-	
+
 GLOBAL.flags = flags;
 var app = express();
 
@@ -77,16 +48,20 @@ app.locals.F_UTC = (timestamp,mode)=>{
 	else if (mode == 2) return (new Date(timestamp)).toLocaleString();
 	else return (new Date(timestamp)).toISOString();
 };
-app.locals.CLIENTDEPS = [
-	'vQuery.js',
-	'socket.io.js',
-	'common.css',
-	'icons.css'
-].forEach((item,i,arr)=>{
-	if (GLOBAL.cfg.external_sources)
-		arr[i] = GLOBAL.cfg.external_sources[item]||GLOBAL.cdn+'/_/'+item;
-	else arr[i] = GLOBAL.cdn+'/_/'+item;
-});
+app.locals.CLIENTDEPS = {
+	'vQuery.js':'',
+	'socket.io.js':'',
+	'common.css':'',
+	'icons.css':''
+};
+for (let i in app.locals.CLIENTDEPS){
+	if (GLOBAL.cfg.external_sources && GLOBAL.cfg.external_sources[i])
+		app.locals.CLIENTDEPS[i] = GLOBAL.cfg.external_sources[i];
+	else app.locals.CLIENTDEPS[i] = GLOBAL.cdn+'/_/'+i;
+};
+var clientdepROOT = {
+	'socket.io.js':'/node_modules/socket.io-client/'
+}, requestCount = 0;
 
 app.use(cookieParser());
 app.use(session({
@@ -110,6 +85,7 @@ app.use((req,res,next)=>{
 		res.cookie('curpage', req.path, opts);
 	}
 	if (GLOBAL.cfg.devmode) {
+		console.log("Requests made since boot: "+(++requestCount)+" - "+req.originalUrl+"; XHR: "+req.xhr+","+req.protocol+","+req.method);
 		GLOBAL.cfg = yml.read.sync('./conf/config.yml');
 		GLOBAL.sql = yml.read.sync('./sql.yml');
 		GLOBAL.flags = yml.read.sync('./flags.yml');
@@ -150,17 +126,20 @@ app.get('/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
 
 app.get('/_/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
 	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
-	let options = {
-		root: __dirname +'/static/',
-		dotfiles: 'deny',
-		headers: {
-			'x-timestamp': res.locals.NOW,
-			'x-sent': true
-		}
-	};
-	res.sendFile(req.params.file+'.'+req.params.ext, options, function (err) {
+	let f = req.params.file+'.'+req.params.ext, d = clientdepROOT,
+		options = {
+			root: __dirname +'/static/',
+			dotfiles: 'deny',
+			headers: {
+				'x-timestamp': res.locals.NOW,
+				'x-sent': true
+			}
+		};
+	if (f in d)
+		options.root = __dirname + d[f];
+	res.sendFile(f, options, (err)=>{
 		if (err) {
-		  console.log('file error: ', req.params.file+'.'+req.params.ext, err);
+		  console.log('file error: ', f, err);
 		  res.sendStatus(err.status).end();
 		}
 	});

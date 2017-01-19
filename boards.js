@@ -6,6 +6,7 @@ var fs = require('fs'),
 	// cache = require('redis'),
 	pgp = require('pg-promise')(GLOBAL.pgp),
 	db = pgp(GLOBAL.cfg.database),
+	noop = ()=>{},
 	handlers = {},
 	_ = {},
 	
@@ -23,7 +24,7 @@ var fs = require('fs'),
 		})
 		,files: 4
 		,fileSize: GLOBAL.cfg.values.max_upload_size_in_kb*1024
-	}).any();
+	}).any(),reservedPages;
 
 /*
  *	GET request handlers
@@ -54,7 +55,7 @@ _.archive = function(req,res,next) {	// archive view
 		res.locals.META.keywords = '/'+board.board+'/';
 		res.locals.META.title = '/'+board.board+'/archive - '+res.app.locals.SITE.name;
 		res.locals.META.desc = '/'+board.board+'/archive - '+board.title+': '+(board.subtitle||'');
-		res.locals.page = {type:'archive',param:parseInt(req.params.page)};
+		res.locals.page = {type:'archive',param:'index'};
 		res.render('threads.jade',{data,curpage:parseInt(req.query.page||1)});
 	}).catch((err)=>{
 		return next(err.setstatus(500));
@@ -67,6 +68,7 @@ _.thread = function(req,res,next) {	// thread view
 		thread: parseInt(req.params.page),
 		limit: req.query.preview ? parseInt(req.query.preview) : null,
 	}).then((data)=>{
+		console.log(data);
 		res.locals.META.keywords = '/'+res.locals.board.board+'/';
 		res.locals.META.desc = data[0].markdown.substring(128);
 		res.locals.META.title = '/'+res.locals.board.board+'/ - '+(data[0].subject || data[0].markdown.substring(0,24));
@@ -113,9 +115,10 @@ _.ban = function(req,res,next) {
 	return;
 	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
 	if (!CSRF(req,res,next)) return;
-	res.render('ban.jade',{ // TODO
+	res.render('bnd.jade',{ // TODO
+		mode:'b',
 		board:req.params.board,
-		post:req.params.action
+		post:parseInt(req.params.action)
 	});
 };
 _.ban.auth = function(req,res,next) {
@@ -125,10 +128,33 @@ _.ban.auth = function(req,res,next) {
 _.delete = function(req,res,next) {
 	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
 	return;
-	db.one(GLOBAL.sql.view.post)
+	db.one(GLOBAL.sql.view.post,{
+		board:req.params.board,
+		post:parseInt(req.params.action)
+	}).then((data)=>{
+		res.render('bnd.jade',{mode:'d',data});
+	}).catch((e)=>{
+		
+	});
 };
 _.delete.auth = function(req,res,next){
 	return res.locals.user.auth('thread.post_delete');
+};
+
+_.bnd = function(req,res,next) {
+	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
+	return;
+	db.one(GLOBAL.sql.view.post,{
+		board:req.params.board,
+		post:parseInt(req.params.action)
+	}).then((data)=>{
+		res.render('bnd.jade',{mode:'d',data});
+	}).catch((e)=>{
+		
+	});
+};
+_.bnd.auth = function(req,res,next){
+	return res.locals.user.auth(['thread.post_ban','thread.post_delete']);
 };
 
 _.bans = function(req,res,next) {
@@ -156,6 +182,10 @@ _.logs = function(req,res,next) {
 	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
 };
 
+_.report = function(req,res,next) {
+	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
+};
+
 _.reports = function(req,res,next) {
 	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
 };
@@ -164,18 +194,26 @@ _.pages = function(req,res,next) { // custom board pages
 	if (req.params.page != 'pages'){
 		db.one(GLOBAL.sql.view.page, req.params).then((data)=>{
 			res.locals.page = {type:'custom',param:req.params.page};
-			res.render('page.jade',{data});  // TODO
+			res.render('pages.jade',{data});  // TODO
 		}).catch((err)=>{
 			return next(err.setstatus(404));
 		});
 	} else {
 		db.any(GLOBAL.sql.view.pages,{board:req.params.board}).then((data)=>{
 			res.locals.page = {type:'index',param:'custom'};
-			res.render('pageList.jade',{data});	// TODO
+			res.render('pages.jade',{data});	// TODO
 		}).catch((err)=>{
 			return next(err.setstatus(500).withlog('error'));
 		});
 	}
+};
+
+_.editPage = function(req,res,next){
+	
+};
+
+_.deletePage = function(req,res,next){
+	
 };
 
 _.settings = function(req,res,next) {
@@ -183,6 +221,7 @@ _.settings = function(req,res,next) {
 };
 
 handlers.GET = _;
+reservedPages = Object.keys(_).push('media');
 _ = {};
 
 /*
