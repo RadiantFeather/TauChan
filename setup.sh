@@ -48,4 +48,4 @@ psql -c "CREATE ROLE tauchan ENCRYPTED PASSWORD 'md58040ed7558a08902c52968aafa41
 # UNENCRYPTED PASSWORD 'tauchan'
 createdb tauchan
 
-echo "Installation prerequisites setup has completed."
+echo "Installation prerequisites setup has completed." 
