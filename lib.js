@@ -6,9 +6,8 @@ var fs = require('fs'),
 	crypto = require('crypto'),
 	qs = require('querystring'),
 	// ffmpeg = require('fluent-ffmpeg'),
-	request = require('request'),
+	request = require('request'), gm = require('gm'),
 	encoder = new (require('node-html-encoder')).Encoder('entity'),
-	easyimg = require('easyimage'), gm = require('gm'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
 	reeeee = {
 		imgur: /^https:\/\/(?:i\.)?imgur\.com\/[^/.]+\.(?:jpg|png|gif)+/i
@@ -66,7 +65,7 @@ _.toInterval = function(seconds,mode){
 };
 
 function URL(url){
-	let r,s,t;
+	let s,t;
 	
 	this.protocol = '';
 	this.domain = [];
@@ -254,10 +253,10 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 				trackfiles.push('/assets'+r.src);
 				r.hash = crypto.createHash('md5').update(fs.readFileSync(__dirname+'/assets'+r.src, 'utf8')).digest('hex');
 				let done = false;
-				easyimg.info(__dirname+'/assets'+r.src).then((file)=>{
+				gm.info(__dirname+'/assets'+r.src).then((file)=>{
 					console.log('large',file);
 					r.meta.dims = file.width+'x'+file.height;
-					easyimg.resize({src:__dirname+'/assets'+r.src, dst:__dirname+'/assets'+r.thumb, quality:50, width:300, height:300}).then((file)=>{
+					gm.resize({src:__dirname+'/assets'+r.src, dst:__dirname+'/assets'+r.thumb, quality:50, width:300, height:300}).then((file)=>{
 						console.log('thumb',file);
 						trackfiles.push('/assets'+r.thumb);
 						done = true;
