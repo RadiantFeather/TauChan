@@ -80,12 +80,17 @@ if (yn.test(prompt('Configure the database connection? (y/n): '))) {
 	do {
 		console.log('Please fill out the following information.  (Leave empty for existing value)');
 		console.log('');
-		tdb.host = prompt('hostname/address: ') || tdb.host || cfg.database.host || 'localhost';
-		tdb.port = prompt('port number: ') || tdb.port || cfg.database.port || '5433';
-		tdb.database = prompt('database name: ') || tdb.database || cfg.database.database || 'tauchan';
-		tdb.user = prompt('database user: ') || tdb.user || cfg.database.user || 'postgres';
-		tdb.password = prompt('database user password: ') || tdb.password || cfg.database.password || 'postgres';
-		console.log('Database reconfigured as: '+ tdb.user+':'+tdb.password+'@'+tdb.host+':'+tdb.port+'/'+tdb.database);
+		tdb.host = tdb.host || cfg.database.host || 'localhost';
+		tdb.host = prompt('hostname/address ('+tdb.host+'): ') || tdb.host;
+		tdb.port = tdb.port || cfg.database.port || '5433';
+		tdb.port = prompt('port number ('+tdb.port+'): ') || tdb.port;
+		tdb.database = tdb.database || cfg.database.database || 'tauchan';
+		tdb.database = prompt('database name ('+tdb.database+'): ') || tdb.database;
+		tdb.user = tdb.user || cfg.database.user || 'tauchan';
+		tdb.user = prompt('database user ('+tdb.user+'): ') || tdb.user;
+		tdb.password = tdb.password || cfg.database.password || 'tauchan';
+		tdb.password = prompt('database user password ('+tdb.password+'): ') || tdb.password;
+		console.log('Database connection reconfigured as: '+ tdb.user+':'+tdb.password+'@'+tdb.host+':'+tdb.port+'/'+tdb.database);
 	} while (!yn.test(prompt('Is this configuration correct? (y/n): ')));
 	cfg.database = tdb;
 	yml.write('./conf/config.yml',cfg);
@@ -141,7 +146,7 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 		if (!dbname || dbname != 'PostgreSQL') 
 			return pgp.end(),console.log('Connection is not a postgres database. Please make sure you have postgres 9.5.0 or greater installed and running.');
 		let pgv = pgversion.split('.');
-		if (parseInt(pgv[0]) < 9 && parseInt(pgv[1]) < 5 && parseint(v[2]) < 0) 
+		if (parseInt(pgv[0]) < 9 && parseInt(pgv[1]) < 5 && parseInt(pgv[2]) < 0) 
 			return pgp.end(),console.log('Postgres version mismatch. Connection is running '+pgversion+', please upgrade to at least 9.5.0. Exiting.');
 	
 		console.log('Wiping the database...');
@@ -157,18 +162,6 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 		if (done === null) return pgp.end(),console.log('Wipe failed. Exiting.');
 	
 		console.log('Installing the database...');
-		if (!exists('./conf/installed')){
-			done = false;
-			// db.any(sql('./install/setup.sql')).then((data)=>{
-				// done = true;
-			// }).catch((err)) => {
-				// console.log(err);
-				// console.error('Must have superuser database access for the first time installation.');
-				// console.log('It can be changed back after if you wish.');
-			// });
-			// while (done === false) deasync.runLoopOnce();
-			// if (done === null) return pgp.end(),console.log('Install failed. Exiting.');
-		}
 		done = false;
 		db.tx((self) => {
 			return self.batch([
