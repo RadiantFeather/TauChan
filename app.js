@@ -1,6 +1,6 @@
 "use strict";
 var fs = require('fs');
-require('./extend.js')
+require('./extend.js');
 var _exists = function(path){
 	try {
 		fs.statSync(path);
@@ -11,7 +11,7 @@ if (!_exists('./conf/installed')) return console.log('App has not been installed
 if (!_exists('./conf/config.yml')) return console.log('Missing config file. Please run the /install/app.js script to setup the config file.');
 console.log('Loading server...');
 var express = require('express'),
-	cookie = require('cookie'),
+	// cookie = require('cookie'),
 	cookieParser = require('cookie-parser'),
 	session = require('express-session'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')};
@@ -61,7 +61,7 @@ for (let i in app.locals.CLIENTDEPS){
 	if (GLOBAL.cfg.external_sources && GLOBAL.cfg.external_sources[i])
 		app.locals.CLIENTDEPS[i] = GLOBAL.cfg.external_sources[i];
 	else app.locals.CLIENTDEPS[i] = GLOBAL.cdn+'/_/'+i;
-};
+}
 var clientdepROOT = {
 	'socket.io.js':'/node_modules/socket.io-client/'
 }, requestCount = 0;
@@ -111,15 +111,7 @@ app.get('/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
 	if (req.params.ext == 'html' && !_exists('./'+req.params.file+'.'+req.params.ext)) {
 		res.cookie('curpage',req.path,{httpOnly:true});		
 		// view for custom global pages
-		db.one(GLOBAL.sql.view.page, {
-			board: '_',
-			page: req.params.file
-		}).then((data)=>{
-			res.locals.page = {type:'custom',param:req.params.page};
-			res.render('page.jade',{data: data}); // TODO
-		}).catch((err)=>{
-			return next(err.setstatus(404).setloc('global page serve'));
-		});
+		global.pages(req,res,next);
 	} else if ((GLOBAL.cfg.root_whitelist||[]).indexOf(req.params.file+'.'+req.params.ext) > -1) {
 		res.sendFile(req.params.file+'.'+req.params.ext,options, function (err) {
 			if (err) res.sendStatus(err.status).end();

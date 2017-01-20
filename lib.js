@@ -109,7 +109,7 @@ function URL(url){
 	if (t) this.hash = t;
 	
 	return this;
-};
+}
 URL.prototype.protocolString = function(){ return this.domain.length&&this.protocol.length?this.protocol+':':''; };
 URL.prototype.domainString = function(){ return this.domain.length?'//'+this.domain.join('.'):''; };
 URL.prototype.portString = function(){
@@ -140,11 +140,11 @@ URL.prototype.toString = URL.prototype.stringify = function(){
 _.URL = (str)=>{ return new URL(str);};
 	
 function parseExternalMedia(url) {
-	let s,m=null,done,key,val,found,r={meta:{}};
+	let s,m=null,done,key,found,r={meta:{}};
 	for(key in reeeee) {
 		if (reeeee[key] instanceof Array){
-			for (val of reeeee[key])
-				if (url.test(reeeee[key])){
+			for (let val of reeeee[key])
+				if (url.test(val)){
 					found = key;
 					break;
 				}
@@ -154,7 +154,7 @@ function parseExternalMedia(url) {
 			break;
 		}
 	}
-	let err = new Error(url.substr(0,64)+(url.length>64?'[...]':'')+' did not match any supported embeds.')
+	let err = new Error(url.substr(0,64)+(url.length>64?'[...]':'')+' did not match any supported embeds.');
 	if (!found) return err;
 	m = new URL(url);
 	r.processed = true; // External media do not need to generate thumbnails
@@ -665,19 +665,6 @@ _.processMarkup = function(markdown){
 	}
 	// replace \n (aka &#10;) with <br> nodes
 	return markup.replace(new RegExp("&#10;",'g'),'<br>');
-};
-
-_.log = function(level,detail){
-	console.log(level,detail);
-	return;
-	db.none(GLOBAL.sql.modify.new_log,{
-		board: this.params.board||'_',
-		user: this.locals.user.reg&&this.locals.board.loguser?this.locals.user.username:null,
-		level: level,
-		detail: detail.toString()
-	}).catch((err)=>{
-		console.log('LOGGING ERROR: ',err);
-	});
 };
 
 _.maskIP = function(ip){

@@ -11,7 +11,7 @@ var pgp = require('pg-promise')({promiseLib: require('bluebird'), capSQL:true}),
 GLOBAL.cfg = cfg;
 var lib = require('../lib');
 var Chance = require('./chance.js')(cfg.secret);
-var cfg = yml.read.sync('./install/demo.yml');
+cfg = yml.read.sync('./install/demo.yml');
 
 var opts = {};
 opts.max_posts_per_board = cfg.max_posts_per_board;
@@ -51,7 +51,7 @@ var posts = cfg.posts;
 var users = [];
 var threads = {};
 
-for (let i=-1,x,j,k; ++i < posts.length;){
+for (let i=-1,x; ++i < posts.length;){
 	posts[i].markup = lib.processMarkup(posts[i].markdown);
 	if (users.length == 0 || Chance.bool({likelihood:75})) x = genuser();
 	else x = Chance.pickone(users);
@@ -175,7 +175,7 @@ for (let i=-1,b,m,SQL;++i < opts.num_of_boards;) {
 	console.log('Setting up posts for board \''+b.board+'\' (#'+(i+1)+')');
 	m = posts.filter((item)=>{return item.board == b.board});
 	let postnum = Chance.natural({min:5,max:opts.max_posts_per_board});
-	for (let j=-1,d,y,n,p;++j < postnum;){
+	for (let j=-1,y,n,p;++j < postnum;){
 		process.stdout.write("\rPost #"+(j+1));
 		if (j < m.length) p = posts[j];
 		else p = genpost(b.board);
