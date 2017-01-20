@@ -86,18 +86,31 @@ _.loadGlobal = function(req,res,next){ // don't know if we'll actually need this
 	return next();
 };
 
+_.log = function(req,res,level,detail){
+	console.log(level,detail);
+	return;
+	db.none(GLOBAL.sql.modify.new_log,{
+		board: req.params.board||'_',
+		user: res.locals.user.reg&&res.locals.board.loguser?res.locals.user.username:null,
+		level: level,
+		detail: detail.toString()
+	}).catch((err)=>{
+		console.log('LOGGING ERROR: ',err);
+	});
+};
+
 _.handleAjaxError = function(err,req,res,next){
 	if (err.status) res.status(err.status);
 	err.xhr = req.xhr;
 	if (!req.xhr) return next(err);
-	if (err.log) GLOBAL.lib.log(err.log,err);
+	if (err.log) _.log(req,res,err.log,err);
 	console.log('Ajax Error');
 	console.log(err);
 	res.json({success:false,data:{status:res.statusCode||500,message:err.message}});
 };
 
 _.handleError = function(err,req,res,next){
-	if (err.log) GLOBAL.lib.log(err.log,err);
+	if (err.log) _.log(req,res,err.log,err);
 	let x,y=[];
 	for (x in req.params){
 		y.push(x+': '+req.params[x]);

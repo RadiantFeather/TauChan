@@ -285,6 +285,18 @@ function tagCloud(){
 	return out;
 }
 
+handlers.pages = function(req,res,next){
+	db.one(GLOBAL.sql.view.page, {
+		board: '_',
+		page: req.params.file
+	}).then((data)=>{
+		res.locals.page = {type:'custom',param:req.params.page};
+		res.render('page.jade',{data: data}); // TODO
+	}).catch((err)=>{
+		return next(err.setstatus(404).setloc('global page serve'));
+	});
+};
+
 handlers.index = function(req,res,next){
 	console.log('pass 1');
 	let t = (req.query.tags||'').split(','),

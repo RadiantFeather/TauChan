@@ -111,15 +111,7 @@ app.get('/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
 	if (req.params.ext == 'html' && !_exists('./'+req.params.file+'.'+req.params.ext)) {
 		res.cookie('curpage',req.path,{httpOnly:true});		
 		// view for custom global pages
-		db.one(GLOBAL.sql.view.page, {
-			board: '_',
-			page: req.params.file
-		}).then((data)=>{
-			res.locals.page = {type:'custom',param:req.params.page};
-			res.render('page.jade',{data: data}); // TODO
-		}).catch((err)=>{
-			return next(err.setstatus(404).setloc('global page serve'));
-		});
+		global.pages(req,res,next);
 	} else if ((GLOBAL.cfg.root_whitelist||[]).indexOf(req.params.file+'.'+req.params.ext) > -1) {
 		res.sendFile(req.params.file+'.'+req.params.ext,options, function (err) {
 			if (err) res.sendStatus(err.status).end();
