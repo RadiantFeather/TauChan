@@ -40,12 +40,17 @@ echo "--------------------------------------"
 echo "Installing the PostgreSQL dependencies..."
 echo "--------------------------------------"
 sleep 5 s
-sudo apt-get install postgresql postgresql-contrib
+sudo apt-get install postgresql-9.5 postgresql-contrib-9.5
 sudo service postgresql stop
 sudo service postgresql start
 psql -f "./install/setup.sql"
 psql -c "CREATE ROLE tauchan ENCRYPTED PASSWORD 'md58040ed7558a08902c52968aafa41a559' NOSUPERUSER CREATEDB NOCREATEROLE INHERIT LOGIN;"
 # UNENCRYPTED PASSWORD 'tauchan'
 createdb tauchan
+
+echo "---------------------"
+echo "Installing node dependencies"
+echo "---------------------"
+npm install
 
 echo "Installation prerequisites setup has completed." 
