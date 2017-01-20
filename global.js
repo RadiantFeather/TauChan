@@ -89,6 +89,7 @@ _ = {};
 
 _.login = function(req,res,next){
 	pbody(req,res,(err)=>{
+		if (err) return next(err);
 		db.one(GLOBAL.sql.view.user,{
 			user:req.body.username,
 			pass:req.body.passphrase,
@@ -167,7 +168,7 @@ var createBoard_constraintErrors = {
 };
 _.createBoard = function(req,res,next){
 	pbody(req,res,(err)=>{
-		if (err) next(err);
+		if (err) return next(err);
 		req.body.board = req.body.board.replace(/(?:^\/|\/$)/g,'');
 		req.body.tags = req.body.tags.replace(/(?:^,|,$)/g,'');
 		if (!(/^[a-zA-Z0-9_]+$/.test(req.body.board)))
@@ -249,15 +250,15 @@ function CSRF(req,res,next) {
 		req.session.csrf = token;
 		if (req.xhr) res.json({success:true,data:{csrf:token}});
 		else res.render('CSRF.jade',{url:req.path+'?csrf='+token});
-		return false
+		return false;
 	} else {
 		if (req.query.csrf == req.session.csrf) return req.session.csrf = null,true;
 		else next((new Error('Unauthorized or invalid CSRF token.')).setstatus(403));
 	}
-};
+}
 
 function tagCloud(){
-	let res = [], cloud = {}, total = 0, out = [];
+	let res = [], cloud = {}, out = [];
 	let wait = true;
 	console.log('pass 1.2');
 	db.any('SELECT tags FROM boards;').then((data)=>{

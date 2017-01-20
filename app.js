@@ -1,6 +1,6 @@
 "use strict";
 var fs = require('fs');
-require('./extend.js')
+require('./extend.js');
 var _exists = function(path){
 	try {
 		fs.statSync(path);
@@ -11,7 +11,7 @@ if (!_exists('./conf/installed')) return console.log('App has not been installed
 if (!_exists('./conf/config.yml')) return console.log('Missing config file. Please run the /install/app.js script to setup the config file.');
 console.log('Loading server...');
 var express = require('express'),
-	cookie = require('cookie'),
+	// cookie = require('cookie'),
 	cookieParser = require('cookie-parser'),
 	session = require('express-session'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')};
@@ -61,7 +61,7 @@ for (let i in app.locals.CLIENTDEPS){
 	if (GLOBAL.cfg.external_sources && GLOBAL.cfg.external_sources[i])
 		app.locals.CLIENTDEPS[i] = GLOBAL.cfg.external_sources[i];
 	else app.locals.CLIENTDEPS[i] = GLOBAL.cdn+'/_/'+i;
-};
+}
 var clientdepROOT = {
 	'socket.io.js':'/node_modules/socket.io-client/'
 }, requestCount = 0;
