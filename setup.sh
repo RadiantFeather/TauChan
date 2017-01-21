@@ -2,17 +2,17 @@
 
 echo "Beginning Tauchan installation prerequisites setup."
 echo "Installation order: GraphicsMagick, Redis, PostgreSQL"
-sleep 5 s
+sleep 3
 sudo apt-get update
 
 echo "------------------------------------------"
 echo "Installing the GraphicsMagick dependencies..."
 echo "Dependency downloading can take 5-10 minutes to complete. Please be patient."
 echo "------------------------------------------"
-sleep 5 s
+sleep 3
 mkdir -p /tmp/gm
-wget ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/1.3/GraphicsMagick-1.3.25.tar.gz -O /tmp/gm-1.3.25.tar.gz
-tar -xzf /tmp/gm-1.3.25.tar.gz -C /tmp/gm --strip-components=1 && cd /tmp/gm
+wget ftp://ftp.graphicsmagick.org/pub/GraphicsMagick/GraphicsMagick-LATEST.tar.gz -O /tmp/gm-latest.tar.gz
+tar -xzf /tmp/gm-latest.tar.gz -C /tmp/gm --strip-components=1 && cd /tmp/gm
 /tmp/gm/configure
 rm -rf /tmp/gm
 
@@ -21,7 +21,7 @@ echo "Installing the Redis dependencies..."
 echo "Dependency tests can take 5-10 minutes to complete."
 echo "There will be a couple times where user interaction is needed. Please stand by."
 echo "----------------------------------"
-sleep 5 s
+sleep 3
 sudo apt-get install build-essential
 sudo apt-get install tcl8.5
 mkdir -p /tmp/redis
@@ -35,12 +35,20 @@ echo "-----------------------"
 echo "Installing the Redis Server. Just pressing Enter to accept the defaults for now."
 sudo ./install_server.sh
 sudo update-rc.d redis_6379 defaults
+cd ~
 
 echo "--------------------------------------"
 echo "Installing the PostgreSQL dependencies..."
 echo "--------------------------------------"
-sleep 5 s
-sudo apt-get install postgresql-9.5 postgresql-contrib-9.5
+sleep 3
+mkdir -p /tmp/psql
+wget https://ftp.postgresql.org/pub/source/v9.5.5/postgresql-9.5.5.tar.gz -O /tmp/psql-9.5.tar.gz
+tar -xvzf /tmp/psql-9.5.tar.gz -C /tmp/psql --strip-components=1 && cd /tmp/psql
+./configure
+make world
+make check
+sudo make install-world
+
 sudo service postgresql stop
 sudo service postgresql start
 psql -f "./install/setup.sql"
