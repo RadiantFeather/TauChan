@@ -3,6 +3,7 @@
 echo "Beginning Tauchan installation prerequisites setup."
 echo "Installation order: GraphicsMagick, Redis, PostgreSQL"
 sleep 3
+_cwd = "$PWD"
 sudo apt-get update
 
 echo "------------------------------------------"
@@ -59,6 +60,7 @@ createdb tauchan
 echo "---------------------"
 echo "Installing node dependencies"
 echo "---------------------"
+cd $_cwd
 npm install
 
 echo "Installation prerequisites setup has completed." 
