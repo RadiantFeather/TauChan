@@ -4,6 +4,9 @@ echo "Beginning Tauchan installation prerequisites setup."
 echo "Installation order: GraphicsMagick, Redis, PostgreSQL"
 sleep 3
 _cwd = "$PWD"
+sudo service postgresql stop
+sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 sudo apt-get update
 
 echo "------------------------------------------"
@@ -42,15 +45,18 @@ echo "--------------------------------------"
 echo "Installing the PostgreSQL dependencies..."
 echo "--------------------------------------"
 sleep 3
-mkdir -p /tmp/psql
-wget https://ftp.postgresql.org/pub/source/v9.5.5/postgresql-9.5.5.tar.gz -O /tmp/psql-9.5.5.tar.gz
-tar -xvzf /tmp/psql-9.5.5.tar.gz -C /tmp/psql --strip-components=1 && unlink /tmp/redis-3.2.6.tar.gz
-cd /tmp/psql && ./configure
-make world
-make check
-sudo make install-world
+# mkdir -p /tmp/psql
+# wget https://ftp.postgresql.org/pub/source/v9.5.5/postgresql-9.5.5.tar.gz -O /tmp/psql-9.5.5.tar.gz
+# tar -xvzf /tmp/psql-9.5.5.tar.gz -C /tmp/psql --strip-components=1 && unlink /tmp/redis-3.2.6.tar.gz
+# cd /tmp/psql && ./configure
+# make world
+# make check
+# sudo make install-world
 
-sudo service postgresql stop
+sudo apt-get install postgresql-9.5
+sudo sed -i "s/\(local *all *postgres *\)\w*/\1trust/g" /etc/postgresql/9.5/main/pg_hba.conf
+sudo sed -i "$ a local   all             tauchan                                trust" /etc/postgresql/9.5/main/pg_hba.conf
+
 sudo service postgresql start
 psql -f "./install/setup.sql"
 psql -c "CREATE ROLE tauchan ENCRYPTED PASSWORD 'md58040ed7558a08902c52968aafa41a559' NOSUPERUSER CREATEDB NOCREATEROLE INHERIT LOGIN;"
@@ -60,6 +66,6 @@ createdb tauchan
 echo "---------------------"
 echo "Installing node dependencies"
 echo "---------------------"
-cd $_cwd && npm install
+cd "$_cwd" && npm install
 
 echo "Installation prerequisites setup has completed." 
