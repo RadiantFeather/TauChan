@@ -1,0 +1,28 @@
+#External configs
+notifications:
+  email:
+    recipients:
+      - unborntech@gmail.com
+    on_success: change
+    on_failure: change
+
+#Build configs
+# addons:
+#     postgresql: "9.6"
+# services:
+#   - postgresql
+#   - redis-server
+
+# #Build runs
+# before_install:
+#     - ./setup.sh
+#     - pver=$( node --version | sed -n 's/v\([0-9]*\)\.[0-9]*\.[0-9]*/\1/p' - )
+#     - [ $pver != "6" ] && nvm install v6.9.4 --reinstall-packages-from=$pver
+#     -
+    
+# install:
+#     - npm install
+# before_script:
+    
+# script:
+    

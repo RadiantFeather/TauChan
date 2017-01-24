@@ -1,7 +1,22 @@
 "use strict";
 var fs = require('fs'), readline = require('readline'), deasync = require('deasync'), crypto = require('crypto'),
 	pgp = require('pg-promise')({ promiseLib: require('bluebird') }), cfg, yn = /^y(?:es)?/i,
-	yml = {read: require('read-yaml').sync, write: require('write-yaml').sync};
+	yml = {read: require('read-yaml').sync, write: require('write-yaml').sync}, process = require('process');
+	
+// Parse options
+var opt,CLO = {s:{},l:{}};
+do {
+	let x=-1, targs = process.argv.slice(2);
+	while (++x < targs.length){
+		if (targs[x].indexOf('--') == 0){
+			let y = targs[x].slice(2).split('=');
+			CLO.l[y.shift()] = y.join('=')||true;
+		} else if (targs[x].indexOf('-') == 0){
+			let y = targs[x].slice(1).split();
+			CLO.s[y] = targs[x+1]||true;
+		}
+	}
+} while(0);
 	
 function prompt(question,validate,notempty) {
 	var res,rl = readline.createInterface({
@@ -72,10 +87,32 @@ else {
 	cfg.secret = crypto.createHash('sha256').update(Math.random().toString()).digest('hex');
 	yml.write('./conf/config.yml',cfg);
 }
-	
+if ((opt = CLO.s.h || CLO.l.host) instanceof String) cfg.database.host = opt;  
+if (parseInt(opt = CLO.s.p || CLO.l.port) instanceof Number) cfg.database.port = opt;  
+if ((opt = CLO.s.d || CLO.l.database) instanceof String) cfg.database.database = opt;  
+if ((opt = CLO.s.u || CLO.l.username) instanceof String) cfg.database.username = opt;  
+if ((opt = CLO.s.p || CLO.l.password) instanceof String) cfg.database.password = opt;  
+if ((opt = CLO.s.c || CLO.l.conn) instanceof String) {
+	let x = opt.split("@");
+	if (x.length > 1) {
+		let y = x.shift().split(':');
+		if (y.length > 1) cfg.database.password = y.pop();
+		cfg.database.username = y.pop();
+	}
+	x = x[0].split('/');
+	if (x.length > 1){
+		cfg.database.database = x.pop();
+	}
+	x = x[0].split(':');
+	if (x.length > 1){
+		cfg.database.port = x.pop();
+	}
+	cfg.database.host = x.pop();
+}
+
 const VERSION = {stale: cfg.version, fresh: dcfg.version};
 
-if (yn.test(prompt('Configure the database connection? (y/n): '))) {
+if (!CLO.s.q && yn.test(prompt('Configure the database connection? (y/n): '))) {
 	let tdb = {};
 	do {
 		console.log('Please fill out the following information.  (Leave empty for existing value)');
@@ -101,14 +138,14 @@ if (!cfg.database) return pgp.end(),console.log('Unable to load database configu
 var sql = (file) => pgp.QueryFile(file,{debug: true, minify: false}),
 	db = pgp(cfg.database);
 
-if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the database? (y/n): '))) {
-	let secret, versions = fs.readdirSync('./install').filter((cur)=>{ 
+if (!exists('./conf/installed') || CLO.s.q || yn.test(prompt('Do you want to configure the database? (y/n): '))) {
+	let versions = fs.readdirSync('./install').filter((cur)=>{ 
 		let c = cur.split('/'), ver = /update\.(\d+\.\d+\.\d+)\.sql$/.exec(c[c.length-1]);
 		if (ver !== null) console.log(VERSION.stale,ver[1],updatable(VERSION.stale,ver[1]));
 		return (ver !== null && updatable(VERSION.stale,ver[1])); 
 	});
 	if (exists('./conf/installed') && versions.length) {
-		if (yn.test(prompt('Updates are available. Would you like to update the site database? (y/n): '))) {
+		if (CLO.s.q || yn.test(prompt('Updates are available. Would you like to update the site database? (y/n): '))) {
 			let done = false;
 			db.tx((self)=>{
 				return self.batch(versions.map((cur)=>{return self.none(sql('./install/'+cur));}));
@@ -124,8 +161,8 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 		}
 		cfg.version = VERSION.fresh;
 	}
-	else if (!exists('./conf/installed') || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
-		if (!cfg.devmode && exists('./conf/installed')) {
+	else if (!exists('./conf/installed') || !CLO.s.q || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
+		if (!CLO.s.q && !cfg.devmode && exists('./conf/installed')) {
 			console.log('These operations are destructive. Please enter the site secret from the config file to continue: ');
 			if (prompt('Secret: ',/\w+/) != cfg.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
 			console.log('Secret matched. Proceeding.');
@@ -182,7 +219,7 @@ if (!exists('./conf/installed') || yn.test(prompt('Do you want to configure the 
 	yml.write('./conf/config.yml',cfg);
 }
 
-cfg.site.name = prompt("What do you want the site's name to be? (Leave empty for existing value '"+cfg.site.name+"'): ") || cfg.site.name;
+cfg.site.name = CLO.s.q?cfg.site.name:prompt("What do you want the site's name to be? (Leave empty for existing value '"+cfg.site.name+"'): ") || cfg.site.name;
 
 function consolidateKeys(stale,fresh) {
 	for (var key in stale.options) if (fresh.options.hasOwnProperty(key)) {
@@ -193,7 +230,7 @@ function consolidateKeys(stale,fresh) {
 	}
 }
 consolidateKeys(cfg,dcfg);
-if (yn.test(prompt('Do you want to configure the additional boolean options available for the app? (y/n): '))) {
+if (!CLO.s.q && yn.test(prompt('Do you want to configure the additional boolean options available for the app? (y/n): '))) {
 	console.log('Answer the following questions with either a yes or no. (y/n is fine as well)');
 	let questions = yml.read('./install/options.yml'), options = dcfg.options, missed = [];
 	for (var key in options) { if (options.hasOwnProperty(key)) { 
