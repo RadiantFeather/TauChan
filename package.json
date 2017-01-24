@@ -37,6 +37,7 @@
     "fluent-ffmpeg": "^2.1.0",
     "gm": "^1.23.0",
     "jade": "^1.11.0",
+    "marked": "^0.3.6",
     "multer": "^1.2.1",
     "node-html-encoder": "0.0.2",
     "pg-promise": "^5.5.2",

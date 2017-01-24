@@ -1,25 +1,34 @@
 #!/bin/bash
 
 echo "Beginning Tauchan installation prerequisites setup."
-echo "Installation order: GraphicsMagick, Redis, PostgreSQL"
+echo "Installation order: PostgreSQL, GraphicsMagick, Redis, FFMpeg, Nodejs"
 sleep 3
-set _cwd = "$PWD"
+TWD=$PWD
+echo "--------------------------------------"
+echo "Installing initial package dependencies"
+echo "--------------------------------------"
+sudo apt-get install build-essential
+sudo apt-get install tcl8.5
 echo "--------------------------------------"
 echo "Installing the PostgreSQL dependencies..."
 echo "--------------------------------------"
 sleep 3
 sudo service postgresql start
 pver=$( psql --version | sed -n 's/.* \([0-9.]*\)\.[0-9]*/\1/p' - )
+fver="9.6"
 sudo service postgresql stop
-[ "$pver" != "9.5" ] && sudo apt-get --purge remove postgresql-$pver postgresql-contrib-$pver
+if [ "$pver" != $fver ]; then
+    sudo apt-get --purge remove postgresql-$pver
+    sudo apt-get --purge remove postgresql-contrib-$pver
+fi
 if [ ! -f /etc/apt/sources.list.d/pgdg.list ] || [ "$(sudo cat /etc/apt/sources.list.d/pgdg.list | grep 'apt.postgresql.org')" != "" ]; then
     sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt/ `lsb_release -cs`-pgdg main" >> /etc/apt/sources.list.d/pgdg.list'
     wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
 fi
 sudo apt-get update
-sudo apt-get install postgresql-9.5 postgresql-contrib-9.5
-sudo sed -i "s/\(local *all *postgres *\)\w*/\1trust/g" /etc/postgresql/9.5/main/pg_hba.conf
-sudo sed -i "$ a local   all             tauchan                                trust" /etc/postgresql/9.5/main/pg_hba.conf
+sudo apt-get install postgresql-$fver postgresql-contrib-$fver
+sudo sed -i "s/\(local *all *postgres *\)\w*/\1trust/g" /etc/postgresql/$fver/main/pg_hba.conf
+sudo sed -i "$ a local   all             tauchan                                trust" /etc/postgresql/$fver/main/pg_hba.conf
 
 sudo service postgresql start
 psql -f "./install/setup.sql"
@@ -46,8 +55,7 @@ createdb tauchan
 # echo "There will be a couple times where user interaction is needed. Please stand by."
 # echo "----------------------------------"
 # sleep 3
-# sudo apt-get install build-essential
-# sudo apt-get install tcl8.5
+
 # mkdir -p /tmp/redis
 # wget http://download.redis.io/releases/redis-3.2.6.tar.gz -O /tmp/redis-3.2.6.tar.gz
 # tar -xvzf /tmp/redis-3.2.6.tar.gz -C /tmp/redis --strip-components=1 && unlink /tmp/redis-3.2.6.tar.gz
@@ -70,6 +78,8 @@ createdb tauchan
 # echo "---------------------"
 # echo "Installing node dependencies"
 # echo "---------------------"
-# cd "$_cwd" && npm install
+# curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+# sudo apt-get install nodejs
+# cd $TWD && npm install
 
 echo "Installation prerequisites setup has completed." 
