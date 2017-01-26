@@ -157,8 +157,9 @@ CREATE TABLE IF NOT EXISTS bans (
 	seen BOOLEAN NOT NULL DEFAULT FALSE,
 	post JSON,
 	PRIMARY KEY (ip, board),
-	CONSTRAINT ip_is_range_banned EXCLUDE USING GIST (ip WITH &&) WHERE (board = board OR board = '_') 
-	-- ^ Reject bans that are already contained by a range ban (including global bans)
+	INDEX ban_ips USING GIST (ip inet_ops),
+	CONSTRAINT ip_is_range_banned EXCLUDE USING GIST (ip inet_ops WITH &&) WHERE (board = board OR board = '_') 
+	/* ^ Reject bans that are already contained by a range ban (including global bans) */
 );
 CREATE INDEX ON bans USING GIST (ip);
 

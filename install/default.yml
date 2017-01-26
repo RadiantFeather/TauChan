@@ -1,5 +1,5 @@
 version: 0.0.1
-port: 3000
+port: 8080
 devmode: true
 secret: this_will_be_generated_when_you_install_the_app_installation
 site:
@@ -13,7 +13,7 @@ site:
     - forum
 database:
   host: localhost
-  port: 5433
+  port: 5432
   database: tauchan
   user: postgres
   password: postgres

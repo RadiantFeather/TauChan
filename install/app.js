@@ -74,18 +74,18 @@ function mkdir(path){
 	}
 };
 
-const dcfg = yml.read('./install/default.yml');
+const dcfg = yml.read(__dirname+'/default.yml');
 
-if (!exists('./assets/_/media')) mkdir('./assets/_/media');
-if (!exists('./cache/uploads')) mkdir('./cache/uploads');
-if (!exists('./conf')) mkdir('./conf');
+if (!exists(__dirname+'/../assets/_/media')) mkdir(__dirname+'/../assets/_/media');
+if (!exists(__dirname+'/../cache/uploads')) mkdir(__dirname+'/../cache/uploads');
+if (!exists(__dirname+'/../conf')) mkdir(__dirname+'/../conf');
 
-if (exists('./conf/config.yml')) cfg = yml.read('./conf/config.yml');
+if (exists(__dirname+'/../conf/config.yml')) cfg = yml.read(__dirname+'/../conf/config.yml');
 else {
 	console.log('Missing config. Creating file and generating new site secret value.');
-	cfg = yml.read('./install/default.yml');
+	cfg = yml.read(__dirname+'/default.yml');
 	cfg.secret = crypto.createHash('sha256').update(Math.random().toString()).digest('hex');
-	yml.write('./conf/config.yml',cfg);
+	yml.write(__dirname+'/../conf/config.yml',cfg);
 }
 if ((opt = CLO.s.h || CLO.l.host) instanceof String) cfg.database.host = opt;  
 if (parseInt(opt = CLO.s.p || CLO.l.port) instanceof Number) cfg.database.port = opt;  
@@ -130,7 +130,7 @@ if (!CLO.s.q && yn.test(prompt('Configure the database connection? (y/n): '))) {
 		console.log('Database connection reconfigured as: '+ tdb.user+':'+tdb.password+'@'+tdb.host+':'+tdb.port+'/'+tdb.database);
 	} while (!yn.test(prompt('Is this configuration correct? (y/n): ')));
 	cfg.database = tdb;
-	yml.write('./conf/config.yml',cfg);
+	yml.write(__dirname+'/../conf/config.yml',cfg);
 }
 
 if (!cfg.database) return pgp.end(),console.log('Unable to load database configuration. Please check the config file for errors. Exiting.');
@@ -138,17 +138,17 @@ if (!cfg.database) return pgp.end(),console.log('Unable to load database configu
 var sql = (file) => pgp.QueryFile(file,{debug: true, minify: false}),
 	db = pgp(cfg.database);
 
-if (!exists('./conf/installed') || CLO.s.q || yn.test(prompt('Do you want to configure the database? (y/n): '))) {
-	let versions = fs.readdirSync('./install').filter((cur)=>{ 
+if (!exists(__dirname+'/../conf/installed') || CLO.s.q || yn.test(prompt('Do you want to configure the database? (y/n): '))) {
+	let versions = fs.readdirSync(__dirname+'/../install').filter((cur)=>{ 
 		let c = cur.split('/'), ver = /update\.(\d+\.\d+\.\d+)\.sql$/.exec(c[c.length-1]);
 		if (ver !== null) console.log(VERSION.stale,ver[1],updatable(VERSION.stale,ver[1]));
 		return (ver !== null && updatable(VERSION.stale,ver[1])); 
 	});
-	if (exists('./conf/installed') && versions.length) {
+	if (exists(__dirname+'/../conf/installed') && versions.length) {
 		if (CLO.s.q || yn.test(prompt('Updates are available. Would you like to update the site database? (y/n): '))) {
 			let done = false;
 			db.tx((self)=>{
-				return self.batch(versions.map((cur)=>{return self.none(sql('./install/'+cur));}));
+				return self.batch(versions.map((cur)=>{return self.none(sql(__dirname+'/'+cur));}));
 			}).then((data)=>{
 				console.log('Success');
 				done = true;
@@ -161,8 +161,8 @@ if (!exists('./conf/installed') || CLO.s.q || yn.test(prompt('Do you want to con
 		}
 		cfg.version = VERSION.fresh;
 	}
-	else if (!exists('./conf/installed') || !CLO.s.q || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
-		if (!CLO.s.q && !cfg.devmode && exists('./conf/installed')) {
+	else if (!exists(__dirname+'/../conf/installed') || !CLO.s.q || yn.test(prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
+		if (!CLO.s.q && !cfg.devmode && exists(__dirname+'/../conf/installed')) {
 			console.log('These operations are destructive. Please enter the site secret from the config file to continue: ');
 			if (prompt('Secret: ',/\w+/) != cfg.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
 			console.log('Secret matched. Proceeding.');
@@ -188,7 +188,7 @@ if (!exists('./conf/installed') || CLO.s.q || yn.test(prompt('Do you want to con
 	
 		console.log('Wiping the database...');
 		done = false;
-		db.none(sql('./install/wipe.sql')).then((data) => {
+		db.none(sql(__dirname+'/wipe.sql')).then((data) => {
 			console.log('Success');
 			done = true;
 		}).catch((err) => {
@@ -202,8 +202,8 @@ if (!exists('./conf/installed') || CLO.s.q || yn.test(prompt('Do you want to con
 		done = false;
 		db.tx((self) => {
 			return self.batch([
-				self.none(sql('./install/tables.sql')),
-				self.none(sql('./install/functions.sql'))
+				self.none(sql(__dirname+'/tables.sql')),
+				self.none(sql(__dirname+'/functions.sql'))
 			]);
 		}).then(() => {
 			console.log('Success');
@@ -216,7 +216,7 @@ if (!exists('./conf/installed') || CLO.s.q || yn.test(prompt('Do you want to con
 		if (done === null) return pgp.end(),console.log('Install failed. Exiting.');
 		console.log('Database has been installed.');
 	}
-	yml.write('./conf/config.yml',cfg);
+	yml.write(__dirname+'/../conf/config.yml',cfg);
 }
 
 cfg.site.name = CLO.s.q?cfg.site.name:prompt("What do you want the site's name to be? (Leave empty for existing value '"+cfg.site.name+"'): ") || cfg.site.name;
@@ -232,13 +232,13 @@ function consolidateKeys(stale,fresh) {
 consolidateKeys(cfg,dcfg);
 if (!CLO.s.q && yn.test(prompt('Do you want to configure the additional boolean options available for the app? (y/n): '))) {
 	console.log('Answer the following questions with either a yes or no. (y/n is fine as well)');
-	let questions = yml.read('./install/options.yml'), options = dcfg.options, missed = [];
+	let questions = yml.read(__dirname+'/options.yml'), options = dcfg.options, missed = [];
 	for (var key in options) { if (options.hasOwnProperty(key)) { 
 		if (questions.hasOwnProperty(key)) {
 			if (questions[key]) cfg.options[key] = yn.test(prompt(questions[key]+': ',null,true));
 		} else missed.push(key);
 	}}
-	yml.write('./conf/config.yml',cfg);
+	yml.write(__dirname+'/../conf/config.yml',cfg);
 	console.log('Option configuration complete.' + (missed.length ? ' (This configuration has not covered all the available options. Please see /conf/config.yml for the full list.)':''));
 }
 
@@ -246,4 +246,4 @@ console.log("Application installation completed. You can start the app by runnin
 
 pgp.end();
 
-fs.writeFileSync('./conf/installed',VERSION.fresh);
+fs.writeFileSync(__dirname+'/../conf/installed',VERSION.fresh);
