@@ -2,6 +2,8 @@
 
 #### Set the working directory to the site's root folder and run `./setup.sh` in the terminal.
 
+If a popup occurs in the terminal, select the option: "install the package maintainer's version"
+
 **This setup script assumes that the site is being**
 **installed onto its own container or instance of linux.**
 

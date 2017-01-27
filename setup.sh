@@ -9,7 +9,6 @@ echo "--------------------------------------"
 echo "Installing initial package dependencies"
 echo "--------------------------------------"
 sudo apt-get install -y build-essential
-sudo apt-get install -y tcl8.5
 
 echo "--------------------------------------"
 echo "Installing the PostgreSQL dependencies..."
@@ -32,7 +31,8 @@ sudo apt-get install -y --force-yes postgresql-$fver postgresql-contrib-$fver
 PGDATA="/data/postgresql/$fver"
 mkdir -p /data/postgresql/$fver
 export PGDATA
-initdb
+pusr=$( id -u -n )
+pg_createcluster -u tauchan -s /var/run/postgresql-$fver-tauchan $fver tauchan
 sudo sed -i "s/\(local *all *postgres *\)\w*/\1trust/g" /etc/postgresql/$fver/main/pg_hba.conf
 sudo sed -i "$ a local   all             tauchan                                trust" /etc/postgresql/$fver/main/pg_hba.conf
 
@@ -62,6 +62,7 @@ wget http://download.redis.io/releases/redis-$pver.tar.gz -O /tmp/redis-$pver.ta
 tar -xvzf /tmp/redis-$pver.tar.gz -C /tmp/redis --strip-components=1 && unlink /tmp/redis-$pver.tar.gz
 cd /tmp/redis && make
 sudo make install
+sudo apt-get install -y tcl8.5
 
 echo "---------------------"
 echo "Installing node dependencies"
@@ -73,7 +74,7 @@ if [ $( node --version ) ] && [ $( node --version | sed -n 's/v\([0-9]\)*\.[0-9]
     fi
     curl -sL https://deb.nodesource.com/setup_$pver.x | sudo -E bash -
     sudo apt-get install nodejs
-    alias node="nodejs"
+    alias node=nodejs
 fi
 cd $TWD && npm install
 
