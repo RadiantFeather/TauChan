@@ -4,7 +4,6 @@ echo "Beginning Tauchan installation prerequisites setup."
 echo "Installation order: PostgreSQL, GraphicsMagick, Redis, FFMpeg, Nodejs"
 sleep 3
 TWD=$PWD
-sudo adduser tauchan sudo
 echo "--------------------------------------"
 echo "Installing initial package dependencies"
 echo "--------------------------------------"
@@ -67,6 +66,7 @@ sudo apt-get install -y tcl8.5
 echo "---------------------"
 echo "Installing node dependencies"
 echo "---------------------"
+cd $TWD
 pver="6"
 if [ $( node --version ) ] && [ $( node --version | sed -n 's/v\([0-9]\)*\.[0-9]*\.[0-9]*/\1/p' ) != $pver ]; then
     if [ $( node --version ) != "" ]; then
@@ -74,8 +74,10 @@ if [ $( node --version ) ] && [ $( node --version | sed -n 's/v\([0-9]\)*\.[0-9]
     fi
     curl -sL https://deb.nodesource.com/setup_$pver.x | sudo -E bash -
     sudo apt-get install nodejs
-    alias node=nodejs
+    node=nodejs
+    export node
+    echo "Node version: $( node --version )"
 fi
-cd $TWD && npm install
+npm install
 
-echo "Installation prerequisites setup has completed." 
+echo "Installation prerequisites setup has completed."
