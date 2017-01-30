@@ -15,8 +15,8 @@ database:
   host: localhost
   port: 5432
   database: tauchan
-  user: postgres
-  password: postgres
+  user: tauchan
+  password: tauchan
 options:
   hash_ip_mask: true
   disable_usermade_boards: false
@@ -46,19 +46,33 @@ markdown:
     open: '@>'
     close: '<@'
   list:
-    - key: '--'
-      inc: true
-    - key: '-1'
-      inc: true
+    - key: '-'
+      ordered: false
+    - key: '+'
+      ordered: true
       class: 'number'
-    - key: '-A'
-      inc: true
+    - key: '='
+      ordered: true
       class: 'bigalpha'
-    - key: '-a'
-      inc: true
+    - key: '*'
+      ordered: true
       class: 'smallalpha'
   custom:
     -	key: '__'
+      brick: false
+      exclusivetext: false
+      exclusiveline: false
+      multiline: true
+      open: '<u>'
+      close: '</u>'
+    -	key: '__'
+      brick: false
+      exclusivetext: false
+      exclusiveline: false
+      multiline: true
+      open: '<u>'
+      close: '</u>'
+    -	key: ''
       brick: false
       exclusivetext: false
       exclusiveline: false

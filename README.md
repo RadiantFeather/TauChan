@@ -4,11 +4,18 @@ Very raw. Could contain embarrassing code.
 ### Installation steps:
 + Navigate to the site's root folder in the terminal
 + Install binary dependencies: read `SETUP.md` for pre-installation steps
+<<<<<<< HEAD
 + Create DB user: Run ``
 + Setup DB: Run `psql -f "./install/setup.sql" -U postgres`
 + Install app: Run `nodejs install/app.js` 
 + Generate test data (optional): Run `nodejs install/demo.js`
 + Start app: Run `nodejs app.js`
+=======
++ Install app: run `nodejs install/app.js` 
++ Generate test data (optional): run `nodejs install/demo.js`
++ Start app: Run `nodejs app.js`
+
+>>>>>>> master
 
 ***
 ### App routing plan: /:board/:page/:action?/:data? (simplicity is best, right?)

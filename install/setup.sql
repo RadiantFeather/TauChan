@@ -5,6 +5,11 @@ UPDATE pg_opclass AS opc SET opcdefault = TRUE FROM pg_am am WHERE opc.opcmethod
 
 CREATE TYPE LOGLEVEL AS ENUM ('info','notice','warning','error','server');
 
+<<<<<<< HEAD
 CREATE USER tauchan UNENCRYPTED PASSWORD 'tauchan' SUPERUSER CREATEDB REPLICATION NOCREATEROLE INHERIT LOGIN;
 /* UNENCRYPTED PASSWORD 'tauchan' */
+=======
+CREATE USER tauchan ENCRYPTED PASSWORD NULL SUPERUSER CREATEDB NOCREATEROLE INHERIT LOGIN;
+
+>>>>>>> master
 CREATE DATABASE tauchan WITH OWNER tauchan;

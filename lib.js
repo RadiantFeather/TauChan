@@ -443,7 +443,7 @@ _.processMarkup = function(markdown){
 						continue;
 					}
 					let t = depth[depth.length-i], k = keys.indexOf(t),
-						a = "\r"+k+"!\r", b = "\r!"+k+"\r";
+						a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
 					markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
 					hold = hold - t.before.length + b.length;
 					cursor = cursor - t.before.length + b.length;
@@ -516,7 +516,7 @@ _.processMarkup = function(markdown){
 						depth.splice(depth.length-i--,1);
 						continue;
 					}
-					let k = keys.indexOf(t),a = "\r"+k+"!\r", b = "\r!"+k+"\r";
+					let k = keys.indexOf(t),a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
 					markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
 					cursor = cursor - t.before.length + b.length;
 					markup = markup.splice(cursor,0,a);
@@ -556,7 +556,7 @@ _.processMarkup = function(markdown){
 			}
 		}
 		if (e && e.exclusivetext && e.after && markup.substr(cursor,e.after.length) == e.after){
-			let k = keys.indexOf(e), a = "\r"+k+"!\r", b = "\r!"+k+"\r";
+			let k = keys.indexOf(e), a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
 			markup = markup.splice(e.start[e.start.length-1],e.before.length,b);
 			cursor = cursor - e.before.length + b.length;
 			markup = markup.splice(cursor,e.after.length,a);
@@ -580,7 +580,7 @@ _.processMarkup = function(markdown){
 					depth.splice(depth.lastIndexOf(t),1);
 					continue;
 				}
-				let a = "\r"+i+"!\r", b = "\r!"+i+"\r";
+				let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r";
 				markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
 				cursor = cursor - t.before.length + b.length;
 				markup = markup.splice(cursor,t.after.length,a);
@@ -625,8 +625,8 @@ _.processMarkup = function(markdown){
 		}
 		if (list){
 		for (i in list) {
-			let a = "\r"+i+"!\r", b = "\r!"+i+"\r";
-			if (markup.substr(cursor-1,list[i].length+1) == "\n"+list[i]){
+			let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r",depth = '';
+			if (markup.substr(cursor-1,list[i].key.length+2) == "\n"+list[i].key+' '){
 				if (currentlist != i){
 					// close existing list and open new one
 					
@@ -660,8 +660,8 @@ _.processMarkup = function(markdown){
 	while (++i < track.length) {
 		let k = keys.indexOf(track[i]);
 		markup = markup
-			.replace(new RegExp("&#13;!"+k+"&#13;",'g'),track[i].open)
-			.replace(new RegExp("&#13;"+k+"!&#13;",'g'),track[i].close);
+			.replace(new RegExp("&#13;&#0;"+k+"&#13;",'g'),track[i].open)
+			.replace(new RegExp("&#13;"+k+"&#0;&#13;",'g'),track[i].close);
 	}
 	// replace \n (aka &#10;) with <br> nodes
 	return markup.replace(new RegExp("&#10;",'g'),'<br>');
