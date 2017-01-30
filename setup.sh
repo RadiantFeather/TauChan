@@ -27,16 +27,20 @@ if [ ! -f /etc/apt/sources.list.d/pgdg.list ] || [ $(sudo cat /etc/apt/sources.l
 fi
 sudo apt-get update
 sudo apt-get install -y --force-yes postgresql-$fver postgresql-contrib-$fver
+sudo service postgresql stop
 PGDATA="/data/postgresql/$fver"
 mkdir -p /data/postgresql/$fver
 export PGDATA
 pusr=$( id -u -n )
-pg_createcluster -u tauchan -s /var/run/postgresql-$fver-tauchan $fver tauchan
+pg_createcluster -u tauchan -s /var/run/postgresql-$fver-tauchan $fver main
 sudo sed -i "s/\(local *all *postgres *\)\w*/\1trust/g" /etc/postgresql/$fver/main/pg_hba.conf
-sudo sed -i "$ a local   all             tauchan                                trust" /etc/postgresql/$fver/main/pg_hba.conf
+sudo sed -i "$ a local    all             tauchan                                 trust" /etc/postgresql/$fver/main/pg_hba.conf
+sudo sed -i "$ a local    replication     tauchan                                 trust" /etc/postgresql/$fver/main/pg_hba.conf
+sudo sed -i "$ a host     all             tauchan         127.0.0.1/32            md5" /etc/postgresql/$fver/main/pg_hba.conf
+sudo sed -i "$ a host     replication     tauchan         ::1/128                 md5" /etc/postgresql/$fver/main/pg_hba.conf
 
 sudo service postgresql start
-psql -f "./install/setup.sql" -U postgres
+
 
 echo "------------------------------------------"
 echo "Installing the GraphicsMagick dependencies..."
