@@ -28,19 +28,19 @@ block content
 			- each item in data
 				tr
 					td
-						a(href="/#{item.board}/") /#{item.board}/
+						a(href="/"+item.board+"/") /#{item.board}/
 					td #{item.role}
 					td ###{item.capcode}
 					td
 						- if (user.auth('board.view_logs',item.board))
-							a(href="/#{item.board}/logs") Logs
+							a(href="/"+item.board+"/logs") Logs
 						- if (user.auth('board.manage_reports',item.board))
-							a(href="/#{item.board}/reports") Reports
+							a(href="/"+item.board+"/reports") Reports
 						- if (user.auth('board.view_history',item.board))
-							a(href="/#{item.board}/history") Recent Posts
+							a(href="/"+item.board+"/history") Recent Posts
 						- if (user.auth('board.view_bans',item.board))
-							a(href="/#{item.board}/bans") Bans
+							a(href="/"+item.board+"/bans") Bans
 						- if (user.auth('board.manage_pages',item.board))
-							a(href="/#{item.board}/pages") Manage Custom Pages
+							a(href="/"+item.board+"/pages") Manage Custom Pages
 			
 	

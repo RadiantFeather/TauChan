@@ -25,7 +25,7 @@ block footer
 block content
 	div#tags
 		form#tagsearch(method="GET",action="")
-			input(type="text",name="tags",list="taglist",placeholder="search,+tags,-here",pattern="^ *[+-]?[a-zA-Z0-9_]+ *(?:, *[+-]?[a-zA-Z0-9_]+ *)*$",value="#{tags||''}")
+			input(type="text",name="tags",list="taglist",placeholder="search,+tags,-here",pattern="^ *[+-]?[a-zA-Z0-9_]+ *(?:, *[+-]?[a-zA-Z0-9_]+ *)*$",value=tags||'')
 			div 
 				label Either
 					input(type="radio",name="nsfw",value="NULL",checked=(nsfw==="NULL"?true:false))
@@ -43,13 +43,13 @@ block content
 			- var c = cloud.slice(0,taglimit)
 			- while (++i < c.length)
 				- if (i<1)
-					h2: a(href="/?tags=#{cloud[i].tag}") #{cloud[i].tag}
+					h2: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
 				- else if (i<c.length/3)
-					h3: a(href="/?tags=#{cloud[i].tag}") #{cloud[i].tag}
+					h3: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
 				- else if (i<c.length/2)
-					h4: a(href="/?tags=#{cloud[i].tag}") #{cloud[i].tag}
+					h4: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
 				- else
-					h5: a(href="/?tags=#{cloud[i].tag}") #{cloud[i].tag}
+					h5: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
 	div#boardlist
 		+overnav
 		- if (data.length)
@@ -70,7 +70,7 @@ block content
 						td.title #{item.title}
 						td.desc #{item.subtitle}
 						td.nsfw #{item.nsfw?"Yes":"No"}
-						td.tags(title="#{item.tags}") #{item.tags}
+						td.tags(title=item.tags) #{item.tags}
 						td.pph #{item.posts_per_hour}
 						td.au #{item.active_users}
 						td.pc #{item.post_count}

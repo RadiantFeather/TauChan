@@ -623,31 +623,31 @@ _.processMarkup = function(markdown){
 				break;
 			}
 		}
-		if (list){
-		for (i in list) {
-			let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r",depth = '';
-			if (markup.substr(cursor-1,list[i].key.length+2) == "\n"+list[i].key+' '){
-				if (currentlist != i){
-					// close existing list and open new one
+		// if (list){
+		// for (i in list) {
+		// 	let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r",depth = '';
+		// 	if (markup.substr(cursor-1,list[i].key.length+2) == "\n"+list[i].key+' '){
+		// 		if (currentlist != i){
+		// 			// close existing list and open new one
 					
 					
-					currentlist = i;
+		// 			currentlist = i;
 					
-				} else if (!currentlist){
-					// open new list
-					currentlist = i;
+		// 		} else if (!currentlist){
+		// 			// open new list
+		// 			currentlist = i;
 					
-				} else {
-					// close depths, close list item, open list item, open depths
+		// 		} else {
+		// 			// close depths, close list item, open list item, open depths
 
-				}
-			} else if (currentlist && markup.substr(cursor-1,1) == "\n"){
-				// close depths then existing list
+		// 		}
+		// 	} else if (currentlist && markup.substr(cursor-1,1) == "\n"){
+		// 		// close depths then existing list
 				
 				
-				currentlist = null;
-			}
-		}}
+		// 		currentlist = null;
+		// 	}
+		// }}
 		if (skip) cursor++;
 		if (cursor > markup.length) break;
 	}

@@ -8,13 +8,13 @@ block content
 				- var classtype = data[i].thumb===null?'missing': data[i].deleted?'deleted': data[i].nsfw?'spoiler': '';
 				a.file(class=classtype, href="/#{board.board}/#{data[i].op}")
 					- if (data[i].thumb === null)
-						img(src="#{CDN}#{board.missingimg}",alt="No image available")
+						img(src=CDN+board.missingimg,alt="No image available")
 					- else if (!data[i].deleted)
 						- if (data[i].nsfw)
-							img.nsfw(src="#{CDN}#{board.spoilerimg}",alt="Image is spoilered")
-						img(src="#{CDN}#{data[i].thumb}",alt="Thumbnail")
+							img.nsfw(src=CDN+board.spoilerimg,alt="Image is spoilered")
+						img(src=CDN+data[i].thumb,alt="Thumbnail")
 					- else
-						img(src="#{CDN}#{board.deletedimg}",alt="Image is deleted")
+						img(src=CDN+board.deletedimg,alt="Image is deleted")
 			span.meta
 				span.replies #{data[i].replies}
 				span.images #{data[i].images}

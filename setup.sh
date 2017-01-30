@@ -41,7 +41,7 @@ sudo sed -i "$ a host     all             tauchan         127.0.0.1/32          
 sudo sed -i "$ a host     replication     tauchan         ::1/128                 md5" /etc/postgresql/$fver/main/pg_hba.conf
 
 sudo service postgresql start
-
+psql -U postgres -f "./install/setup.sql"
 
 
 echo "------------------------------------------"

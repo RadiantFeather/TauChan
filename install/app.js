@@ -242,7 +242,7 @@ if (!CLO.s.q && yn.test(prompt('Do you want to configure the additional boolean 
 	console.log('Option configuration complete.' + (missed.length ? ' (This configuration has not covered all the available options. Please see /conf/config.yml for the full list.)':''));
 }
 
-console.log("Application installation completed. You can start the app by running 'node app.js' from the app's root directory.");
+console.log("Application installation completed. You can start the app by running 'nodejs app.js' from the app's root directory.");
 
 pgp.end();
 

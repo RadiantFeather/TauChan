@@ -3,15 +3,16 @@ console.log('Loading Demo Setup...');
 var pgp = require('pg-promise')({promiseLib: require('bluebird'), capSQL:true}),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
 	deasync = require('deasync'), crypto = require('crypto'),
-	cfg = yml.read.sync('./conf/config.yml'), process = require('process'),
+	cfg = yml.read.sync(__dirname+'/../conf/config.yml'), process = require('process'),
 	sql = (file) => pgp.QueryFile(file,{debug: true, minify: false}),
 	db = pgp(cfg.database);
+require(__dirname+'/../extend.js');
 	
 	
 GLOBAL.cfg = cfg;
-var lib = require('../lib');
-var Chance = require('./chance.js')(cfg.secret);
-cfg = yml.read.sync('./install/demo.yml');
+var lib = require(__dirname+'/../lib.js');
+var Chance = require(__dirname+'/chance.js')(cfg.secret);
+cfg = yml.read.sync(__dirname+'/demo.yml');
 
 var opts = {};
 opts.max_posts_per_board = cfg.max_posts_per_board;
@@ -28,7 +29,7 @@ function kv(obj,keys){
 }
 
 var wait = true;
-db.none(sql('./install/demosetup.sql')).then(()=>{
+db.none(sql(__dirname+'/demosetup.sql')).then(()=>{
 	console.log('Cleaning up database...');
 	db.none('VACUUM FULL ANALYZE;').then(()=>{
 		wait = false;
