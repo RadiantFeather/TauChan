@@ -4,10 +4,9 @@ Very raw. Could contain embarrassing code.
 ### Installation steps:
 + Navigate to the site's root folder in the terminal
 + Install binary dependencies: read `SETUP.md` for pre-installation steps
-+ Install node dependencies: run `npm install`
-+ Install app: run `node install/app.js` 
-+ Generate test data (optional): run `node install/demo.js`
-+ Start app: Run `node app.js`
++ Install app: run `nodejs install/app.js` 
++ Generate test data (optional): run `nodejs install/demo.js`
++ Start app: Run `nodejs app.js`
 
 
 ***

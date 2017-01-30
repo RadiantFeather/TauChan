@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 
 CREATE INDEX post_boards ON posts (board);
-CREATE INDEX post_ips ON posts USING GIST (ip);
+CREATE INDEX post_ips ON posts USING GIST (ip inet_ops);
 CREATE INDEX post_threads ON posts (thread);
 CREATE INDEX post_times ON posts (posted);
 CREATE VIEW recent_posts AS SELECT * FROM posts 
@@ -157,11 +157,10 @@ CREATE TABLE IF NOT EXISTS bans (
 	seen BOOLEAN NOT NULL DEFAULT FALSE,
 	post JSON,
 	PRIMARY KEY (ip, board),
-	INDEX ban_ips USING GIST (ip inet_ops),
 	CONSTRAINT ip_is_range_banned EXCLUDE USING GIST (ip inet_ops WITH &&) WHERE (board = board OR board = '_') 
 	/* ^ Reject bans that are already contained by a range ban (including global bans) */
 );
-CREATE INDEX ON bans USING GIST (ip);
+CREATE INDEX ON bans USING GIST (ip inet_ops);
 
 CREATE TABLE IF NOT EXISTS appeals (
 	ip INET NOT NULL DEFAULT '::',
@@ -175,7 +174,7 @@ CREATE TABLE IF NOT EXISTS appeals (
 	FOREIGN KEY (board,ban) REFERENCES bans (board,ip)
 		ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE INDEX ON appeals USING GIST (ip);
+CREATE INDEX ON appeals USING GIST (ip inet_ops);
 /*
 SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged
 	FROM bans b, appeals a
@@ -204,7 +203,7 @@ CREATE TABLE IF NOT EXISTS reports (
 	FOREIGN KEY (board, post) REFERENCES posts (board, post) 
 		ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE INDEX report_ips ON reports USING GIST (ip);
+CREATE INDEX report_ips ON reports USING GIST (ip inet_ops);
 /*
 SELECT r.post, r.created, r.reason, to_json(p) AS content,
 	FROM posts p, reports r
