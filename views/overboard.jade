@@ -22,7 +22,7 @@ block header
 block footer
 	h4 Footer Placeholder
 
-block content
+block main
 	div#tags
 		form#tagsearch(method="GET",action="")
 			input(type="text",name="tags",list="taglist",placeholder="search,+tags,-here",pattern="^ *[+-]?[a-zA-Z0-9_]+ *(?:, *[+-]?[a-zA-Z0-9_]+ *)*$",value=tags||'')
@@ -35,7 +35,7 @@ block content
 					input(type="radio",name="nsfw",value="TRUE",checked=(nsfw==="TRUE"?true:false))
 			input(type="submit",value="Search")
 			datalist#taglist
-				- each t in taglist
+				- each t in taglist 
 					option(value=t.tag)
 		fieldset#cloud
 			legend Tag Cloud
@@ -43,13 +43,13 @@ block content
 			- var c = cloud.slice(0,taglimit)
 			- while (++i < c.length)
 				- if (i<1)
-					h2: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
+					h2: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
 				- else if (i<c.length/3)
-					h3: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
+					h3: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
 				- else if (i<c.length/2)
-					h4: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
-				- else
-					h5: a(href="/?tags="+cloud[i].tag) #{cloud[i].tag}
+					h4: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
+				- else 
+					h5: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
 	div#boardlist
 		+overnav
 		- if (data.length)
@@ -63,7 +63,7 @@ block content
 					th(title="Posts Per Hour") PPH
 					th(title="Active Users") AU
 					th(title="Post Count") PC
-				- each item in data
+				- each item in data 
 					tr
 						td.board
 							a(href="/#{item.board}/") #{item.board}
@@ -74,7 +74,7 @@ block content
 						td.pph #{item.posts_per_hour}
 						td.au #{item.active_users}
 						td.pc #{item.post_count}
-		- else
+		- else 
 			h1 NO BOARDS FOUND
 		+overnav
 			

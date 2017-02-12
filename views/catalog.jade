@@ -1,6 +1,6 @@
 extends layout
 
-block content
+block main
 	- var i = -1
 	- while (++i >= 0 && i < data.length)
 		article.thread(id="#{data[i].op}")

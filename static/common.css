@@ -37,3 +37,7 @@ nav:empty{
 }
 .spoiler{color:black;background-color:black;} .spoiler:hover{color:white;}
 .important{color:red;font-size:150%;font-weight:bold;}
+
+.click{cursor:pointer;}
+
+a[target="_blank"] {cursor:alias;}

@@ -1,5 +1,17 @@
 
-.menu >input.toggle +label +ul{
+.postactions >ul{
 	border-color: black;
 	background-color: #f5f5f5;
+}
+
+.thread.post.op {
+	border-top-color: #000;
+}
+.thread .post.reply {
+	background-color: #dedede;
+	border-color: #333;
+}
+
+.laction {
+	color:blue;
 }

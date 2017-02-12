@@ -25,6 +25,6 @@
 }
 
 #boardlist nav aside {
-	float:right;
 	display:inline-block;
+	float:right;
 }

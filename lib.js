@@ -9,20 +9,9 @@ var fs = require('fs'),
 	request = require('request'), gm = require('gm'),
 	encoder = new (require('node-html-encoder')).Encoder('entity'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	reeeee = {
-		imgur: /^https:\/\/(?:i\.)?imgur\.com\/[^/.]+\.(?:jpg|png|gif)+/i
-		,youtube: [
-			/^https?:\/\/(?:www\.)?youtube\.com\/watch/i,
-			/^https?:\/\/youtu\.be/i
-		],
-		dailymotion: [
-			/^https?:\/\/www.dailymotion.com\/video\/[a-zA-Z0-9]+/i,
-			/^https?:\/\/dai.ly\/[a-zA-Z0-9]+/i
-		]
-		
-	},
 	
 	_ = {};
+	
 GLOBAL.cfg = GLOBAL.cfg||yml.read.sync('./conf/config.yml');
 	
 _.exists = function(path){
@@ -141,15 +130,15 @@ _.URL = (str)=>{ return new URL(str);};
 	
 function parseExternalMedia(url) {
 	let s,m=null,done,key,found,r={meta:{}};
-	for(key in reeeee) {
-		if (reeeee[key] instanceof Array){
-			for (let val of reeeee[key])
-				if (url.test(val)){
+	for(key of GLOBAL.cfg.external_media) {
+		if (key.regex instanceof Array){
+			for (let val of key.regex)
+				if (val.test(url)){
 					found = key;
 					break;
 				}
 			if (found) break;
-		} else if (url.test(reeeee[key])){
+		} else if (key.regex.test(url)){
 			found = key;
 			break;
 		}
@@ -253,20 +242,24 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 				trackfiles.push('/assets'+r.src);
 				r.hash = crypto.createHash('md5').update(fs.readFileSync(__dirname+'/assets'+r.src, 'utf8')).digest('hex');
 				let done = false;
-				gm.info(__dirname+'/assets'+r.src).then((file)=>{
-					console.log('large',file);
-					r.meta.dims = file.width+'x'+file.height;
-					gm.resize({src:__dirname+'/assets'+r.src, dst:__dirname+'/assets'+r.thumb, quality:50, width:300, height:300}).then((file)=>{
-						console.log('thumb',file);
-						trackfiles.push('/assets'+r.thumb);
-						done = true;
-					}).catch((err)=>{
-						r = err;
-						done = true;
-					});
-				}).catch((err)=>{
+				gm(__dirname+'/assets'+r.src).size((err, size)=>{
+					if (err){
 					r = err;
-					done = true;
+						done = true;
+					} else {
+						r.meta.dims = size.width+'x'+size.height;
+						this.resize(300, 300);
+						this.write(__dirname+'/assets'+r.thumb,(err)=>{
+							if (err) {
+								r = err;
+								done = true;
+							} else {
+								console.log('thumb',file);
+								trackfiles.push('/assets'+r.thumb);
+								done = true;
+							}
+						});
+					}
 				});
 				while (!done) deasync.runLoopOnce();
 			} catch(err) {
@@ -306,12 +299,15 @@ _.processPostMedia = function(board,body,files,trackfiles) {
 	this.mkdir('./assets/'+board.board+'/media');
 	let i = -1, media = [], f;
 	while (++i < board.mediauploadlimit) {
-		if (body['media'+i]) {
-			let m = parseExternalMedia(body['media'+i]);
+		if (!body['include'+i]) break;
+		if (!body['is_external'+i]) {
+			let m = parseExternalMedia(body['in_media'+i]);
 			if (m instanceof Error) return m;
 			m.nsfw = !!body['spoiler_media'+i];
 			media.push(m);
-		} else if (files && (f = files.filter((cur)=>{return cur.fieldname == 'media'+i;})).length) {
+		} else if (files) {
+			f = files.filter((cur)=>{return cur.fieldname == 'out_media'+i;});
+			if (!f.length) continue;
 			let m = parseInternalMedia(f[0],board.board,trackfiles);
 			if (m instanceof Error) return m;
 			m.nsfw = !!body['spoiler_media'+i];
@@ -386,6 +382,93 @@ _.processMarkdown = function(req,res,next){
 	let cursor = 0;
 	
 	
+};
+
+_.processTicker = function(markdown){
+	// Ticker only should allow INLINE markup. No exclusive lines.
+	let keys = GLOBAL.cfg.markdown.custom, depth = [], track = [], cursor = 0,
+		markup = markdown.replace(new RegExp("\r",'g'),'');
+	keys.forEach((item)=>{
+		item.before = item.brick?'['+item.key+']':item.key;
+		item.after = item.brick?'[/'+item.key+']':item.key;
+		item.start = [];
+	});
+	while (1){
+		let e = depth[depth.length-1];
+		if (e && e.exclusivetext && e.after && markup.substr(cursor,e.after.length) == e.after){
+			let k = keys.indexOf(e), a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
+			markup = markup.splice(e.start[e.start.length-1],e.before.length,b);
+			cursor = cursor - e.before.length + b.length;
+			markup = markup.splice(cursor,e.after.length,a);
+			cursor = cursor + a.length;
+			e.start.pop();
+			track.push(e);
+			depth.pop();
+			continue;
+		}
+		let i = -1, skip = true;
+		while (++i < keys.length){
+			let t = keys[i];
+			if (t.after && depth.indexOf(t) != -1 && markup.substr(cursor,t.after.length) == t.after) {
+				if (t.exclusiveline) continue;
+				// insert the text bookmarks for the opening and closing of the markdown
+				if (markup.substr(cursor-t.before.length,t.before.length) == t.before) {
+					// prevent unnecessary empty nodes from being generated
+					markup = markup.splice(cursor-t.before.length,t.before.length+t.after.length);
+					cursor -= t.before.length;
+					t.start.pop();
+					depth.splice(depth.lastIndexOf(t),1);
+					continue;
+				}
+				let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r";
+				markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
+				cursor = cursor - t.before.length + b.length;
+				markup = markup.splice(cursor,t.after.length,a);
+				cursor = cursor + a.length;
+				depth.splice(depth.lastIndexOf(t));
+				t.start.pop();
+				track.push(t);
+				skip = false;
+				break;
+			} else if (markup.substr(cursor,t.before.length) == t.before && markup.substr(cursor,t.before.length+t.after.legnth) != t.before+t.after) {
+				// Bookmark the index of the markdown opening
+				if (t.exclusiveline) continue;
+				t.start.push(cursor);
+				depth.push(t);
+				cursor += t.before.length;
+				
+				if (t.exclusivetext){
+					// exclusivetext ignores all markdown (including suppression) until its closing text
+					let hold = cursor--;
+					while (markup.substr(++cursor,t.after.length) != t.after){
+						if (cursor >= markup.length) {
+							cursor = hold;
+							depth.pop();
+							t.start.pop();
+							break;
+						}
+					}
+				}
+				skip = false;
+				break;
+			}
+		}
+		if (skip) cursor++;
+		if (cursor > markup.length) break;
+	}
+	// \r (aka &#13;) is the only character that is guarenteed not to be present before and after processing
+	// because we remove all instances at the start of the processing, so we use that for bookmarking the
+	// keys to allow for html sensitive characters to be used in markdown without accidental encoding errors.
+	// Also prevents malicious html code from leaking through.
+	let i = -1;
+	markup = encoder.htmlEncode(markup.replace(/^[\n\t ]+|\n+$/g,''));
+	while (++i < track.length) {
+		let k = keys.indexOf(track[i]);
+		markup = markup
+			.replace(new RegExp("&#13;&#0;"+k+"&#13;",'g'),track[i].open)
+			.replace(new RegExp("&#13;"+k+"&#0;&#13;",'g'),track[i].close);
+	}
+	return markup;
 };
 
 _.processMarkup = function(markdown){
@@ -720,14 +803,25 @@ function User(data,board,ip){
 
 // Global flag registry for user auth permissions
 if (GLOBAL.cfg.devmode) {
-	var RegFlag = (cat,flag)=>{
-		if (typeof cat != 'string') cat = 'undefined';
-		if (!GLOBAL.flags[cat]) GLOBAL.flags[cat] = {};
-		GLOBAL.flags[cat][flag] = '';
+	var RegFlag = (flag)=>{
+		let d = -1, level = GLOBAL.flags;
+		while (++d < flag.length){
+			if (!level[flag[d]]) level[flag[d]] = {};
+			level = level[flag[d]];
+		}
+		level[flag[d]] = 'The flag '+flag.join('.')+' has not yet been described.';
+		console.log('Please define flag: '+flag.join('.'))
 		yml.write('./flags.yml',GLOBAL.flags,()=>{});
 	};
 }
 User.prototype.auth = function(flag,def,ault){
+	let testRule = function testRule(check) {
+		if (!(check in u.roles[board].flags) && !('global@'+check in u.roles[board].flags))				
+			return !!def;
+		else if (!u.roles[board].flags[check] && !u.roles[board].flags['global@'+check])
+			return false;
+		else return testRule;
+	};
 	let board = this.currentBoard;
 	if (typeof def == 'string')	// allow auth for multiple boards
 		board = def, def = ault;
@@ -737,16 +831,32 @@ User.prototype.auth = function(flag,def,ault){
 	if (typeof flag == 'string') flag = [flag];
 	let i = -1;
 	while (++i < flag.length) {
-		let f = flag[i].split('.',2);
-		if (f.length == 2) flag[i] = f;
-		else flag[i] = ['undefined',flag[i]];
-		if (GLOBAL.cfg.devmode && !(flag[i][1] in GLOBAL.flags[flag[i][0]]))
-			console.log('Please define flag: '+flag[i][0]+' - '+flag[i][1]);
-			RegFlag(flag[i][0],flag[i][1]);
-		if (!(flag[i][1] in u.roles[board].flags) && !('global.'+flag[i][1] in u.roles[board].flags))				
-			return !!def;
-		else if (!u.roles[board].flags[flag[i][1]] && !u.roles[board].flags['global.'+flag[i][1]])
-			return false;
+		let ctx = flag[i].split('!');
+		flag[i] = ctx.shift();
+		if (ctx.length > 1) ctx = ctx.shift();
+		else ctx = 'all';
+		let level, d = -1, f = flag[i].split('.');
+		level = GLOBAL.flags;
+		while (++d < f.length){
+			if (f[d] in level){
+				level = level[f[d]];
+				continue;
+			} else RegFlag(f);
+		}
+		if (typeof level == 'object'){
+			let len = Object.keys(level).length,total=0;
+			for (let x in level){
+				let y = testRule(f+'.'+x);
+				if (ctx == 'all' && total != len)
+					if (y === testRule) total++;
+					else return false;
+				else if (ctx == 'any')
+					if (y === testRule) return true;
+			}
+			return (total == len);
+		}
+		let y = testRule(flag[i]);
+		if (!(y === testRule)) return y;
 	}
 	return true;
 };

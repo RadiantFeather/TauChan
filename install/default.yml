@@ -35,11 +35,42 @@ capcodes:
 custom_tripcodes:
   '#demotrip': '4ctual_tr!p'
   '##demosecuretrip': '4ctual_$ecur3_tr!p'
-root_whitelist:
-  - favicon.ico
 external_sources:
   'socket.io.js': 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/socket.io.min.js'
+root_whitelist:
+  - favicon.ico
+external_media:
+  imgur:
+    type: raw
+    regex: '^https?:\/\/(?:i\.)?imgur\.com\/[^/.]+\.(?:jpg|png|gif)+'
+    domains:
+      - i.imgur.com
+      - imgur.com
+  dummyimage:
+    type: raw
+    regex: '^https?:\/\/dummyimage\.com'
+    domains:
+      - dummyimage.com
+  youtube:
+    type: embed
+    regex:
+      - '^https?:\/\/(?:www\.)?youtube\.com'
+      - '^https?:\/\/youtu\.be'
+    domains:
+      - www.youtube.com
+      - youtube.com
+      - youtu.be
+  dailymotion:
+    type: embed
+    regex:
+      - '^https?:\/\/(?:www\.)?dailymotion\.com\/video\/[a-zA-Z0-9]+'
+      - '^https?:\/\/dai.ly\/[a-zA-Z0-9]+'
+    domains:
+      - www.dailymotion.com
+      - dailymotion.com
+      - dai.ly
 markdown:
+  hyperlink: '&'
   suppress:
     all: '@!'
     paragraph: '@@'
@@ -58,31 +89,39 @@ markdown:
       ordered: true
       class: 'smallalpha'
   custom:
-    -	key: '__'
+    - key: '=='
+      brick: false
+      exclusivetext: false
+      exclusiveline: true
+      multiline: false
+      open: <span class="important">
+      close: </span>
+    - key: '__'
       brick: false
       exclusivetext: false
       exclusiveline: false
       multiline: true
-      open: '<u>'
-      close: '</u>'
-    -	key: '__'
+      open: <u>
+      close: </u>
+    - key: "\"\""
       brick: false
       exclusivetext: false
       exclusiveline: false
       multiline: true
-      open: '<u>'
-      close: '</u>'
-    -	key: ''
-      brick: false
-      exclusivetext: false
-      exclusiveline: false
-      multiline: true
-      open: '<u>'
-      close: '</u>'
+      open: <i>
+      close: </i>
     - key: '**'
       brick: false
       exclusivetext: false
       exclusiveline: false
-      multiline: false
-      open: '<span class="spoiler">'
-      close: '</span>'
+      multiline: true
+      open: <b>
+      close: </b>
+    - key: '~~'
+      brick: false
+      exclusivetext: false
+      exclusiveline: false
+      multiline: true
+      open: <span class="spoiler">
+      close: </span>
+

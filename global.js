@@ -8,8 +8,7 @@ var fs = require('fs'),
 	// tpl = require('jade'),
 	crypto = require('crypto'), deasync = require('deasync'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	pgp = require('pg-promise')(GLOBAL.pgp),
-	db = pgp(GLOBAL.cfg.database),
+	db = GLOBAL.db, pgp = GLOBAL.pgp,
 	handlers = {},
 	_ = {};
 
@@ -43,15 +42,15 @@ _.signup = function(req,res,next){
 
 _.createBoard = function(req,res,next){
 	if (!res.locals.user.reg) return res.redirect('/_/login');
-	res.render('createBoard.jade');
+	res.render('editBoard.jade');
 };
 _.createBoard.reg = true;
 _.createBoard.auth = function(req,res,next){
 	if (GLOBAL.cfg.options.disable_usermade_boards)
-		if (!res.locals.user.global || !res.locals.user.auth('site.board_create',0))
+		if (!res.locals.user.global || !res.locals.user.auth('site.board.create',0))
 			return 'Unauthorized to create a board.';
 	else if (GLOBAL.cfg.options.require_valid_email)
-		if (!res.locals.user.verified || !res.locals.user.auth('site.board_create',1))
+		if (!res.locals.user.verified || !res.locals.user.auth('site.board.create',1))
 			return 'Unauthorized to create a board.';
 	return true;
 };
@@ -151,21 +150,7 @@ _.signup = function(req,res,next){
 	});
 };
 
-var createBoard_constraintErrors = {
-	boards_pkey: 'Board name already exists.'
-	,locked_preview_limit: 'Invalid value for locked thread preview limit. Must be between 0 and 10 inclusively.'
-	,pinned_preview_limit: 'Invalid value for pinned thread preview limit. Must be between 0 and 10 inclusively.'
-	,sticky_preview_limit: 'Invalid value for sticky thread preview limit. Must be between 0 and 10 inclusively.'
-	,cycle_preview_limit: 'Invalid value for cycle thread preview limit. Must be between 0 and 10 inclusively.'
-	,archived_preview_limit: 'Invalid value for archived thread preview limit. Must be between 0 and 10 inclusively.'
-	,standard_preview_limit: 'Invalid value for standard thread preview limit. Must be between 0 and 10 inclusively.'
-	,thread_limit: 'Invalid value for per thread count limit. Must be between 10 and 150 inclusively.'
-	,bump_limit: 'Invalid value for per thread bump limit (autosage). Must be between 100 and 1000 inclusively.'
-	,media_limit: 'Invalid value for per thread total media limit. Must be between 0 and 750 inclusively.'
-	,post_limit: 'Invalid value for per thread post limit. Must be between 100 and 1000 inclusively.'
-	,media_upload_limit: 'Invalid value for per post media upload limit. Must be between 0 and 4 inclusively.'
-	,archived_lifespan: 'Invalid value for archived posts lifespan. Must be between 1 day and 7 days inclusively.'
-};
+
 _.createBoard = function(req,res,next){
 	pbody(req,res,(err)=>{
 		if (err) return next(err);
@@ -191,7 +176,7 @@ _.createBoard = function(req,res,next){
 			err = new Error('Board information header is too long. Must be 256 characters or less.');
 		
 		if (err) {
-			return next(err.withrender('createBoard.jade').setdata(req.body));
+			return next(err.withrender('editBoard.jade').setdata(req.body));
 		} else {
 			// finish
 			let t = {};
@@ -214,6 +199,7 @@ _.createBoard = function(req,res,next){
 			});
 			
 			t.tags = pgp.as.json('tags' in req.body? req.body.tags.split(','): []);
+			t.ticker = pgp.as.text('ticker' in req.body? GLOBAL.lib.processTicker(req.body.ticker): '');
 			
 			let i,k=[],v=[];
 			for (i in t){
@@ -228,10 +214,11 @@ _.createBoard = function(req,res,next){
 			}).then((data)=>{
 				res.redirect('/'+req.body.board+'/');
 			}).catch((err)=>{
-				if (err.constraint&&err.constraint in createBoard_constraintErrors){
-					err = new Error(createBoard_constraintErrors[err.constraint]);
+				if (err.constraint&&err.constraint in GLOBAL.errors.editBoard_constraints){
+					err.message = GLOBAL.errors.editBoard_constraints[err.constraint];
 				}
-				next(err.withrender('createBoard.jade').setdata(req.body));
+				req.body.mode = 'new';
+				next(err.withrender('editBoard.jade').setdata(req.body));
 				// TODO: recache the board list and data?
 			});
 		}
@@ -259,29 +246,23 @@ function CSRF(req,res,next) {
 
 function tagCloud(){
 	let res = [], cloud = {}, out = [];
-	let wait = true;
-	console.log('pass 1.2');
-	db.any('SELECT tags FROM boards;').then((data)=>{
+	db.any('SELECT tags FROM boards WHERE listed IS TRUE;').then(data=>{
+		console.log(data);
 		res = data;
-		wait = false;
-	}).catch((err)=>{
+		let i = -1;
+		while (++i < res.length)
+			res[i].tags.forEach((item)=>{
+				if (item in cloud) cloud[item] += 1;
+				else cloud[item] = 1;
+			});
+		for (i in cloud)
+			out.push({tag:i,count:cloud[i]});
+		out.sort((a,b)=>{ return a.count < b.count? 1: a.count > b.count? -1: 0; });
+	}).catch(err=>{
+		console.log('DB error in global|tagCloud');
 		console.log(err);
-		wait = null;
 	});
-	while (wait) deasync.runLoopOnce();
-	if (wait === null) console.log('Tag Stats');
-	console.log('pass 1.5');
-	let i = -1;
-	while (++i < res.length){
-		res[i].tags.forEach((item)=>{
-			if (item in cloud) cloud[item] += 1;
-			else cloud[item] = 1;
-		});
-	}
-	for (i in cloud){
-		out.push({tag:i,count:cloud[i]});
-	}
-	out.sort((a,b)=>{ return a.count < b.count? 1: a.count > b.count? -1: 0; });
+
 	return out;
 }
 
@@ -308,9 +289,8 @@ handlers.index = function(req,res,next){
 		t.forEach((b)=>{if(renone.test(b))none.push(b.trim().slice(1));});
 		t.forEach((b)=>{if(reany.test(b))any.push(b.trim());});
 	}
-	let tags = tagCloud(GLOBAL.cfg.values.tag_cloud_count||25);
+	let tags = tagCloud();
 	// redis cache check/fetch with alternate tags filter?
-	console.log('pass 2');
 	db.any(GLOBAL.sql.view.overboard, {
 		page: parseInt(req.query.page||1),
 		all: all.length?'tags ?& '+pgp.as.array(all)+'::TEXT[]':'TRUE',
@@ -318,7 +298,6 @@ handlers.index = function(req,res,next){
 		none: none.length?'NOT tags ?| '+pgp.as.array(none)+'::TEXT[]':'TRUE',
 		nsfw: {'TRUE':'FALSE','FALSE':'TRUE','NULL':'NULL'}[nsfw]
 	}).then((data)=>{
-		console.log('pass 3');
 		res.locals.page = {type:'index',param:'index'};
 		res.render('overboard.jade',{
 			data: data,

@@ -1,6 +1,6 @@
 extends layout
 
-block content
+block main
 	form(id="login",method="POST",action="",enctype="multipart/form-data")
 		- if (err && (DEV || status != 500))
 			h4._error= err.message
@@ -13,3 +13,5 @@ block content
 		label Remember Me
 			input(name="rememberme",type="checkbox",checked=false)
 		input(type="submit",value="Login")
+		div
+			a(href="/_/signup") Signup

@@ -195,6 +195,10 @@ view:
     ORDER BY created ASC;
   '
   
+  board_settings: '
+    SELECT *,archivedlifespan::TEXT FROM boards WHERE board = ${board};
+  '
+  
   page: '
     SELECT title,markup,markdown FROM pages 
     WHERE board = ${board} AND page = ${page};
@@ -282,6 +286,10 @@ modify:
       INSERT INTO roles (role, board, capcode) VALUES ('owner',${board:raw},'Owner');
       INSERT INTO assign (id,role,board) VALUES (${id},'owner',${board:raw});
     END;$$ LANGUAGE plpgsql;
+  "
+  
+  old_board: "
+    UPDATE boards SET (${keys:raw}) = (${values:raw}) WHERE board = ${board};
   "
   
   new_log: '

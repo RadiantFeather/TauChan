@@ -11,7 +11,7 @@ require(__dirname+'/../extend.js');
 	
 GLOBAL.cfg = cfg;
 var lib = require(__dirname+'/../lib.js');
-var Chance = require(__dirname+'/chance.js')(cfg.secret);
+var Chance = new (require(__dirname+'/gen.js'))(cfg.secret);
 cfg = yml.read.sync(__dirname+'/demo.yml');
 
 var opts = {};
@@ -109,7 +109,10 @@ function genuser(){
 		if (Chance.bool({likelihood:30})) out.sage = true;
 	} else { //registered
 		out.name = Chance.name();
-		if (Chance.bool()) out.subject = Chance.sentence({punctuation:false,words:Chance.natural({max:10})});
+		if (Chance.bool()) {
+			out.subject = Chance.genNounPhrase({words:Chance.natural({max:10})});
+			out.subject = out.subject.slice(0,out.subject.lastIndexOf(' ',128));
+		}
 		if (Chance.bool({likelihood:10})) 
 			out.trip = lib.processTrip(
 				(Chance.bool({likelihood:30})?'##':'#')+
@@ -127,7 +130,8 @@ function genpost(board){
 	out.board = board?board:Chance.pickone(boards).board;
 	if (threads[out.board].ops.length && Chance.bool({likelihood:90}))
 		out.thread = Chance.pickone(threads[out.board].ops);
-	out.markdown = Chance.paragraph({sentences:Chance.natural({min:2,max:10})}).slice(0,2048);
+	out.markdown = Chance.genParagraph({sentences:Chance.natural({min:2,max:10})});
+	out.markdown = out.markdown.slice(0,out.markdown.lastIndexOf('.',2048)+1);
 	out.markup = lib.processMarkup(out.markdown);
 	let x;
 	if (users.length == 0 || Chance.bool({likelihood:25})) x = genuser();

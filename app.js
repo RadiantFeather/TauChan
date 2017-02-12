@@ -1,7 +1,7 @@
 "use strict";
-var fs = require('fs');
+const fs = require('fs');
 require('./extend.js');
-var _exists = function(path){
+const _exists = function(path){
 	try {
 		fs.statSync(path);
 		return true;
@@ -10,17 +10,24 @@ var _exists = function(path){
 if (!_exists('./conf/installed')) return console.log('App has not been installed yet. Please run the /install/app.js script to setup the application.');
 if (!_exists('./conf/config.yml')) return console.log('Missing config file. Please run the /install/app.js script to setup the config file.');
 console.log('Loading server...');
-var express = require('express'),
+const express = require('express'),
 	// cookie = require('cookie'),
 	cookieParser = require('cookie-parser'),
 	session = require('express-session'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')};
 
+const pgpopts = {promiseLib: require('bluebird'), capSQL:true};
+
+
 // Configuations
-GLOBAL.pgp = {promiseLib: require('bluebird'), capSQL:true};
-GLOBAL.sql = yml.read.sync('./sql.yml');
 GLOBAL.cfg = yml.read.sync('./conf/config.yml');
+GLOBAL.db = (GLOBAL.pgp = require('pg-promise')(pgpopts))(GLOBAL.cfg.database);
+GLOBAL.sql = yml.read.sync('./sql.yml');
 GLOBAL.flags = yml.read.sync('./flags.yml');
+GLOBAL.errors = yml.read.sync('./errors.yml');
+
+// var monitor = require('pg-monitor');
+// monitor.attach(pgpopts);
 
 if (GLOBAL.cfg.values.cdn_domain == 'localhost') GLOBAL.cdn = '';
 else if (GLOBAL.cfg.values.cdn_domain.indexOf('://')<0)
@@ -29,8 +36,26 @@ else if (GLOBAL.cfg.values.cdn_domain.indexOf('://')<0)
 // Common functions
 GLOBAL.lib = require('./lib');
 
+// Content Security Policy setter function
+let media_whitelist = {raw:[],embed:[]},om = GLOBAL.cfg.external_media;
+for (let x in om) {
+	if (!(om[x].regex instanceof RegExp)) om[x].regex = new RegExp(om[x].regex,'i');
+	switch(om[x].type){
+		case 'raw': media_whitelist.raw.concat(om[x].domains); break;
+		case 'embed': media_whitelist.embed.concat(om[x].domains); break;
+	}
+}
+const cspheadervalue = "default-src 'self';"+
+	"script-src 'self' "+GLOBAL.cdn+";"+
+	"style-src 'self' "+GLOBAL.cdn+";"+
+	"img-src 'self' data: "+media_whitelist.raw.join(' ')+";"+
+	"media-src 'self' "+media_whitelist.raw.join(' ')+";"+
+	"connect-src 'self';"+
+	"child-src 'self' "+media_whitelist.embed.join(' ')+";"
+const CSPheader = (req,res,next)=>{res.set('Content-Security-Policy',cspheadervalue);if(next)return next();};
+
 // Page request handlers
-var global = require('./global'),
+const global = require('./global'),
 	boards = require('./boards'),
 	middle = require('./middleware');
 
@@ -88,7 +113,6 @@ app.use((req,res,next)=>{
 		res.cookie('curpage', req.path, opts);
 	}
 	if (GLOBAL.cfg.devmode) {
-		console.log("Requests made since boot: "+(++requestCount)+" - "+req.originalUrl+"; XHR: "+req.xhr+","+req.protocol+","+req.method);
 		GLOBAL.cfg = yml.read.sync('./conf/config.yml');
 		GLOBAL.sql = yml.read.sync('./sql.yml');
 		GLOBAL.flags = yml.read.sync('./flags.yml');
@@ -111,6 +135,7 @@ app.get('/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
 	if (req.params.ext == 'html' && !_exists('./'+req.params.file+'.'+req.params.ext)) {
 		res.cookie('curpage',req.path,{httpOnly:true});		
 		// view for custom global pages
+		CSPheader(0,res);
 		global.pages(req,res,next);
 	} else if ((GLOBAL.cfg.root_whitelist||[]).indexOf(req.params.file+'.'+req.params.ext) > -1) {
 		res.sendFile(req.params.file+'.'+req.params.ext,options, function (err) {
@@ -159,9 +184,22 @@ app.get('/:board/media/:file',(req,res,next)=>{ // board fileserve
 });
 }
 
+app.use((req,res,next)=>{
+	console.log(
+		"Requests made since boot: "+
+		(++requestCount)+
+		" - "+req.originalUrl+
+		"; XHR: "+req.xhr+
+		"; "+req.method+
+		"; "+req.protocol+"; "
+	);
+	return next();
+});
+
 app.use('/_',middle.loadUser);
 app.use('/:board',middle.loadUser);
 app.use('/',middle.loadUser);
+app.use(CSPheader);
 
 app.all('/_/:page/:action?/:data?',middle.loadGlobal,(req,res,next)=>{
 	let err;

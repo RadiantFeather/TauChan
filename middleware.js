@@ -3,8 +3,7 @@ var fs = require('fs'),
 	deasync = require('deasync'),
 	// cache = require('redis'),
 	yml = {read: require('read-yaml'), write: require('write-yaml')},
-	pgp = require('pg-promise')(GLOBAL.pgp),
-	db = pgp(GLOBAL.cfg.database),
+	db = GLOBAL.db, pgp = GLOBAL.pgp,
 	_ = {};
 	
 function loadBoardAssets(board,data,paths){
@@ -75,7 +74,7 @@ _.loadUser = function(req,res,next){
 		req.session.user = data;
 		res.locals.user = new GLOBAL.lib.User(data,req.params.board,req.ip);
 		next();
-	}).catch((err)=>{ // user token failed, assume anonymous user
+	}).catch(()=>{ // user token failed, assume anonymous user
 		req.session.user = null;
 		res.locals.user = new GLOBAL.lib.User(null,req.params.board,req.ip);
 		next();

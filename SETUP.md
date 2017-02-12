@@ -14,6 +14,4 @@ install the following prerequisites as needed:
 - Redis 3.2.x
 - GraphicsMagick 1.3.x
 
-The script will at times prompt for user input in the terminal. If it is a `y/n` question,
-simply type `y` and press enter. If it asks for a value, you can just press `Enter`
-to continue with the default if you don't have another value you know you need.
+#### If you install the prerequisites manually, you will need to run `./setup.sh --manual` in the root folder

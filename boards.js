@@ -4,8 +4,7 @@ var fs = require('fs'),
 	// socket = require('socekt.io'),
 	deasync = require('deasync'),
 	// cache = require('redis'),
-	pgp = require('pg-promise')(GLOBAL.pgp),
-	db = pgp(GLOBAL.cfg.database),
+	db = GLOBAL.db, pgp = GLOBAL.pgp,
 	noop = ()=>{},
 	handlers = {},
 	_ = {},
@@ -68,7 +67,7 @@ _.thread = function(req,res,next) {	// thread view
 		thread: parseInt(req.params.page),
 		limit: req.query.preview ? parseInt(req.query.preview) : null,
 	}).then((data)=>{
-		console.log(data);
+		data.forEach((x,i,a)=>{a[i].longhash = GLOBAL.lib.maskIP(x.ip);});
 		res.locals.META.keywords = '/'+res.locals.board.board+'/';
 		res.locals.META.desc = data[0].markdown.substring(128);
 		res.locals.META.title = '/'+res.locals.board.board+'/ - '+(data[0].subject || data[0].markdown.substring(0,24));
@@ -154,7 +153,7 @@ _.bnd = function(req,res,next) {
 	});
 };
 _.bnd.auth = function(req,res,next){
-	return res.locals.user.auth(['thread.post_ban','thread.post_delete']);
+	return res.locals.user.auth(['thread.post.ban','thread.post.delete']);
 };
 
 _.bans = function(req,res,next) {
@@ -217,7 +216,22 @@ _.deletePage = function(req,res,next){
 };
 
 _.settings = function(req,res,next) {
-	res.send('Preset Page: '+ req.params.board +'/'+ req.params.page);
+	db.one(GLOBAL.sql.view.board_settings,{board:req.params.board})
+	.then((data)=>{
+		res.locals.editmode = true;
+		res.locals.page = {type:'mod',param:'settings'};
+		console.log(data.archivedlifespan.valueOf());
+		res.render('editBoard.jade',{
+			data,
+			info_auth: !res.locals.user.auth('board.settings.info'),
+			limit_auth: !res.locals.user.auth('board.settings.limits'),
+			flag_auth: !res.locals.user.auth('board.settings.flags'),
+			header_auth: !res.locals.user.auth('board.settings.header'),
+			lifespan_auth: !res.locals.user.auth('board.settings.archive_lifespan')
+		});
+	}).catch((err)=>{
+		next(err.setstatus(500));
+	});
 };
 
 handlers.GET = _;
@@ -267,7 +281,7 @@ _.index = _.catalog = function(req,res,next) { // New thread
 		console.log(post.media);
 		db.one(GLOBAL.sql.modify.new_thread,post).then((data)=>{
 			res.redirect('/'+data.board+'/'+data.thread);
-			GLOBAL.lib.log('info','New thread: /'+data.board+'/'+data.thread);
+			// GLOBAL.lib.log('info','New thread: /'+data.board+'/'+data.thread);
 		}).catch((err)=>{
 			return next(err.setstatus(500));
 		});
@@ -359,7 +373,75 @@ _.pages = function(req,res,next) { // Manage custom board pages
 };
 
 _.settings = function(req,res,next) {
-	
+	pbody(req,res,(err)=>{
+		console.log(req.params);
+		if (err) return next(err);
+		req.body.tags = req.body.tags.replace(/(?:^,|,$)/g,'');
+		res.locals.editmode = true;
+		if (req.body.title.length == 0)
+			err = new Error('Board title is empty. Must provide a title for the board.')
+		else if (req.body.tags.replace(/,/g,'').length > 0 && !(/^[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+)*$/.test(req.body.tags)))
+			err = new Error('A tag with invalid characters was submitted.');
+		else if (req.body.tags.split(',').length > 8)
+			err = new Error('Too many tags were submitted. Must have no more than 8 tags.');
+		else if (req.body.title.length > 32)
+			err = new Error('Board title is too long. Must be 32 characters or less.');
+		else if (req.body.noname.length > 16)
+			err = new Error('Default anonymous name is too long. Must be 16 characters or less.');
+		else if (req.body.subtitle.length > 128)
+			err = new Error('Board subtitle is too long. Must be 128 characters or less.');
+		else if (req.body.ticker.length > 256)
+			err = new Error('Board information header is too long. Must be 256 characters or less.');
+		
+		if (err) {
+			return next(err.withrender('editBoard.jade').setdata(req.body));
+		} else {
+			// finish
+			let t = {};
+			if(res.locals.user.auth('board.settings.info'))
+				['title','subtitle','noname'].forEach((item)=>{
+						if(item in req.body && req.body[item].length) t[item] = pgp.as.text(req.body[item]);
+				});
+			if(res.locals.user.auth('board.settings.archive_lifespan'))
+				['archivedlifespan'].forEach((item)=>{
+						if(item in req.body && req.body[item].length) t[item] = pgp.as.text(req.body[item]);
+				});
+			if (res.locals.user.auth('board.settings.limits'))
+				['mediauploadlimit','postlimit','medialimit','bumplimit','threadlimit','standardlimit',
+				'archivedlimit','cyclelimit','stickylimit','pinnedlimit','lockedlimit'].forEach((item)=>{
+					if (item in req.body) t[item] = pgp.as.number(parseInt(req.body[item]));
+				});
+			if(res.locals.user.auth('board.settings.flags'))
+				['listed','nsfw','perthreadunique','archivethreads','emailsubmit',
+				'publiclogs','publicbans','publicedits','loguser','postids'].forEach((item)=>{
+					t[item] = pgp.as.bool(!!req.body[item]);
+				});
+			
+			if (res.locals.user.auth('board.settings.info'))
+				t.tags = pgp.as.json('tags' in req.body? req.body.tags.split(','): []);
+			if (res.locals.user.auth('board.settings.header'))
+				t.ticker = pgp.as.text('ticker' in req.body? GLOBAL.lib.processTicker(req.body.ticker):'')
+			
+			let i,k=[],v=[];
+			for (i in t){
+				k.push(i);
+				v.push(t[i]);
+			}
+			db.none(GLOBAL.sql.modify.old_board,{
+				keys:k.join(','),
+				values:v.join(','),
+				board:req.params.board
+			}).then(()=>{
+				res.redirect('/'+req.params.board+'/');
+			}).catch((err)=>{
+				if (err.constraint&&err.constraint in GLOBAL.errors.editBoard_constraints){
+					err.message = GLOBAL.errors.editBoard_constraints[err.constraint];
+				}
+				next(err.withrender('editBoard.jade').setdata(req.body));
+				// TODO: recache the board list and data?
+			});
+		}
+	});
 };
 
 handlers.POST = _;

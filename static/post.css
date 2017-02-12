@@ -15,53 +15,18 @@
 .post .clean.local:after { content:")"; }
 
 
-
-.menu{
+.postactions{
 	position:relative;
-}
-.menu >input.toggle {
-	display:none;
-}
-.menu >input.toggle +label{
-	position:relative;
-}
-.menu >input.toggle +label:after{
-	transition:0.25s;
-	position:absolute;
-	top:0.15em;
-}
-.menu >input.toggle +label:after{
-	width:0;
-	height:0;
-	content:"";
 	display:inline-block;
-	border-left:0.5em solid;
-	border-right:none;
-	border-top:0.4em solid transparent;
-	border-bottom:0.4em solid transparent;
-	margin-left:0.25em;
-	margin-top:0;
 }
-.menu >input.toggle:checked +label:after{
-	border-left:0.4em solid transparent;
-	border-right:0.4em solid transparent;
-	border-top:0.5em solid;
-	border-bottom:none;
-	margin-left:0;
-	margin-top:0.25em;
-}
-.menu >input.toggle +label +ul{
-	display:none;
+.postactions >ul{
 	list-style:none;
 	position:absolute;
-	top:0;
-	left:100%;
+	top: -12px;
+	left: 75%;
 	border-style: solid;
 	border-width: 2px;
 	padding: 5px;
-}
-.menu >input.toggle:checked +label +ul{
-	display:block;
 }
 
 html:not(.js) .media .file .nsfw +.thumb, 

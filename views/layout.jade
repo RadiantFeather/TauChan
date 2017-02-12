@@ -1,6 +1,6 @@
 mixin stylesheet(file)
 	link(rel="stylesheet", type="text/css", href='/_/'+file)
-mixin scriptsheet(file)
+mixin script(file)
 	script(type="application/javascript", src='/_/'+file)
 
 doctype html
@@ -24,19 +24,21 @@ html
 		script(src="/_/init.js")
 		block head
 	body
-		section#header
+		header
+			nav
+				a(href="/") Overboard
+				| &nbsp;
+				a(href="/_") Underboard
 			- if (user && user.reg)
 				h1 Hello #{user.screenname||'Anonymous'}
 			block header
 		nav
 			block nav
-		section#main
-			span#top
-			block content
+		main#top(role="main")
+			block main
+				block content
 		nav
 			block nav
-		section#footer
+		footer#bottom
 			block footer
-			span#bottom
 			p This page layout request was completed in #{NOW *-1 + Date.now()}ms
-		block scripts

@@ -9,6 +9,7 @@ nav .pages span:not(:last-child):after { content: " | "; }
 	border-style: solid;
 	margin-top: 10px;
 	padding: 5px;
+	max-width:90%;
 }
 .thread.post.op {
 	margin-top: 5px;
@@ -20,16 +21,17 @@ nav .pages span:not(:last-child):after { content: " | "; }
 .thread.post.op {
 	border-top-color: #000;
 }
-.thread .post.reply {
-	border-color: #333;
+
+#showPostForm {
+	text-decoration:underline;
 }
 
 #newpost .source +label { text-decoration:underline; }
 #newpost .source:not(:checked) +label:after{
-	content: " (file)";
+	content: " (file)]";
 }
 #newpost .source:checked +label:after{
-	content: " (link)";
+	content: " (link)]";
 }
 
 #newpost .showsource +label { text-decoration:underline; }

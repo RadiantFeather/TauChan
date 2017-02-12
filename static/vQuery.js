@@ -33,7 +33,7 @@ Object.prototype.cut = function(key){
 		return val;
 	}
 };
-Object.prototype.isEmpty = function()[
+Object.prototype.isEmpty = function(){
 	for (var key in this)
 		if(this.hasOwnProperty(key))
 			return false;
@@ -234,7 +234,8 @@ Array.prototype.merge = function(){
 								o.e.push(e); o.n.push(n);
 							},this);
 						} else {
-							if ((var i = args[0].indexOf('.')) != -1){
+							var i;
+							if ((i = args[0].indexOf('.')) != -1){
 								o.e = args[0].substring(0,i) || undefined;
 								o.n = args[0].substring(i+1) || undefined;
 							} else o.e = args[0];
@@ -290,8 +291,8 @@ Array.prototype.merge = function(){
 			}
 			else target = this;
 			e.namespace = data.n;
-			e.data = data.d
-			data.f._func.apply(target,[].merge(e,e.cut('toApply'));
+			e.data = data.d;
+			data.f._func.apply(target,[].merge(e,e.cut('toApply')));
 			listeners.bind(this)(data,true);
 		};
 		func._func = arg.f;
@@ -311,8 +312,8 @@ Array.prototype.merge = function(){
 					target = target.parentNode;
 			else target = this;
 			e.namespace = data.n;
-			e.data = data.d
-			data.f._func.apply(target,[].merge(e,e.cut('toApply'));
+			e.data = data.d;
+			data.f._func.apply(target,[].merge(e,e.cut('toApply')));
 		};
 		func._func = arg.f;
 		arg.f = func;
@@ -332,7 +333,8 @@ Array.prototype.merge = function(){
 			if ('cancelable' in data) ex.cancelable = data.cut('cancelable');
 		};
 		if(typeof e === 'string') {
-			if ((var i = args[0].indexOf('.')) != -1){	// Extract namespace if given
+			var i;
+			if ((i = args[0].indexOf('.')) != -1){	// Extract namespace if given
 				e = args[0].substring(0,i);
 				n = args[0].substring(i+1) || undefined;
 			} else e = args[0];
@@ -348,7 +350,7 @@ Array.prototype.merge = function(){
 	HTMLCollection.prototype.on = NodeList.prototype.on = function(){ var i = -1; while(++i < this.length) this[i].on.apply(this[i],arguments); return this; };
 	HTMLCollection.prototype.off = NodeList.prototype.off = function(){ var i = -1; while(++i < this.length) this[i].off.apply(this[i],arguments); return this; };
 	HTMLCollection.prototype.trigger = NodeList.prototype.trigger = function(e,data,ex){ var i = -1; while(++i < this.length) if(this[i].nodeType != 3) this[i].trigger(e,data,ex); return this; };
-}());
+})();
 Element.prototype.val = function(val,index){ if (typeof val === undefined) return this.value; this.value = (typeof val === 'function')?val.bind(this)(index,this.value):val; return this; };
 Element.prototype.prop = function(prop,val){ if (typeof val === undefined) return this.getAttribute(prop); this.setAttribute(prop,val); return this; };
 Element.prototype.data = function(data,val){ if (typeof val === undefined) return this.dataset[data]; this.dataset[data] = val; return this; };
@@ -423,7 +425,7 @@ HTMLCollection.prototype.hide = NodeList.prototype.hide = function(){ var i = -1
 HTMLCollection.prototype.show = NodeList.prototype.show = function(){ var i = -1; while(++i < this.length) if(this[i].nodeType != 3) this[i].hidden = false; return this; };
 
 /* vQuery definition */
-if (!'vQuery' in window) window.vQuery = function(arg){
+if (!('vQuery' in window)) var vQuery = window.vQuery = function(arg){
 	if (typeof arg === 'function')	// equivalent to document.ready(func);
 		return document.one('DOMContentLoaded',arg);
 	else if (arg instanceof Node)	// Is already a node, return given object
@@ -436,7 +438,7 @@ vQuery.merge = function() {
     var obj = {}, i = 0, j = arguments.length;
     for(; i < j; i++) 
 		if(typeof arguments[i] === 'object') 
-			for(key in arguments[i]) 
+			for(var key in arguments[i]) 
 				if(arguments[i].hasOwnProperty(key)) 
 					obj[key] = arguments[i][key];
     return obj;
@@ -470,7 +472,7 @@ var ajaxRequest = function(options){
 			else if (typeof options.dataFilter === 'string' && self.xhr.response) {
 				try{
 					if (options.dataFilter == 'json') filtered = JSON.parse(self.xhr.response);
-					else if (options.dataFilter == 'html' || options.dataFilter == 'xml'))
+					else if (options.dataFilter == 'html' || options.dataFilter == 'xml')
 						filtered = (new DOMParser()).parseFromString(self.xhr.response, 'text/'+options.dataFilter);
 				} catch (e) {
 					console.warn('Error occured while attempted to parse ajax response as '+options.dataFilter+' during load event. Proceeding with original response.');
@@ -488,7 +490,7 @@ var ajaxRequest = function(options){
 			if (typeof options.dataFilter === 'function' && self.xhr.response) filtered = options.dataFilter.bind(self.xhr)(self.xhr.response);
 			else if (typeof options.dataFilter === 'string' && self.xhr.response) {
 				try{
-					if (options.dataFilter == 'html' || options.dataFilter == 'xml'))
+					if (options.dataFilter == 'html' || options.dataFilter == 'xml')
 						filtered = (new DOMParser()).parseFromString(self.xhr.response, 'text/'+options.dataFilter);
 					else if (options.dataFilter == 'json') filtered = JSON.parse(self.xhr.response);
 				} catch (e) {
@@ -524,7 +526,7 @@ ajaxRequest.prototype.always = function(func){
 	return this;
 };
 ajaxRequest.prototype.cancel = function(func){ 
-	if (this.has.canceled) func.bind(this.options.context)(this.xhr, this.options); return this; }
+	if (this.has.canceled) func.bind(this.options.context)(this.xhr, this.options);
 	else this.callbacks.cancel.push(func);
 	return this;
 };
@@ -552,12 +554,12 @@ vQuery.ajax = function(options) {
 	};
 	return new ajaxRequest(this.merge(defaults,options));
 };
-}());
+})();
 vQuery.get = function(url, data, success, dataType) {
 	var options;
 	if (typeof url === 'object') options = url;
 	else {
-		options = {}
+		options = {};
 		if (typeof url === 'string') options.url = url;
 		if (typeof data === 'function') options.success = data;
 		else if (typeof data === 'object') options.data = data;
@@ -570,7 +572,7 @@ vQuery.post = function(url, data, success, dataType) {
 	var options;
 	if (typeof url === 'object') options = url;
 	else {
-		options = {}
+		options = {};
 		if (typeof url === 'string') options.url = url;
 		if (typeof data === 'function') options.success = data;
 		else if (typeof data === 'object') options.data = data;
@@ -580,7 +582,7 @@ vQuery.post = function(url, data, success, dataType) {
 	return this.ajax(this.merge(options,{method:'post'}));
 };
 vQuery.Event = function(e,ex){ return new Event(e,ex); };
-vQuery.trigger = function(e,data){ return document.trigger(e,data); }
+vQuery.trigger = function(e,data){ return document.trigger(e,data); };
 Event.prototype.triggerOn = function(nodes){
 	if (typeof nodes === 'string') nodes = document.querySelectorAll(nodes);
 	if (nodes instanceof HTMLCollection || nodes instanceof NodeList) {
@@ -591,4 +593,18 @@ Event.prototype.triggerOn = function(nodes){
 	} else if (nodes.dispatchEvent)
 		nodes.dispatchEvent(this);
 };
+
+vQuery.verifyES2015 = function(){
+	try {
+		let b,c,d; // let assignment
+		const a = ([a,b]=[2,1],...c)=>{c.push(a+b); return c;}; // const assignment with default function values and rest assignment
+		[b,c=7,...d] = [1,undefined,3,4]; // destructure with default values and rest assignment
+		a(3,undefined,5,4);
+		return true;
+	} catch(e) {
+		return false;
+	}
+	
+};
+
 window.$ = window.vQuery;

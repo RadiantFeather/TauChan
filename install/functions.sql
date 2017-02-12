@@ -4,7 +4,7 @@
 CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER AS $$
 BEGIN
 	IF (NEW.passphrase IS NOT NULL) THEN
-		NEW.passphrase := crypt(NEW.passphrase,gen_salt('md5'));
+		NEW.passphrase := crypt(NEW.passphrase,gen_salt('md5'::TEXT));
 	END IF;
 	RETURN NEW;
 END;$$ LANGUAGE plpgsql;
