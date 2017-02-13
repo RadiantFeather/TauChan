@@ -501,7 +501,8 @@ _.processMarkup = function(markdown){
 			if (cursor == 0 || markup.substr(cursor-1,1)=="\n"){
 				// bypass all markup until a newline
 				markup = markup.splice(cursor,ignore.paragraph.length);
-				while (markup.slice(cursor,++cursor) != "\n" && cursor <= markup.length);
+				while (markup.substr(cursor,1) != "\n" && cursor < markup.length) 
+					cursor++;
 			}
 		}
 		
@@ -510,8 +511,9 @@ _.processMarkup = function(markdown){
 			// check for the suppression close key first.
 			if (ignore.close.length && markup.slice(cursor+ignore.open.length).indexOf(ignore.close) != -1){
 				// bypass all markup within open and closing keys
-				markup = markup.splice(cursor--,ignore.open.length);
-				while (markup.substr(++cursor,ignore.close.length) != ignore.close && cursor < markup.length);
+				markup = markup.splice(cursor,ignore.open.length);
+				while (markup.substr(cursor,ignore.close.length) != ignore.close && cursor < markup.length)
+					cursor++;
 				if (cursor < markup.length){
 					markup = markup.splice(cursor,ignore.close.length);
 					cursor -= ignore.open.length;
@@ -526,7 +528,8 @@ _.processMarkup = function(markdown){
 			if (ws.indexOf(markup.substr(cursor-1,1)) != -1 && ws.indexOf(markup.substr(cursor+ignore.string.length,1)) == -1){
 				// Bypass all markdown until a whitespace character is encountered
 				markup = markup.splice(cursor,ignore.string.length);
-				while(ws.indexOf(markup.substr(cursor++,1)) == -1 && cursor <= markup.length);
+				while(ws.indexOf(markup.substr(cursor,1)) == -1 && cursor < markup.length)
+					cursor++;
 			}
 		}
 		

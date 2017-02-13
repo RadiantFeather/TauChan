@@ -104,7 +104,7 @@ markdown:
       multiline: true
       open: <u>
       close: </u>
-    - key: "\"\""
+    - key: '""'
       brick: false
       exclusivetext: false
       exclusiveline: false
@@ -120,6 +120,13 @@ markdown:
       close: </b>
     - key: '~~'
       brick: false
+      exclusivetext: false
+      exclusiveline: false
+      multiline: true
+      open: <del>
+      close: </del>
+    - key: 's'
+      brick: brick
       exclusivetext: false
       exclusiveline: false
       multiline: true
