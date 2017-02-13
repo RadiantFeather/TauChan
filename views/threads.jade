@@ -10,7 +10,7 @@ mixin actions(board,post,ip)
 			- if (user.auth('post.ban'))
 				li: a(href="/"+board+"/ban/"+post, target="_blank") Ban
 			- if (user.auth(['post.ban','post.delete']))
-				li: a(href="/"+board+"/bnd/"+post, target="_blank") Ban & Delete
+				li: a(href="/"+board+"/bnd/"+post, target="_blank") B&D
 				
 mixin mactions(m)
 	- if (!m.nsfw && (user.auth('post.media.spoiler')||user.ip == m.ip))
@@ -166,7 +166,7 @@ block main
 			h1 No threads have been made.
 	- while (++i < data.length)                         
 		- if (data[i].post == data[i].thread)
-			article.thread.post.op(id=data[i].post)
+			article.thread.post.op(id='_'+data[i].post)
 				header.info
 					- if (data[i].email !== null)
 						a.name(href="mailto:"+data[i].email)= data[i].name
@@ -214,7 +214,7 @@ block main
 				- while (data[i+1] && data[i+1].post != data[i+1].thread && ++i)
 					//- split off into a separate include
 					
-					article.post.reply(id=data[i].post)
+					article.post.reply(id='_'+data[i].post)
 						header.info
 							- if (data[i].email !== null)
 								a.name(href="mailto:"+data[i].email): span.name= data[i].name

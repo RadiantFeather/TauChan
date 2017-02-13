@@ -12,3 +12,6 @@ editBoard_constraints:
   post_limit: 'Invalid value for per thread post limit. Must be between 100 and 1000 inclusively.'
   media_upload_limit: 'Invalid value for per post media upload limit. Must be between 0 and 4 inclusively.'
   archived_lifespan: 'Invalid value for archived posts lifespan. Must be between 1 day and 7 days inclusively.'
+
+logup:
+  users_username_key: 'Username is taken'

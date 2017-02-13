@@ -327,7 +327,7 @@ _.thread = function(req,res,next) { // New reply to thread
 			arr[i] = [post.board,post.thread,item.trim().substr(2)].join('/');
 		}));
 		db.one(GLOBAL.sql.modify.new_reply,post).then((data)=>{
-			res.redirect('/'+data.board+'/'+data.thread+'#'+data.post);
+			res.redirect('/'+data.board+'/'+data.thread+'#_'+data.post);
 		}).catch((err)=>{
 			return next(err.setstatus(500));
 		});

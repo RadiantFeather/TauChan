@@ -71,9 +71,10 @@ external_media:
       - dai.ly
 markdown:
   hyperlink: '&'
-  suppress:
+  ignore:
     all: '@!'
     paragraph: '@@'
+    string: '@&'
     open: '@>'
     close: '<@'
   list:

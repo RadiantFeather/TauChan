@@ -425,7 +425,7 @@ HTMLCollection.prototype.hide = NodeList.prototype.hide = function(){ var i = -1
 HTMLCollection.prototype.show = NodeList.prototype.show = function(){ var i = -1; while(++i < this.length) if(this[i].nodeType != 3) this[i].hidden = false; return this; };
 
 /* vQuery definition */
-if (!('vQuery' in window)) var vQuery = window.vQuery = function(arg){
+var vQuery = window.vQuery = function(arg){
 	if (typeof arg === 'function')	// equivalent to document.ready(func);
 		return document.one('DOMContentLoaded',arg);
 	else if (arg instanceof Node)	// Is already a node, return given object
@@ -434,6 +434,7 @@ if (!('vQuery' in window)) var vQuery = window.vQuery = function(arg){
 		return (new DOMParser()).parseFromString(arg, "text/html").body.children[0];
 	else return document.querySelectorAll(arg);								// Dom element selection (default funtionality)
 };
+window.vQuery;
 vQuery.merge = function() {
     var obj = {}, i = 0, j = arguments.length;
     for(; i < j; i++) 

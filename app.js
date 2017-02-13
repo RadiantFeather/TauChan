@@ -63,6 +63,7 @@ var app = express();
 
 // override using the old jade engine
 // uncomment only when pug has hit official release!
+// app.set('view engine','pug');
 // app.engine('pug', require('pug').__express);
 
 // Persistent locals for templates

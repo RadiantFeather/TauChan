@@ -1,3 +1,4 @@
+
 .post .postid:before{
 	content:"ID: ";
 }
@@ -26,7 +27,14 @@
 	left: 75%;
 	border-style: solid;
 	border-width: 2px;
-	padding: 5px;
+	padding:8px;
+	z-index:2;
+	text-align:center;
+	line-height: 22px;
+}
+
+.postactions >ul >li{
+	white-space:nowrap;
 }
 
 html:not(.js) .media .file .nsfw +.thumb, 

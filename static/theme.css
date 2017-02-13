@@ -15,3 +15,7 @@
 .laction {
 	color:blue;
 }
+
+.thread.post.op {
+	border-top-color: #000;
+}

@@ -247,7 +247,6 @@ function CSRF(req,res,next) {
 function tagCloud(){
 	let res = [], cloud = {}, out = [];
 	db.any('SELECT tags FROM boards WHERE listed IS TRUE;').then(data=>{
-		console.log(data);
 		res = data;
 		let i = -1;
 		while (++i < res.length)

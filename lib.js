@@ -476,12 +476,16 @@ _.processMarkup = function(markdown){
 		return encoder.encodeHTML(markdown)
 			.replace(new RegExp("&#13;",'g'),'')
 			.replace(new RegExp("&#10;",'g'),'<br>');
-	let keys = GLOBAL.cfg.markdown.custom, suppress = GLOBAL.cfg.markdown.suppress||null, list = GLOBAL.cfg.markdown.list||{},
-		markup = markdown.replace(new RegExp("\r",'g'),''), depth = [], track = [], cursor = 0, currentlist;
-	if (suppress && markup.substr(0,suppress.all.length) == suppress.all)
-		return encoder.htmlEncode(markup.slice(suppress.all.length))
+	let keys = GLOBAL.cfg.markdown.custom, ignore = GLOBAL.cfg.markdown.ignore||null, 
+		list = GLOBAL.cfg.markdown.list||{}, hlink = GLOBAL.cfg.markdown.hyperlink,
+		markup = markdown.replace(new RegExp("\r",'g'),''), depth = [], track = [],
+		cursor = 0, currentlist, links = [];
+	// IGNORE ALL MARKDOWN AND JUST RETURN THE ENCODED CONTENT
+	if (ignore && ignore.all.length && markup.substr(0,ignore.all.length) == ignore.all)
+		return encoder.htmlEncode(markup.slice(ignore.all.length))
 			.replace(new RegExp("&#13;",'g'),'')
 			.replace(new RegExp("&#10;",'g'),'<br>');
+	// Fix bricked keys and add store for nested keys (eg. nested spoilers)
 	keys.forEach((item)=>{
 		item.before = item.brick?'['+item.key+']':item.key;
 		item.after = item.brick?'[/'+item.key+']':item.key;
@@ -490,154 +494,43 @@ _.processMarkup = function(markdown){
 	list.forEach((item)=>{item.exclusiveline = true;});
 	while (1){
 		let e = depth[depth.length-1];
-		if (!(e&&e.exclusivetext) && suppress && markup.substr(cursor,suppress.paragraph.length) == suppress.paragraph){
+		
+		// PARAGRAPH LEVEL MARKDOWN BYPASS
+		if (!(e&&e.exclusivetext) && ignore && ignore.paragraph.length && markup.substr(cursor,ignore.paragraph.length) == ignore.paragraph){
 			// confirm newline placement
 			if (cursor == 0 || markup.substr(cursor-1,1)=="\n"){
-				let i = 0, c = 0;
-				while (++i <= depth.length){
-					if (depth[depth.length-i].exclusiveline){
-						depth.splice(depth.length-i,1);
-						continue;
-					}
-				}
-				let hold = cursor;
-				markup = markup.splice(cursor,suppress.paragraph.length);
-				while (markup.slice(cursor,++cursor) != "\n") if (cursor >= markup.length) break;
-				
-				// close depths
-				i=0;
-				while (++i <= depth.length){
-					let t = depth[depth.length-i];
-					// prevent unnecessary empty nodes from being generated
-					if (markup.substr(cursor-t.before.length,t.before.length) == t.before) {
-						markup = markup.splice(cursor-t.before.length,t.before.length);
-						cursor -= t.before.length;
-						depth[depth.length-i].start.pop();
-						depth.splice(depth.length-i,1);
-						i=0;
-						continue;
-					}
-				}
-				i = 0;
-				while (++i <= depth.length){
-					// make sure there is a closing markup for each depth
-					if (depth[depth.length-i].after&&markup.slice(cursor).indexOf(depth[depth.length-i].after) === -1){
-						depth.splice(depth.length-i--,1);
-						continue;
-					}
-					let t = depth[depth.length-i], k = keys.indexOf(t),
-						a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
-					markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
-					hold = hold - t.before.length + b.length;
-					cursor = cursor - t.before.length + b.length;
-					markup = markup.splice(hold-1,0,a);
-					c += a.length;
-					hold += a.length;
-					t.start.pop();
-					track.push(t);
-				}
-				cursor += c;
-				// reopen depths in original order if not at the end of the markdown
-				if (cursor < markup.length) {
-					i=0;
-					while (++i <= depth.length){
-						// prevent unnecessary empty nodes from being generated
-						let t = depth[depth.length-i];
-						if (markup.substr(cursor,t.after.length) == t.after) {
-							markup = markup.splice(cursor,t.after.length);
-							t.start.pop();
-							depth.splice(depth.length-i,1);
-							i=0;
-							continue;
-						}
-					}
-					i = -1;
-					while (++i < depth.length){
-						if (markup.slice(cursor).indexOf(depth[i].after) == -1) continue;
-						if (depth[i].exclusiveline && markup.slice(cursor).indexOf(depth[i].after+"\n") == -1) continue;
-						depth[i].start.push(cursor);
-						markup = markup.splice(cursor,0,depth[i].before);
-						cursor += depth[i].before.length;
-					}
-				} else break;
+				// bypass all markup until a newline
+				markup = markup.splice(cursor,ignore.paragraph.length);
+				while (markup.slice(cursor,++cursor) != "\n" && cursor <= markup.length);
 			}
 		}
-		if (!(e&&e.exclusivetext) && suppress && markup.substr(cursor,suppress.open.length) == suppress.open){
+		
+		// SEGMENTED MARKDOWN BYPASS
+		if (!(e&&e.exclusivetext) && ignore && ignore.open.length && markup.substr(cursor,ignore.open.length) == ignore.open){
 			// check for the suppression close key first.
-			if (markup.slice(cursor+suppress.open.length).indexOf(suppress.close) != -1){
-				// close depths
-				let i = 0;
-				while (++i <= depth.length){
-					let t = depth[depth.length-i];
-					// prevent unnecessary empty nodes from being generated
-					if (markup.substr(cursor-t.before.length,t.before.length+t.after.length) == t.before+t.after) {
-						markup = markup.splice(cursor-t.before.length,t.before.length+t.after.length);
-						cursor -= t.before.length;
-						t.start.pop();
-						depth.splice(depth.length-i,1);
-						continue;
-					}
-					else if (markup.substr(cursor-t.before.length,t.before.length) == t.before){
-						markup = markup.splice(cursor-t.before.length,t.before.length);
-						cursor -= t.before.length;
-						// t.start.pop();
-						// depth.splice(depth.length-i,1);
-						continue;
-					}
-				}
-				i = 0;
-				while (++i <= depth.length){
-					let t = depth[depth.length-i];
-					// make sure there is a closing markup for each depth
-					if (markup.slice(cursor+suppress.open.length).indexOf(t.after) == -1){
-						t.start.pop();
-						depth.splice(depth.length-i--,1);
-						continue;
-					} 
-					else if (t.exclusiveline){
-						t.start.pop();
-						depth.splice(depth.length-i--,1);
-						continue;
-					}
-					let k = keys.indexOf(t),a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
-					markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
-					cursor = cursor - t.before.length + b.length;
-					markup = markup.splice(cursor,0,a);
-					cursor += a.length;
-					t.start.pop();
-					track.push(t);
-				}
-				// remove suppression markup
-				let hold = cursor--;
-				while (markup.substr(++cursor,suppress.close.length) != suppress.close)
-					if (cursor >= markup.length) break;
+			if (ignore.close.length && markup.slice(cursor+ignore.open.length).indexOf(ignore.close) != -1){
+				// bypass all markup within open and closing keys
+				markup = markup.splice(cursor--,ignore.open.length);
+				while (markup.substr(++cursor,ignore.close.length) != ignore.close && cursor < markup.length);
 				if (cursor < markup.length){
-					markup = markup.splice(cursor,suppress.close.length);
-					markup = markup.splice(hold,suppress.open.length);
-					cursor -= suppress.open.length;
-				}
-				// reopen depths in original order
-				i=0;
-				while (++i <= depth.length){
-					// prevent unnecessary empty nodes from being generated
-					let t = depth[depth.length-i];
-					if (markup.substr(cursor,t.after.length) == t.after) {
-						markup = markup.splice(cursor,t.after.length);
-						t.start.pop();
-						depth.splice(depth.length-i,1);
-						continue;
-					}
-				}
-				i = -1;
-				while (++i < depth.length){
-					if (markup.slice(cursor).indexOf(depth[i].after) == -1) continue;
-					if (depth[i].exclusiveline && markup.slice(cursor).indexOf(depth[i].after+"\n") == -1) continue;
-					depth[i].start.push(cursor);
-					markup = markup.splice(cursor,0,depth[i].before);
-					cursor += depth[i].before.length;
+					markup = markup.splice(cursor,ignore.close.length);
+					cursor -= ignore.open.length;
 				}
 			}
 		}
+		
+		// NATURAL STRING MARKDOWN BYPASS (whitespace delimited)
+		if (!(e&&e.exclusivetext) && ignore && ignore.string.length && markup.substr(cursor,ignore.string.length) == ignore.string){
+			let ws = ["\n","\t"," "];
+			// verify placement of key
+			if (ws.indexOf(markup.substr(cursor-1,1)) != -1 && ws.indexOf(markup.substr(cursor+ignore.string.length,1)) == -1){
+				// Bypass all markdown until a whitespace character is encountered
+				markup = markup.splice(cursor,ignore.string.length);
+				while(ws.indexOf(markup.substr(cursor++,1)) == -1 && cursor <= markup.length);
+			}
+		}
+		
+		// CUSTOM ELEMENTS
 		if (e && e.exclusivetext && e.after && markup.substr(cursor,e.after.length) == e.after){
 			let k = keys.indexOf(e), a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
 			markup = markup.splice(e.start[e.start.length-1],e.before.length,b);
@@ -706,6 +599,8 @@ _.processMarkup = function(markdown){
 				break;
 			}
 		}
+		
+		// LISTS
 		// if (list){
 		// for (i in list) {
 		// 	let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r",depth = '';
@@ -731,6 +626,26 @@ _.processMarkup = function(markdown){
 		// 		currentlist = null;
 		// 	}
 		// }}
+		
+		// HYPERLINKS
+		if (markup.substr(cursor,hlink.length) == hlink && cursor+hlink.length+1 < markup.length){
+			let ws = ["\n","\t"," "];
+			if (ws.indexOf(markup.substr(cursor-1,1)) != -1 && ws.indexOf(markup.substr(cursor+hlink.length,1)) == -1){
+				// Place bookmarks for inserting hyperlinks
+				let a = "\r"+links.length+"\0\0\0\0\r", b = "\r\0\0\0\0"+links.length+"\r";
+				markup = markup.splice(cursor,hlink.length,b);
+				cursor += b.length;
+				let start = cursor;
+				while (ws.indexOf(markup.substr(cursor,1)) == -1 && cursor < markup.length)
+					cursor++;
+				let str = markup.slice(start,cursor);
+				markup = markup.splice(cursor,0,a);
+				cursor += a.length;
+				links.push(str);
+				console.log(str);
+				
+			}
+		}
 		if (skip) cursor++;
 		if (cursor > markup.length) break;
 	}
@@ -746,6 +661,12 @@ _.processMarkup = function(markdown){
 			.replace(new RegExp("&#13;&#0;"+k+"&#13;",'g'),track[i].open)
 			.replace(new RegExp("&#13;"+k+"&#0;&#13;",'g'),track[i].close);
 	}
+	// insert html for any hyperlinks found
+	i = -1;
+	while(++i < links.length)
+	markup = markup
+		.replace(new RegExp("&#13;&#0;&#0;&#0;&#0;"+i+"&#13;",'g'),'<a href="'+encoder.htmlEncode(links[i])+'">')
+		.replace(new RegExp("&#13;"+i+"&#0;&#0;&#0;&#0;&#13;",'g'),'</a>');
 	// replace \n (aka &#10;) with <br> nodes
 	return markup.replace(new RegExp("&#10;",'g'),'<br>');
 };

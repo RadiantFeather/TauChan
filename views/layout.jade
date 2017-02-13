@@ -1,7 +1,7 @@
 mixin stylesheet(file)
 	link(rel="stylesheet", type="text/css", href='/_/'+file)
 mixin script(file)
-	script(type="application/javascript", src='/_/'+file)
+	script(type="application/javascript", src='/_/'+file, async=true, defer=true)
 
 doctype html
 html
@@ -19,8 +19,8 @@ html
 			- each dep in CLIENTDEPS
 				- if (dep.substr(dep.length-4,4)=='.css')
 					link.dependency(rel="stylesheet", type="text/css", href=dep)
-				- else
-					script.dependency(src="",data-src=dep)
+				- else 
+					script.dependency(type="application/javascript", data-src=dep)
 		script(src="/_/init.js")
 		block head
 	body
@@ -31,6 +31,8 @@ html
 				a(href="/_") Underboard
 			- if (user && user.reg)
 				h1 Hello #{user.screenname||'Anonymous'}
+			- else 
+				h1 Hello Anonymous
 			block header
 		nav
 			block nav

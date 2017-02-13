@@ -4,6 +4,14 @@ nav .pages:before { content: "[ "; }
 nav .pages:after { content: " ]"; }
 nav .pages span:not(:last-child):after { content: " | "; }
 
+.thread {
+	position:relative;
+}
+.thread .content +i{
+	display:block;
+	text-align:right;
+}
+
 .thread .post.reply {
 	border-width: 2px;
 	border-style: solid;
@@ -16,10 +24,6 @@ nav .pages span:not(:last-child):after { content: " | "; }
 	border-top-width: 1px;
 	border-top-style: solid;
 	padding-top: 5px;
-}
-
-.thread.post.op {
-	border-top-color: #000;
 }
 
 #showPostForm {

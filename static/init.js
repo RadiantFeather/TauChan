@@ -1,9 +1,14 @@
 "use strict";
 window.PAGE = {init:false};
-try{let x=()=>{};}
-catch(e){
+try{
+	let b,c,d; // let assignment
+	const a = (a=2,b=1,...c)=>{c.push(a+b); return c;}; // const assignment with default function values and rest assignment
+	[b,c=7,...d] = [1,undefined,3,4]; // destructure with default values and rest assignment
+	a(3,undefined,5,4);
+}catch(e){
+	console.log(e);
 	alert('You are using an outdated browser. Please upgrade to a browser that supports ES6 standards.');
-	throw 'You are using an outdated browser. Please upgrade to a browser that supports ES6 standards.';
+	throw 'OutdatedBrowserError';
 }
 document.documentElement.classList.add('js');
 if(1){
@@ -27,7 +32,7 @@ while(++i<load.length){
 		let e;
 		_loaded[v] = true;
 		loaded.push(v);
-		for (e of _loaded) if (e===null) return;
+		for (e in _loaded) if (_loaded[e]===null) return;
 		e = new Event('init');
 		e.loaded = loaded;
 		document.dispatchEvent(e);
@@ -37,14 +42,14 @@ while(++i<load.length){
 	s.onerror = ()=>{
 		let e;
 		_loaded[v] = false;
-		for (e of _loaded) if (e===null) return;
+		console.log('Script failed to load: '+v)
+		for (e in _loaded) if (_loaded[e]===null) return;
 		e = new Event('init');
-		e.loaded = loaded
+		e.loaded = loaded;
 		document.dispatchEvent(e);
 		window.PAGE.loaded = loaded;
 		window.PAGE.init = true;
 	};
 	s.defer = s.async = true;
 	s.src = v;
-	document.head.appendChild(s);
 }}
