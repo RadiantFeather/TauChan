@@ -86,12 +86,9 @@ echo "Installing FFMpeg dependencies"
 echo "---------------------"
 
 if [ $1 != "--manual" ]; then
-    pver="8.0"
-    mkdir -p /tmp/ffmpeginstaller && cd /tmp/ffmpeginstaller
-    wget http://mirror.ffmpeginstaller.com/old/scripts/ffmpeg8/ffmpeginstaller.$pver.tar.gz
-    tar -xvzf ffmpeginstaller.$pver.tar.gz
-    cd ffmpeginstaller.$pver/
-    sudo ./install.sh
+    sudo add-apt-repository -y ppa:jonathonf/ffmpeg-3
+    sudo apt update
+    sudo apt install -y ffmpeg libav-tools x264 x265 libmp3lame0
 fi
 
 echo "---------------------"
