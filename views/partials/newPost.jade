@@ -1,0 +1,64 @@
+- if (page.type == 'archived_thread' && !user.auth('board.reply.archive'))
+	h1 Thread is archived.
+	h3 Replies are disabled.
+- else 
+	input.toggle#showPostForm(type="checkbox", hidden=true)
+	label.click.hide(for="showPostForm")
+		- if (page.type=='index')
+			h1.brick New Thread
+		- else if (page.type == 'thread')
+			h1.brick New Reply
+	form#newpost(method="POST", enctype="multipart/form-data", action=(page.type!='thread'&&page.param!='archived_thread'?"/"+board.board:""))
+		table
+			tr: td Name
+				td: input(name="name", type="text", placeholder=board.noname)
+			- if (board.emailsubmit)
+				tr: td Email
+					td: input(name="email", type="text", placeholder="or sage")
+			tr: td Subject
+				td
+					input(name="subject", type="text")
+					input(type="submit", value=(page.type=='index'?"New Thread":page.type=='thread'?"New Reply":"New Post"))
+			tr: td Comment
+				td: textarea(name="markdown", placeholder="Write your dank memes here.")
+			- if (board.mediauploadlimit > 0)
+				tr: td Media
+					td
+						div.upload
+							- var i = -1
+							- while (++i < board.mediauploadlimit)
+								input.toggle.showsource(name="include"+i, type="checkbox", id="showsource"+i)
+								label.hide(for="showsource"+i) Add Source
+								div
+									input(id="spoiler"+i,type="checkbox", name="spoiler_media"+i)
+									label(for="spoiler"+i) NSFW
+									input.toggle.source(name="is_external"+i, type="checkbox",id="source"+i)
+									label.brick(for="source"+i) Source
+									input(type="text", name="out_media"+i, accept="image/*,video/*,audio/*", placeholder="External Media")
+									input.switch(type="file", name="in_media"+i, accept="image/*,video/*,audio/*", placeholder="External Media")
+								
+			- if (page.type=='index')
+				tr: td Thread Options 
+					td: div.options
+						- if (board.nsfw == false)
+							input#_nsfw(type="checkbox", name="nsfw")
+							label(for="_nsfw") NSFW
+						- if (user.auth('thread.sage'))
+							input#_sage(type="checkbox", name="sage")
+							label(for="_sage") Autosage
+						- if (user.auth('thread.pinned'))
+							input#_pinned(type="checkbox", name="pinned")
+							label(for="_pinned") Pin
+						- if (user.auth('thread.sticky'))
+							input#_sticky(type="checkbox", name="sticky")
+							label(for="_sticky") Sticky
+						- if (user.auth('thread.cycle'))
+							input#_cycle(type="checkbox", name="cycle")
+							label(for="_cycle") Cycle
+						- if (user.auth('thread.anchor'))
+							input#_anchor(type="checkbox", name="anchor")
+							label(for="_anchor") Anchor
+						- if (user.auth('thread.locked'))
+							input#_locked(type="checkbox", name="locked")
+							label(for="_locked") Lock
+							

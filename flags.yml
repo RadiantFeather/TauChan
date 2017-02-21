@@ -6,19 +6,19 @@ post:
     spoiler: 'spoiler media in a post'
   
 thread:
-  autosage: 'set flag to prevent new replies bumping the thread'
-  pin: 'set flag to keep thread at the very top of the board (only one allowed per board)'
+  sage: 'set flag to prevent new replies bumping the thread'
+  pinned: 'set flag to keep thread at the very top of the board (only one allowed per board)'
   sticky: 'set flag to keep thread above normal threads'
   cycle: 'set flag to have old posts truncated in favor of new posts in a thread'
   anchor: 'set flag to keep thread on the board even if autosaged or bumplimit is active'
-  lock: 'set flag to prevent unauthorized users from posting in the thread'
+  locked: 'set flag to prevent unauthorized users from posting in the thread'
   archive: 'archive or revive a thread'
   feature: 'mark as a featured thread that will permanently stay in the archive (can still be reported on)'
   
 board:
   view:
     ip: 'see the raw IP for each poster'
-    pmask: 'see the partially masked IP for each poster'
+    ipmask: 'see the partially masked IP for each poster'
     iphash: 'see the encrypted hex IP value for each poster'
   reply:
     locked: 'post in locked threads'

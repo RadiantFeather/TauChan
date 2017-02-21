@@ -1,4 +1,8 @@
 "use strict";
+console._ = (arg)=>{
+	console.log(arg);
+	return arg;
+};
 String.prototype.splice = function(i,c,a){
 	return this.slice(0,i)+(a||'')+this.slice(i+c);
 };
@@ -33,4 +37,69 @@ Error.prototype.withrender = function(view){
 	this.setdata = function(data){this.data = data; delete this.setdata; return this;};
 	this.render = view;
 	return this;
+};
+
+var fs = require('fs'), path = require('path');
+fs.rmdirall = function(dirToRemove, callback) {
+        var dirList = [];
+        var fileList = [];
+
+        function flattenDeleteLists(fsPath, callback) {
+            fs.lstat(fsPath, function (err, stats) {
+                if (err) return callback(err);
+
+                if (stats.isDirectory()) {
+                	//add to our list of dirs to delete after we're done exploring for files
+                    dirList.unshift(fsPath);  
+                    fs.readdir(fsPath, function (err, files) {
+                        if (err) return callback(err);
+                        
+                        var currentTotal = files.length;
+                        var checkCounter = function (err) {
+                            if (currentTotal < 1 || err) 
+                            	callback(err);
+                        };
+
+                        if (files.length > 0)
+                            files.forEach(function (f) {
+                                flattenDeleteLists(path.join(fsPath, f), function (err) {
+                                    currentTotal -= 1;
+                                    checkCounter(err);
+                                });
+                            });
+                        //make sure we bubble the callbacks all the way out
+                        checkCounter(); 
+                    });
+                } else {
+                	//add to our list of files to delete after we're done exploring for files
+                    fileList.unshift(fsPath); 
+                    callback();
+                }
+            });
+        }
+
+        function removeItemsList(list, rmMethod, callback) {
+            var count = list.length;
+            if (count === 0) return callback();
+            
+            list.forEach(function (file) {
+                fs[rmMethod](file, function (err) {
+                    count -= 1;
+                    if (count < 1 || err) 
+                    	callback(err);
+                });
+            });
+        }
+        function onFinishedFlattening(err) {
+            if (err) return callback(err);
+            //done exploring folders without errors
+            removeItemsList(fileList, "unlink", function (err) {
+                if (err) return callback(err);
+                //done deleting files without errors
+                removeItemsList(dirList, "rmdir", function (err) { 
+                    callback(err);  //done
+                });
+            });
+        }
+        flattenDeleteLists(dirToRemove, onFinishedFlattening);
 };

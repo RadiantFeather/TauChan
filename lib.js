@@ -13,12 +13,25 @@ var fs = require('fs'),
 	_ = {};
 	
 GLOBAL.cfg = GLOBAL.cfg||yml.read.sync('./conf/config.yml');
+GLOBAL.sql = GLOBAL.sql||yml.read.sync('./sql.yml');
+GLOBAL.flags = GLOBAL.flags||yml.read.sync('./flags.yml');
+GLOBAL.errors = GLOBAL.errors||yml.read.sync('./errors.yml');
 	
 _.exists = function(path){
 	try {
 		fs.statSync(path);
 		return true;
 	} catch (e) { return false; }
+};
+
+
+_.mkerr = function(cat="?",err="Unknown error on category: "+cat){
+	err = err instanceof Error?err:new Error(err);
+	if (cat in GLOBAL.errors)
+		if (err.constraint && err.constraint in GLOBAL.errors[cat])
+			err.message = GLOBAL.errors[cat][err.constraint];
+		else console.log("Undefined constraint: "+err.constraint);
+	return err;
 };
 
 _.mkdir = function(path){
@@ -129,16 +142,17 @@ URL.prototype.toString = URL.prototype.stringify = function(){
 _.URL = (str)=>{ return new URL(str);};
 	
 function parseExternalMedia(url) {
-	let s,m=null,done,key,found,r={meta:{}};
-	for(key of GLOBAL.cfg.external_media) {
-		if (key.regex instanceof Array){
-			for (let val of key.regex)
+	let s,m=null,done,key,found,r={meta:{}},
+		media = GLOBAL.cfg.external_media;
+	for(key in media) {
+		if (media[key] instanceof Array){
+			for (let val of media[key])
 				if (val.test(url)){
 					found = key;
 					break;
 				}
 			if (found) break;
-		} else if (key.regex.test(url)){
+		} else if (media[key].test(url)){
 			found = key;
 			break;
 		}
@@ -198,7 +212,10 @@ function parseExternalMedia(url) {
 			id = m.domainString()=='dai.ly'?m.uri[0]:m.uri[1].split('_')[0];
 			if (!id) return err;
 			r.mediatype = 'dly';
-			s = new URL('https://www.dailymotion.com/embed/video/'+id+'?quality=480&sharing-enable=false&endscreen-enable=false');
+			s = new URL('https://www.dailymotion.com/embed/video/'+id);
+			s.query.quality = 480;
+			s.query['sharing-enabled'] = false;
+			s.query['endscreen-enable'] = false;
 			if (m.query.start) s.query.start = m.query.start;
 			r.src = s.stringify();
 			r.href = 'https://dai.ly/'+id;
@@ -234,27 +251,40 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 			try {
 				r.mediatype = 'img';
 				r.meta.title = file.originalname;
+				// normalize path for windows
 				file.path = file.path.replace(/\\/g,'/');
+				// extract filename
 				let fn = file.path.split('/')[file.path.split('/').length-1];
-				r.src = r.href = '/'+board+'/media/'+fn;
+				r.src = '/'+board+'/media/'+fn;
 				r.thumb = '/'+board+'/media/'+fn+'.thumb.jpg';
+				// get the unique md5 of the file
+				r.hash = crypto.createHash('md5').update(fs.readFileSync(__dirname+'/'+file.path, 'utf8')).digest('hex');
+				// move file from temp location to asset storage
+				// TODO implement CDN upload handling
 				fs.renameSync(__dirname+'/'+file.path,__dirname+'/assets'+r.src);
+				// declare image as removable upon request error
 				trackfiles.push('/assets'+r.src);
-				r.hash = crypto.createHash('md5').update(fs.readFileSync(__dirname+'/assets'+r.src, 'utf8')).digest('hex');
 				let done = false;
-				gm(__dirname+'/assets'+r.src).size((err, size)=>{
+				// create thumbnail
+				gm(__dirname+'/assets'+r.src).identify('%m %P %b',function (err, data){
 					if (err){
-					r = err;
+						r = err;
 						done = true;
 					} else {
-						r.meta.dims = size.width+'x'+size.height;
-						this.resize(300, 300);
+						data = data.split();
+						r.meta.all = data;
+						r.meta.type = data[0];
+						r.meta.dims = data[1];
+						r.meta.size = data[2];
+						if (['JPEG','JPG'].indexOf(data[0]) > -1)
+							this.noProfile();
+						this.resize(200, 200);
 						this.write(__dirname+'/assets'+r.thumb,(err)=>{
 							if (err) {
 								r = err;
 								done = true;
 							} else {
-								console.log('thumb',file);
+								// declare image as removable upon request error
 								trackfiles.push('/assets'+r.thumb);
 								done = true;
 							}
@@ -268,8 +298,52 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 			
 			break;
 		case 'image/gif':
-			r.mediatype = 'img';
-			
+			try {
+				r.mediatype = 'img';
+				r.meta.title = file.originalname;
+				// normalize path for windows
+				file.path = file.path.replace(/\\/g,'/');
+				// extract filename
+				let fn = file.path.split('/')[file.path.split('/').length-1];
+				r.src = '/'+board+'/media/'+fn;
+				r.thumb = '/'+board+'/media/'+fn+'.thumb.jpg';
+				// get the unique md5 of the file
+				r.hash = crypto.createHash('md5').update(fs.readFileSync(__dirname+'/'+file.path, 'utf8')).digest('hex');
+				// move file from temp location to asset storage
+				// TODO implement CDN upload handling
+				fs.renameSync(__dirname+'/'+file.path,__dirname+'/assets'+r.src);
+				// declare image as removable upon request error
+				trackfiles.push('/assets'+r.src);
+				let done = false;
+				// create thumbnail
+				gm(__dirname+'/assets'+r.src+'[0]').identify('%m %P %b',function (err, data){
+					if (err){
+						r = err;
+						done = true;
+					} else {
+						console.log(data);
+						data = data.split();
+						r.meta.all = data;
+						r.meta.type = data[0];
+						r.meta.dims = data[1];
+						r.meta.size = data[2];
+						this.resize(200, 200)
+						.write(__dirname+'/assets'+r.thumb,(err)=>{
+							if (err) {
+								r = err;
+								done = true;
+							} else {
+								// declare image as removable upon request error
+								trackfiles.push('/assets'+r.thumb);
+								done = true;
+							}
+						});
+					}
+				});
+				while (!done) deasync.runLoopOnce();
+			} catch(err) {
+				return err.setstatus(500);
+			}
 			break;
 		case 'audio/ogg':
 			r.mediatype = 'aud';
@@ -299,14 +373,14 @@ _.processPostMedia = function(board,body,files,trackfiles) {
 	this.mkdir('./assets/'+board.board+'/media');
 	let i = -1, media = [], f;
 	while (++i < board.mediauploadlimit) {
-		if (!body['include'+i]) break;
-		if (!body['is_external'+i]) {
-			let m = parseExternalMedia(body['in_media'+i]);
+		if (!body['include'+i]) continue;
+		if (!!body['is_external'+i]) {
+			let m = parseExternalMedia(body['out_media'+i]);
 			if (m instanceof Error) return m;
 			m.nsfw = !!body['spoiler_media'+i];
 			media.push(m);
 		} else if (files) {
-			f = files.filter((cur)=>{return cur.fieldname == 'out_media'+i;});
+			f = files.filter((cur)=>{return cur.fieldname == 'in_media'+i;});
 			if (!f.length) continue;
 			let m = parseInternalMedia(f[0],board.board,trackfiles);
 			if (m instanceof Error) return m;
@@ -318,13 +392,13 @@ _.processPostMedia = function(board,body,files,trackfiles) {
 };
 
 _.posterID = function(ip,board,thread){
-	let trip = crypto.createHash('sha1')
+	let trip = crypto.createHash('md5')
 		.update(ip)
 		.update(board)
 		.update(thread.toString())
 		.update(GLOBAL.cfg.secret)
 		.digest();
-	return crypto.createHash('sha1')
+	return crypto.createHash('md5')
 		.update(trip)
 		.update(GLOBAL.cfg.secret)
 		.digest()
@@ -385,93 +459,10 @@ _.processMarkdown = function(req,res,next){
 };
 
 _.processTicker = function(markdown){
-	// Ticker only should allow INLINE markup. No exclusive lines.
-	let keys = GLOBAL.cfg.markdown.custom, depth = [], track = [], cursor = 0,
-		markup = markdown.replace(new RegExp("\r",'g'),'');
-	keys.forEach((item)=>{
-		item.before = item.brick?'['+item.key+']':item.key;
-		item.after = item.brick?'[/'+item.key+']':item.key;
-		item.start = [];
-	});
-	while (1){
-		let e = depth[depth.length-1];
-		if (e && e.exclusivetext && e.after && markup.substr(cursor,e.after.length) == e.after){
-			let k = keys.indexOf(e), a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
-			markup = markup.splice(e.start[e.start.length-1],e.before.length,b);
-			cursor = cursor - e.before.length + b.length;
-			markup = markup.splice(cursor,e.after.length,a);
-			cursor = cursor + a.length;
-			e.start.pop();
-			track.push(e);
-			depth.pop();
-			continue;
-		}
-		let i = -1, skip = true;
-		while (++i < keys.length){
-			let t = keys[i];
-			if (t.after && depth.indexOf(t) != -1 && markup.substr(cursor,t.after.length) == t.after) {
-				if (t.exclusiveline) continue;
-				// insert the text bookmarks for the opening and closing of the markdown
-				if (markup.substr(cursor-t.before.length,t.before.length) == t.before) {
-					// prevent unnecessary empty nodes from being generated
-					markup = markup.splice(cursor-t.before.length,t.before.length+t.after.length);
-					cursor -= t.before.length;
-					t.start.pop();
-					depth.splice(depth.lastIndexOf(t),1);
-					continue;
-				}
-				let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r";
-				markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
-				cursor = cursor - t.before.length + b.length;
-				markup = markup.splice(cursor,t.after.length,a);
-				cursor = cursor + a.length;
-				depth.splice(depth.lastIndexOf(t));
-				t.start.pop();
-				track.push(t);
-				skip = false;
-				break;
-			} else if (markup.substr(cursor,t.before.length) == t.before && markup.substr(cursor,t.before.length+t.after.legnth) != t.before+t.after) {
-				// Bookmark the index of the markdown opening
-				if (t.exclusiveline) continue;
-				t.start.push(cursor);
-				depth.push(t);
-				cursor += t.before.length;
-				
-				if (t.exclusivetext){
-					// exclusivetext ignores all markdown (including suppression) until its closing text
-					let hold = cursor--;
-					while (markup.substr(++cursor,t.after.length) != t.after){
-						if (cursor >= markup.length) {
-							cursor = hold;
-							depth.pop();
-							t.start.pop();
-							break;
-						}
-					}
-				}
-				skip = false;
-				break;
-			}
-		}
-		if (skip) cursor++;
-		if (cursor > markup.length) break;
-	}
-	// \r (aka &#13;) is the only character that is guarenteed not to be present before and after processing
-	// because we remove all instances at the start of the processing, so we use that for bookmarking the
-	// keys to allow for html sensitive characters to be used in markdown without accidental encoding errors.
-	// Also prevents malicious html code from leaking through.
-	let i = -1;
-	markup = encoder.htmlEncode(markup.replace(/^[\n\t ]+|\n+$/g,''));
-	while (++i < track.length) {
-		let k = keys.indexOf(track[i]);
-		markup = markup
-			.replace(new RegExp("&#13;&#0;"+k+"&#13;",'g'),track[i].open)
-			.replace(new RegExp("&#13;"+k+"&#0;&#13;",'g'),track[i].close);
-	}
-	return markup;
+	return _.processMarkup(markdown,true);
 };
 
-_.processMarkup = function(markdown){
+_.processMarkup = function(markdown, ticker=false){
 	if (!GLOBAL.cfg.markdown)
 		return encoder.encodeHTML(markdown)
 			.replace(new RegExp("&#13;",'g'),'')
@@ -492,6 +483,7 @@ _.processMarkup = function(markdown){
 		item.start = [];
 	});
 	list.forEach((item)=>{item.exclusiveline = true;});
+	if (!ticker){
 	while (1){
 		let e = depth[depth.length-1];
 		
@@ -536,18 +528,32 @@ _.processMarkup = function(markdown){
 		// CUSTOM ELEMENTS
 		if (e && e.exclusivetext && e.after && markup.substr(cursor,e.after.length) == e.after){
 			let k = keys.indexOf(e), a = "\r"+k+"\0\r", b = "\r\0"+k+"\r";
-			markup = markup.splice(e.start[e.start.length-1],e.before.length,b);
-			cursor = cursor - e.before.length + b.length;
-			markup = markup.splice(cursor,e.after.length,a);
-			cursor = cursor + a.length;
+			let nlbefore = 0, nlafter = 0;
+			// if a key is wrapped by newlines, remove the newlines on the INSIDE of the key match
+			if (e.start[e.start.length-1] > 0 && markup.substr(e.start[e.start.length-1]-1,e.before.length+2) == "\n"+e.before+"\n")
+				nlbefore = 1;
+			else if (markup.substr(e.start[e.start.length-1],e.before.length+1) == e.before+"\n")
+				nlbefore = 1;
+			//console.log('Before: ', nlbefore, escape(markup.substr(e.start[e.start.length-1],e.before.length+nlbefore)));
+			markup = markup.splice(e.start[e.start.length-1],e.before.length+nlbefore,b);
+			cursor = cursor - e.before.length - nlbefore + b.length;
+			if (cursor+e.after.length < markup.length && markup.substr(cursor-1,e.after.length+2) == "\n"+e.after+"\n")
+				nlafter = 1;
+			else if (markup.substr(cursor-nlafter,e.after.length+nlafter) == "\n"+e.after)
+				nlafter = 1;
+			//console.log('After: ', nlafter, escape(markup.substr(cursor-nlafter,e.after.length+nlafter)));
+			markup = markup.splice(cursor-nlafter,e.after.length+nlafter,a);
+			cursor = cursor - nlafter + a.length;
 			e.start.pop();
 			track.push(e);
 			depth.pop();
 			continue;
 		}
 		let i = -1, skip = true;
+		// cycle through all the keys to see if the current cursor position matches
 		while (++i < keys.length){
 			let t = keys[i];
+			// This does the actual injection of the nodes using the bookmarks
 			if (t.after && depth.indexOf(t) != -1 && markup.substr(cursor,t.after.length) == t.after) {
 				if (t.exclusiveline && markup.substr(cursor+t.after.length,1) != "\n" && cursor+t.after.length < markup.length) continue;
 				// insert the text bookmarks for the opening and closing of the markdown
@@ -560,17 +566,25 @@ _.processMarkup = function(markdown){
 					continue;
 				}
 				let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r";
-				markup = markup.splice(t.start[t.start.length-1],t.before.length,b);
-				cursor = cursor - t.before.length + b.length;
-				markup = markup.splice(cursor,t.after.length,a);
-				cursor = cursor + a.length;
+				let nlbefore = 0, nlafter = 0;
+				// if a key is wrapped by newlines, remove the newlines on the INSIDE of the key match
+				if (markup.substr(e.start[e.start.length-1]-1,e.before.length+2) == "\n"+e.before+"\n")
+					nlbefore = 1;
+				console.log(markup.substr(t.start[t.start.length-1],t.before.length+nlbefore));
+				markup = markup.splice(t.start[t.start.length-1],t.before.length+nlbefore,b);
+				cursor = cursor - t.before.length - nlbefore + b.length;
+				if (markup.substr(cursor-1,e.after+2) == "\n"+e.after+"\n")
+					nlafter = 1;
+				console.log(markup.substr(cursor-nlafter,t.after.length+nlafter));
+				markup = markup.splice(cursor-nlafter,t.after.length+nlafter,a);
+				cursor = cursor - nlafter + a.length;
 				depth.splice(depth.lastIndexOf(t));
 				t.start.pop();
 				track.push(t);
 				skip = false;
 				break;
 			} else if (markup.substr(cursor,t.before.length) == t.before && markup.substr(cursor,t.before.length+t.after.legnth) != t.before+t.after) {
-				// Bookmark the index of the markdown opening
+				// This bookmarks the index of the markdown opening
 				if (t.exclusiveline && cursor != 0 && markup.substr(cursor-1,1) != "\n") continue;
 				t.start.push(cursor);
 				depth.push(t);
@@ -587,7 +601,8 @@ _.processMarkup = function(markdown){
 					cursor = hold;
 				}
 				if (t.exclusivetext){
-					// exclusivetext ignores all markdown (including suppression) until its closing text
+					// exclusivetext ignores all markdown (including suppression) until its closing key
+					// consumes text unless closing key is not present
 					let hold = cursor--;
 					while (markup.substr(++cursor,t.after.length) != t.after){
 						if (cursor >= markup.length) {
@@ -604,7 +619,7 @@ _.processMarkup = function(markdown){
 		}
 		
 		// LISTS
-		// if (list){
+		// if (!ticker && list){
 		// for (i in list) {
 		// 	let a = "\r"+i+"\0\r", b = "\r\0"+i+"\r",depth = '';
 		// 	if (markup.substr(cursor-1,list[i].key.length+2) == "\n"+list[i].key+' '){
@@ -630,22 +645,41 @@ _.processMarkup = function(markdown){
 		// 	}
 		// }}
 		
-		// HYPERLINKS
-		if (markup.substr(cursor,hlink.length) == hlink && cursor+hlink.length+1 < markup.length){
+		// HYPERLINKS 
+		if (markup.substr(cursor,hlink.length) == hlink && cursor+hlink.length < markup.length){
 			let ws = ["\n","\t"," "];
-			if (ws.indexOf(markup.substr(cursor-1,1)) != -1 && ws.indexOf(markup.substr(cursor+hlink.length,1)) == -1){
+			let quoted = (markup.substr(cursor+hlink.length,1) == '"'?1:0);
+			let newline = false;
+			// verify corresponding close quote exists
+			let point = cursor+hlink.length+1;
+			if (quoted && markup.substr(point,1) != '"'){
+				while (point < markup.length && markup.substr(point,1) != '"')
+					// disallow newlines within quoted links
+					if (markup.substr(point,1) == "\n") {
+						newline = true;
+						break;
+					} else point++;
+				if (point >= markup.length) quoted = 0;
+			}
+			else quoted = 0;
+			if (!newline)
+			if (
+				((cursor == 0 || ws.indexOf(markup.substr(cursor-1,1))) != -1 && ws.indexOf(markup.substr(cursor+hlink.length,1)) == -1) ||
+				(quoted && ws.indexOf(markup.substr(cursor+hlink.length,1)) == -1)
+			){
 				// Place bookmarks for inserting hyperlinks
 				let a = "\r"+links.length+"\0\0\0\0\r", b = "\r\0\0\0\0"+links.length+"\r";
-				markup = markup.splice(cursor,hlink.length,b);
+				
+				markup = markup.splice(cursor,hlink.length+quoted,b);
 				cursor += b.length;
 				let start = cursor;
+				if (quoted) ws = ['"'];
 				while (ws.indexOf(markup.substr(cursor,1)) == -1 && cursor < markup.length)
 					cursor++;
 				let str = markup.slice(start,cursor);
-				markup = markup.splice(cursor,0,a);
+				markup = markup.splice(cursor,quoted,a);
 				cursor += a.length;
 				links.push(str);
-				console.log(str);
 				
 			}
 		}
@@ -668,18 +702,18 @@ _.processMarkup = function(markdown){
 	i = -1;
 	while(++i < links.length)
 	markup = markup
-		.replace(new RegExp("&#13;&#0;&#0;&#0;&#0;"+i+"&#13;",'g'),'<a href="'+encoder.htmlEncode(links[i])+'">')
+		.replace(new RegExp("&#13;&#0;&#0;&#0;&#0;"+i+"&#13;",'g'),'<a href="'+encodeURI(links[i])+'">')
 		.replace(new RegExp("&#13;"+i+"&#0;&#0;&#0;&#0;&#13;",'g'),'</a>');
 	// replace \n (aka &#10;) with <br> nodes
 	return markup.replace(new RegExp("&#10;",'g'),'<br>');
 };
 
-_.maskIP = function(ip){
+_.maskIP = _.maskData = function(data){
 	let cipher = crypto.createCipher('bf-cbc',GLOBAL.cfg.secret);
-	let mask = cipher.update(ip,'utf8','hex');
+	let mask = cipher.update(data,'utf8','hex');
 	return mask + cipher.final('hex');
 };
-_.unmaskIP = function(mask){
+_.unmaskIP = _.unmaskData = function(mask){
 	let decipher = crypto.createDecipher('bf-cbc',GLOBAL.cfg.secret);
 	let data = decipher.update(mask,'hex','utf8');
 	return data + decipher.final('utf8');
@@ -739,13 +773,13 @@ if (GLOBAL.cfg.devmode) {
 	};
 }
 User.prototype.auth = function(flag,def,ault){
-	let testRule = function testRule(check) {
+	function testRule(check) {
 		if (!(check in u.roles[board].flags) && !('global@'+check in u.roles[board].flags))				
 			return !!def;
 		else if (!u.roles[board].flags[check] && !u.roles[board].flags['global@'+check])
 			return false;
 		else return testRule;
-	};
+	}
 	let board = this.currentBoard;
 	if (typeof def == 'string')	// allow auth for multiple boards
 		board = def, def = ault;
@@ -786,5 +820,6 @@ User.prototype.auth = function(flag,def,ault){
 };
 // User Cookie: res.cookie('user',req.session.id,{httpOnly:true,maxAge:1000*60*60*24*7});
 _.User = User;
+
 
 module.exports = _;

@@ -3,15 +3,14 @@ extends layout
 block header
 	h1 #{SITE.name} Moderation Page
 	h3 Welcome #{user.screenname}
+	a(href="/_/createBoard") Create a board
 	
 block head
-	+stylesheet('underboard.css')
+	+style('underboard.css')
 
 block main
 	- if (data.length == 0)
-		h4
-			a(href="/_/createBoard") Create a board
-			| or get added to an existing one.
+		h4 Create a board or get added to an existing one.
 	- else 
 		table
 			tr

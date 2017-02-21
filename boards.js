@@ -48,7 +48,7 @@ _.index = function(req,res,next) { 	// board index
 _.archive = function(req,res,next) {	// archive view
 	db.any(GLOBAL.sql.view.archive, {
 		board: req.params.board,
-		page: req.query.page ? parseInt(req.query.page) : 1,
+		page: parseInt(req.query.page||1),
 	}).then((data)=>{
 		let board = res.locals.board;
 		res.locals.META.keywords = '/'+board.board+'/';
@@ -230,8 +230,46 @@ _.settings = function(req,res,next) {
 			lifespan_auth: !res.locals.user.auth('board.settings.archive_lifespan')
 		});
 	}).catch((err)=>{
-		next(err.setstatus(500));
+		next(GLOBAL.lib.mkerr('settings',err).setstatus(500));
 	});
+};
+_.settings.auth = function(req,res,next){
+	return res.locals.user.auth('board.settings!any');
+};
+
+_.roles = function(req,res,next){
+	if (req.params.action && req.params.action == 'edit'){
+		switch(req.params.action){
+			case 'new': break;
+			case 'edit':
+				if (!req.params.data) return next(new Error("Must specify a role to edit"));
+		
+				db.one(GLOBAL.sql.view.role,{
+					board: req.params.board,
+					role: req.params.data
+				}).then((data)=>{
+					
+				}).catch((err)=>{
+					next(GLOBAL.lib.mkerr('roles',err));
+				});
+		}
+		
+		
+	} else {
+		db.any(GLOBAL.sql.view.roles,{
+			board:req.params.board
+		}).then((data)=>{
+			let out = {};
+			data.forEach((item)=>{
+				if (item.role in out) out[item.role].push(item);
+				else (out[item.role] = []).push(item);
+			})
+			res.locals.page = {type:'index',param:'roles'};
+			res.render('roles.jade',{data});
+		}).catch((err)=>{
+			next(err);
+		});
+	}
 };
 
 handlers.GET = _;
@@ -255,13 +293,16 @@ _.index = _.catalog = function(req,res,next) { // New thread
 			.forEach((part)=>{ post[part] = part in req.body&&req.body[part].length?req.body[part]:null; });
 		if (!res.locals.board.emailsubmit) post.email = null;
 		['nsfw','sage','pinned','sticky','cycle','anchor','locked']
-			.forEach((part)=>{ post[part] = part in req.body?!!req.body[part]:false})
+			.forEach((part)=>{ 
+				if (!(part in GLOBAL.flags) || res.locals.user.auth('thread.'+part))
+					post[part] = part in req.body?!!req.body[part]:false;
+			});
 		post.board = req.params.board;
 		post.ip = req.ip;
 		post.hash = GLOBAL.lib.maskIP(req.ip,req.params.board);
 		if (post.name && post.name.indexOf('#') != -1){
 			req.body.trip = post.name.substr(post.name.indexOf('#')+1);
-			post.name = post.name.splice(0,post.name.indexOf('#'));
+			post.name = post.name.slice(0,post.name.indexOf('#'));
 			if (!req.body.trip || (req.body.trip.indexOf('#') != -1 && req.body.trip.length < 2))
 				req.body.trip = null;
 			post.trip = GLOBAL.lib.processTrip(req.body.trip,res.locals.user.roles[req.params.board].capcodee);
@@ -308,7 +349,7 @@ _.thread = function(req,res,next) { // New reply to thread
 		post.sage = !!req.body.sage;
 		if (post.name && post.name.indexOf('#') != -1){
 			req.body.trip = post.name.substr(post.name.indexOf('#')+1);
-			post.name = post.name.splice(0,post.name.indexOf('#'));
+			post.name = post.name.slice(0,post.name.indexOf('#'));
 			if (!req.body.trip || (req.body.trip.indexOf('#') != -1 && req.body.trip.length < 2))
 				req.body.trip = null;
 			post.trip = GLOBAL.lib.processTrip(req.body.trip,res.locals.user.roles[req.params.board].capcode);
@@ -412,15 +453,17 @@ _.settings = function(req,res,next) {
 					if (item in req.body) t[item] = pgp.as.number(parseInt(req.body[item]));
 				});
 			if(res.locals.user.auth('board.settings.flags'))
-				['listed','nsfw','perthreadunique','archivethreads','emailsubmit',
-				'publiclogs','publicbans','publicedits','loguser','postids'].forEach((item)=>{
+				['listed','nsfw','perthreadunique','archivethreads','emailsubmit','publiclogs',
+				'publicbans','publicedits','loguser','postids'].forEach((item)=>{
 					t[item] = pgp.as.bool(!!req.body[item]);
 				});
 			
 			if (res.locals.user.auth('board.settings.info'))
 				t.tags = pgp.as.json('tags' in req.body? req.body.tags.split(','): []);
-			if (res.locals.user.auth('board.settings.header'))
-				t.ticker = pgp.as.text('ticker' in req.body? GLOBAL.lib.processTicker(req.body.ticker):'')
+			if (res.locals.user.auth('board.settings.header')) {
+				t.ticker = pgp.as.text('ticker' in req.body? req.body.ticker: '');
+				if (t.ticker) t.tickermarkup = pgp.as.text(GLOBAL.lib.processTicker(t.ticker));
+			}
 			
 			let i,k=[],v=[];
 			for (i in t){
@@ -443,6 +486,7 @@ _.settings = function(req,res,next) {
 		}
 	});
 };
+_.settings.auth = handlers.GET.settings.auth;
 
 handlers.POST = _;
 

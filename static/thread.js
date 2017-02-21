@@ -2,14 +2,19 @@
 document.addEventListener('init',(e)=>{
 //------------------------------------------
 
-
 let _ = {};
 
+$('a.update').on('click',updateThread);
 function updateThread(e){
 	
 }
-$('a.update').on('click',updateThread);
 
+$('.file .full').on('click',toggleFullImage);
+function toggleFullImage(e){
+    this.src = this.dataset.src;
+    this.parentNode.parentNode.parentNode.classList.toggle('open');
+    e.preventDefault();
+}
 
 
 //------------------------------------------

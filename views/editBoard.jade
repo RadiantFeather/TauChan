@@ -1,5 +1,8 @@
 extends layout
 
+block head
+	+style('editBoard.css')
+
 block main
 	form#createBoard(method="POST",action="",enctype="multipart/form-data")
 		- if (err && (DEV || status != 500))
@@ -52,7 +55,7 @@ block main
 				input(name="nsfw",type="checkbox",checked=(data?(data.nsfw?true:false):true),disabled=!!flag_auth)
 			label Enable thread archiving:&nbsp;
 				input(name="archivethreads",type="checkbox",checked=(data?(data.archvethreads?true:false):true),disabled=!!flag_auth)
-			label Prevent duplicate image per thread (defaut is the entire board):&nbsp;
+			label Prevent duplicate images per thread (defaut is the entire board):&nbsp;
 				input(name="perthreadunique",type="checkbox",checked=(data?(data.perthreadunique?true:false):false),disabled=!!flag_auth)
 			label Enable the email field for posts:&nbsp;
 				input(name="emailsubmit",type="checkbox",checked=(data?(data.emailsubmit?true:false):true),disabled=!!flag_auth)
@@ -75,3 +78,11 @@ block main
 				input(name="ticker",type="text",maxLength="256",value=(data&&data.ticker?data.ticker:''),disabled=!!header_auth)
 		
 		input(type="submit",value=editmode?"Update Board":"Create Board")
+		
+block footer
+	if (!!editmode && user.roles[board.board].role == 'owner')
+		div.dangerzone
+			h2 DANGER ZONE
+			p Proceeding will delete this board. This action cannot be undone!
+			a(href="/"+board.board+"/destroy") Destroy this board
+		

@@ -16,11 +16,11 @@
 .post .clean.local:after { content:")"; }
 
 
-.postactions{
+.post .postactions{
 	position:relative;
 	display:inline-block;
 }
-.postactions >ul{
+.post .postactions >ul{
 	list-style:none;
 	position:absolute;
 	top: -12px;
@@ -33,70 +33,85 @@
 	line-height: 22px;
 }
 
-.postactions >ul >li{
+.post .postactions >ul >li{
 	white-space:nowrap;
 }
 
-html:not(.js) .media .file .nsfw +.thumb, 
-.media .file .full,
-.media.open .file .thumb, 
-.media.open .file .nsfw
+html:not(.js) .post .media .file .nsfw +.thumb, 
+.post .media .file .full,
+.post .media.open .file .thumb, 
+.post .media.open .file .nsfw
 { display:none; }
-html:not(.js) .media .file .nsfw,
-html:not(.js) .media .file .thumb,
-.media .file .thumb,
-.media.open .file .full
+html:not(.js) .post .media .file .nsfw,
+html:not(.js) .post .media .file .thumb,
+.post .media .file .thumb,
+.post .media.open .file .full
 { display:block; }
-.media.open .file .thumb
+.post .media.open .file .thumb
 { display:none!important; }
 
-.media .item { display:inline-block; }
-.media .filewrap {
+.post .media .item { 
+	display:inline-block; 
+	max-width:25vw; 
+	max-width:200px;
+	text-align:center;
+}
+.post .media .filewrap {
 	position:relative;
 }
 
-.media .filewrap .spoiler,
-.media .filewrap .delete {
+.post .media .filewrap .spoiler,
+.post .media .filewrap .delete {
 	transition:0.5s;
 	position: absolute;
 	font-size:65px;
 	opacity:0.0;
 }
-.media .filewrap .spoiler {
+.post .media .filewrap .spoiler {
 	top:0;
 	left:0;
 }
-.media .filewrap .delete {
+.post .media .filewrap .delete {
 	bottom:0;
 	right:0;
 }
-.media .filewrap .spoiler >a,
-.media .filewrap .delete >a {
+.post .media .filewrap .spoiler >a,
+.post .media .filewrap .delete >a {
 	position:absolute;
 	font-size:0.4em;
 }
-.media .filewrap .spoiler >a {
+.post .media .filewrap .spoiler >a {
 	bottom:1em;
 	left:0.5em;
 	color:white;
 }
-.media .filewrap .delete >a {
+.post .media .filewrap .delete >a {
 	top:1.5em;
 	right:0.3em;
 	color:red;
 }
-.media .filewrap:hover .spoiler,
-.media .filewrap:hover .delete {
+.post .media .filewrap:hover .spoiler,
+.post .media .filewrap:hover .delete {
 	opacity:0.5;
 }
-.media .filewrap:hover .spoiler >a,
-.media .filewrap:hover .delete >a {
+.post .media .filewrap:hover .spoiler >a,
+.post .media .filewrap:hover .delete >a {
 	opacity:1.0;
 }
 
-.media .file .thumb,
-.media .file .nsfw
-{ height:auto; max-width:200px; max-width:25vw; }
+.post .media .file .thumb,
+.post .media .file .nsfw
+{ height:auto; max-width:25vw; max-width:200px; }
 
-.media.one { display:inline-block; }
-.media.many, .media.one.open { display:block; }
+.post .media.one { 
+	display:inline-block;
+	position:relative;
+	margin-right:20px; 
+	margin-top: 5px;
+	top:-5px;
+	margin-bottom:10px;
+}
+.post .media.many, .media.one.open { 
+	display:block; 
+	margin-bottom:10px;
+}

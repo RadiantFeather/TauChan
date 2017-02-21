@@ -1,0 +1,15 @@
+
+#showPostForm {
+	text-decoration:underline;
+}
+
+#newpost .source +label { text-decoration:underline; }
+#newpost .source:not(:checked) +label:after{
+	content: " (file)]";
+}
+#newpost .source:checked +label:after{
+	content: " (link)]";
+}
+
+#newpost .showsource +label { text-decoration:underline; }
+#newpost .showsource:not(:checked) +label +div +.showsource +label { display:none; }

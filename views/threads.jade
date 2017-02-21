@@ -24,48 +24,52 @@ mixin mediaitem(m,ip)
 	div.item(class={[m.mediatype]:true,'deleted':!!m.deleted,'nsfw':!!m.nsfw})
 		- if (m.mediatype == 'img') //- Raw image
 			span.meta
-				a.url.brick(href=CDN+m.href,target="_blank")= m.meta.title
-				- if (m.meta.dims)
-					span.dims= m.meta.dims
-				- if (m.meta.dims && m.meta.size)
-					| -
-				- if (m.meta.size)
-					span.size= m.meta.size
+				a.url.brick(href=CDN+m.src,title=(m.meta.all||[]).join(' - '),target="_blank")= m.meta.title
 			- if (m.deleted)
 				img.deleted(src=CDN+board.deletedimg,alt="Deleted")
 			- else 
 				div.filewrap
-					a.file(href=CDN+m.href,onclick="this.parentNode.parentNode.parentNode.classList.toggle('open');return false;",target="_blank")
+					a.file(href=CDN+m.src,target="_blank")
 						- if (m.nsfw)
 							img.nsfw(src=CDN+board.spoilerimg,alt="Spoiler")
 						img.thumb(src=CDN+m.thumb,alt="Thumbnail")
 						img.full(src=CDN+m.src,alt="Original")
 					+mactions(m)
+		
+		- else if (m.mediatype == 'you') //- Youtube
+			span.meta
+				a.url.brick(href=m.href, target="_blank")= m.meta.title
+				- if (m.meta.duration)
+					span.duration= m.meta.duration
+			- if (m.deleted)
+				img.deleted(src=CDN+board.deletedimg, alt="Deleted")
+			- else 
+				div.filewrap
+					a.file(href=m.href, target="_blank")
+						- if (m.nsfw)
+							img.nsfw(src=CDN+board.spoilerimg, alt="Spoiler")
+						img.thumb(src=m.thumb, alt="Thumbnail")
+						iframe.full(src=m.src, alt="Original")
+					+mactions(m)
 
 		//- - else if (m.mediatype == 'vid') //- Raw video
+		
 		//- - else if (m.mediatype == 'aud') //- Raw audio
-		//- - else if (m.mediatype == 'you') //- Youtube
-		//-  	span.meta
-		//-  		a.url.brick(href="!{m.href}", target="_blank") #{m.meta.title}
-		//-  		- if (m.meta.duration)
-		//- 			span.duration !{m.meta.duration}
-		//- 	- if (m.deleted)
-		//- 		img.deleted(src="!{CDN}!{board.deletedimg}",alt="Deleted")
-		//- 	- else
-		//- 		div.filewrap
-		//- 			a.file(href="!{m.href}", target="_black")
-		//- 				- if (m.nsfw)
-		//- 					img.nsfw(src="!{CDN}!{board.spoilerimg}", alt="Spoiler")
-		//- 				img.thumb(src="!{CDN}!{m.thumb}", alt="Thumbnail")
-		//- 				iframe.full(src="!{m.src}", alt="Original")
-		//- 			+mactions(m)
+		
 		//- - else if (m.mediatype == 'dly') //- Dailymotion
+		
 		//- - else if (m.mediatype == 'snd') //- Soundcloud
+		
 		//- - else if (m.mediatype == 'voc') //- Vocaroo
+		
 		//- - else if (m.mediatype == 'liv') //- Livestream
+		
 		//- - else if (m.mediatype == 'twi') //- Twitch
+		
 		//- - else if (m.mediatype == 'box') //- Hitbox
+		
 		//- - else if (m.mediatype == 'ust') //- Ustream
+		
 		
 
 mixin state(t)
@@ -89,72 +93,14 @@ mixin date_time(classes,val)
 	)= F_UTC(val,2)
 
 block head
-	+stylesheet('thread.css')
-	+stylesheet('theme.css')
-	+stylesheet('post.css')
+	+style('thread.css')
+	+style('theme.css')
+	+style('post.css')
+	+style('newPost.css')
 	+script('thread.js')
 	
 block header
-	- if (page.type == 'archive' && !user.auth('board.reply.archive'))
-		h1 Thread is archived.
-		h3 Replies are disabled.
-	- else 
-		input.toggle#showPostForm(type="checkbox", hidden=true)
-		label.click.hide(for="showPostForm")
-			- if (page.type=='index')
-				h1.brick New Thread
-			- else if (page.type == 'thread')
-				h1.brick New Reply
-		form#newpost(method="POST", enctype="multipart/form-data", action=(page.type=='index'&&page.param=='archive'?"/"+board.board:""))
-			table
-				tr: td Name
-					td: input(name="name", type="text", placeholder=board.noname)
-				- if (board.emailsubmit)
-					tr: td Email
-						td: input(name="email", type="text", placeholder="or sage")
-				tr: td Subject
-					td
-						input(name="subject", type="text")
-						input(type="submit", value=(page.type=='index'?"New Thread":page.type=='thread'?"New Reply":"New Post"))
-				tr: td Comment
-					td: textarea(name="markdown", placeholder="Write your dank memes here.")
-				- if (board.mediauploadlimit > 0)
-					tr: td Media
-						td
-							div.upload
-								- var i = -1
-								- while (++i < board.mediauploadlimit)
-									input.toggle.showsource(name="include"+i, type="checkbox", id="showsource"+i)
-									label.hide(for="showsource"+i) Add Source
-									div
-										label NSFW
-											input(type="checkbox", name="spoiler_media"+i)
-										input.toggle.source(name="is_external"+i, type="checkbox",id="source"+i)
-										label.brick(for="source"+i) Source
-										input(type="text", name="out_media"+i, accept="image/*,video/*,audio/*", placeholder="External Media")
-										input.switch(type="file", name="in_media"+i, accept="image/*,video/*,audio/*", placeholder="External Media")
-									
-				- if (page.type=='index')
-					tr: td Thread Options 
-						td: div.options
-							- if (board.nsfw == false)
-								label NSFW
-									input(type="checkbox", name="nsfw")
-							- if (user.auth('thread.autosage'))
-								label Autosage
-									input(type="checkbox", name="sage")
-							- if (user.auth('thread.pin'))
-								label Pin
-									input(type="checkbox", name="pinned")
-							- if (user.auth('thread.sticky'))
-								label Sticky
-									input(type="checkbox", name="sticky")
-							- if (user.auth('thread.cycle'))
-								label Cycle
-									input(type="checkbox", name="cycle")
-							- if (user.auth('thread.anchor'))
-								label Anchor
-									input(type="checkbox", name="anchor")
+	include partials/newPost.jade
 								
 block main
 	//- include ticker.pug
@@ -186,14 +132,14 @@ block main
 						a.ip.brick(href="/"+board.board+"/history/"+data[i].longhash)= data[i].longhash.substr(0,16)
 					+date_time('stamp', data[i].posted)
 					- if (board.postids)
-						span.postid= F_POSTID(user.ip,data[i].board,data[i].thread)
-					a.quote(href=(page.type=='index'?"/"+board.board+"/"+data[i].thread+"#"+data[i].post:"#"+data[i].post), onclick="if('"+page.type+"'=='thread')return quotePost("+data[i].post+"),false;")= data[i].post
+						span.postid= F_POSTID(data[i].ip,data[i].board,data[i].thread)
+					a.quote(href=(page.type=='index'?"/"+board.board+"/"+data[i].thread+"#_"+data[i].post:"#_"+data[i].post), onclick="if('"+page.type+"'=='thread')return quotePost("+data[i].post+"),false;")= data[i].post
 					+state(data[i])
 					+actions(board.board,data[i].post,data[i].ip)
 					span.cited
 						- if (data[i].targets !== null)
 							- each t in data[i].targets 
-								cite: a(href="#"+t.post)
+								cite: a(href="#_"+t.post)
 				div.media(class=(data[i].media === null ? 'none' : data[i].media.length > 1 ? 'many' : data[i].media.length == 1 ? 'one' : 'none'))
 					- if (data[i].media !== null) 
 						- each m in data[i].media 
@@ -234,13 +180,13 @@ block main
 								a.ip.brick(href="/"+board.board+"/history/"+data[i].longhash)= data[i].longhash.substr(0,16)
 							+date_time('stamp', data[i].posted)
 							- if (board.postids)
-								span.postid= F_POSTID(user.ip,data[i].board,data[i].thread)
-							a.quote(href=(page.type=='index'?"/"+board.board+"/"+data[i].thread+"#"+data[i].post:"#"+data[i].post), onclick="if('"+page.type+"'=='thread')return quotePost('"+data[i].post+"'),false;")= data[i].post
+								span.postid= F_POSTID(data[i].ip,data[i].board,data[i].thread)
+							a.quote(href=(page.type=='index'?"/"+board.board+"/"+data[i].thread+"#_"+data[i].post:"#_"+data[i].post), onclick="if('"+page.type+"'=='thread')return quotePost('"+data[i].post+"'),false;")= data[i].post
 							+actions(board.board,data[i].post,data[i].ip)
 							span.cited
 								- if (data[i].targets !== null)
 									- each t in data[i].targets
-										cite: a(href="#"+t.post) >>#{t.post}
+										cite: a(href="#_"+t.post) >>#{t.post}
 						div.media(class=(data[i].media === null ? 'none' : data[i].media.length > 1 ? 'many' : data[i].media.length == 1 ? 'one' : 'none'))
 							- if (data[i].media !== null)
 								- each m in data[i].media

@@ -1,7 +1,7 @@
 extends layout
 
 block main
-	form(id="signup",method="POST",action="",enctype="multipart/form-data")
+	form(id="signup",method="POST",action="/_/signup",enctype="multipart/form-data")
 		- if (err && (DEV || status != 500))
 			h4._error= err.message
 		- else if (err)

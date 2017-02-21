@@ -1,12 +1,19 @@
 extends layout
 
+block head
+	+style('catalog.css')
+	+style('newPost.css')
+
+block header
+	include partials/newPost.jade
+
 block main
 	- var i = -1
 	- while (++i >= 0 && i < data.length)
-		article.thread(id="#{data[i].op}")
+		article.thread(id="_"+data[i].op)
 			div.media
 				- var classtype = data[i].thumb===null?'missing': data[i].deleted?'deleted': data[i].nsfw?'spoiler': '';
-				a.file(class=classtype, href="/#{board.board}/#{data[i].op}")
+				a.file(class=classtype, href="/"+board.board+"/"+data[i].op)
 					- if (data[i].thumb === null)
 						img(src=CDN+board.missingimg,alt="No image available")
 					- else if (!data[i].deleted)
@@ -16,9 +23,9 @@ block main
 					- else
 						img(src=CDN+board.deletedimg,alt="Image is deleted")
 			span.meta
-				span.replies #{data[i].replies}
-				span.images #{data[i].images}
-				span.page #{data[i].page}
+				span.replies(title="Replies")= data[i].replies
+				span.images(title="Images")= data[i].images
+				span.page(title="Current Page")= data[i].page
 			- if (data[i].subject !== null)
-				span.subject #{data[i].subject}
-			div.content !{data[i].markup}
+				span.subject= data[i].subject
+			div.content!= data[i].markup

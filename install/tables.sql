@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS boards (
 	publicbans BOOLEAN DEFAULT FALSE,
 	publiclogs BOOLEAN DEFAULT TRUE,
 	publicedits BOOLEAN DEFAULT TRUE,
+	publicroles BOOLEAN DEFAULT TRUE,
 	loguser BOOLEAN DEFAULT TRUE,
 	ticker VARCHAR(256),
 	tickermarkup TEXT,

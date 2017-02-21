@@ -1,6 +1,6 @@
 "use strict";
-const fs = require('fs');
 require('./extend.js');
+const fs = require('fs');
 const _exists = function(path){
 	try {
 		fs.statSync(path);
@@ -37,22 +37,17 @@ else if (GLOBAL.cfg.values.cdn_domain.indexOf('://')<0)
 GLOBAL.lib = require('./lib');
 
 // Content Security Policy setter function
-let media_whitelist = {raw:[],embed:[]},om = GLOBAL.cfg.external_media;
-for (let x in om) {
-	if (!(om[x].regex instanceof RegExp)) om[x].regex = new RegExp(om[x].regex,'i');
-	switch(om[x].type){
-		case 'raw': media_whitelist.raw.concat(om[x].domains); break;
-		case 'embed': media_whitelist.embed.concat(om[x].domains); break;
-	}
-}
+let whitelist = GLOBAL.cfg.external_whitelist;
+
 const cspheadervalue = "default-src 'self';"+
-	"script-src 'self' "+GLOBAL.cdn+";"+
-	"style-src 'self' "+GLOBAL.cdn+";"+
-	"img-src 'self' data: "+media_whitelist.raw.join(' ')+";"+
-	"media-src 'self' "+media_whitelist.raw.join(' ')+";"+
-	"connect-src 'self';"+
-	"child-src 'self' "+media_whitelist.embed.join(' ')+";"
+	"script-src 'self' "+GLOBAL.cdn+" "+(whitelist.script||[]).join(' ')+"; "+
+	"style-src 'self' "+GLOBAL.cdn+" "+(whitelist.style||[]).join(' ')+"; "+
+	"img-src 'self' data: "+(whitelist.raw||[]).join(' ')+"; "+
+	"media-src 'self' "+(whitelist.raw||[]).join(' ')+"; "+
+	"connect-src 'self'; "+
+	"child-src 'self' "+(whitelist.embed||[]).join(' ')+"; "
 const CSPheader = (req,res,next)=>{res.set('Content-Security-Policy',cspheadervalue);if(next)return next();};
+
 
 // Page request handlers
 const global = require('./global'),
@@ -117,6 +112,8 @@ app.use((req,res,next)=>{
 		GLOBAL.cfg = yml.read.sync('./conf/config.yml');
 		GLOBAL.sql = yml.read.sync('./sql.yml');
 		GLOBAL.flags = yml.read.sync('./flags.yml');
+		req.IP = req.query.simip||req.ip;
+		console.log(req.path, req.ip);
 	}
 	res.locals.NOW = Date.now();
 	res.locals.META = {};

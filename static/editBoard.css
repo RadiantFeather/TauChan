@@ -1,0 +1,11 @@
+input[name="board"][disabled]{
+    cursor:not-allowed;
+}
+
+fieldset >label{
+	white-space:nowrap;
+	display:inline-block;
+}
+fieldset >label:not(:last-child){
+	margin-left:1em;
+}

@@ -113,7 +113,9 @@ _.login = function(req,res,next){
 				next(err);
 			});
 		}).catch((err)=>{
-			next(err.withrender('login.jade').data(req.body));
+			if (err.message=="No data returned from the query.")
+				err.message = "Invalid username or password.";
+			next(err.withrender('login.jade').setdata(req.body));
 		});
 	});
 };
@@ -121,10 +123,14 @@ _.login = function(req,res,next){
 _.signup = function(req,res,next){
 	pbody(req,res,(err)=>{
 		if (err) return next(err);
-		if (req.body.passphrase != req.body.validate){
+		if (!req.body.username)
+			err = new Error('Username is REQUIRED.');
+		if (!req.body.passphrase)
+			err = new Error('Passphrase is REQUIRED.');
+		if (req.body.passphrase != req.body.validate)
 			err = new Error('Passphrase mismatch. Try again.');
-			return next(err.withrender('signup.jade').data(req.body));
-		}
+			
+		if (err) return next(err.withrender('signup.jade').setdata(req.body));
 		let token = crypto
 			.createHash('sha1')
 			.update(req.body.username)
@@ -133,9 +139,9 @@ _.signup = function(req,res,next){
 			.digest('hex');
 		db.none(GLOBAL.sql.modify.new_user,{
 			user:req.body.username,
-			nick:req.body.screenname,
+			nick:req.body.screenname||req.body.username,
 			pass:req.body.passphrase,
-			email:req.body.email,
+			email:req.body.email||null,
 			token:token
 		}).then(()=>{
 			let x = {httpOnly:true};
@@ -145,7 +151,7 @@ _.signup = function(req,res,next){
 			res.cookie('curpage',req.cookies.lastpage,{httpOnly:true,expires:0});
 			res.redirect('/_/login');
 		}).catch((err)=>{
-			next(err);
+			next(GLOBAL.lib.mkerr('signup',err).withrender('signup.jade').setdata(req.body));
 		});
 	});
 };
@@ -199,7 +205,8 @@ _.createBoard = function(req,res,next){
 			});
 			
 			t.tags = pgp.as.json('tags' in req.body? req.body.tags.split(','): []);
-			t.ticker = pgp.as.text('ticker' in req.body? GLOBAL.lib.processTicker(req.body.ticker): '');
+			t.ticker = pgp.as.text('ticker' in req.body? req.body.ticker: '');
+			if (t.ticker) t.tickermarkup = pgp.as.text(GLOBAL.lib.processTicker(t.ticker));
 			
 			let i,k=[],v=[];
 			for (i in t){
@@ -212,13 +219,10 @@ _.createBoard = function(req,res,next){
 				id:res.locals.user.id,
 				board:t.board
 			}).then((data)=>{
+				req.session.user = null; // Force recache of user data
 				res.redirect('/'+req.body.board+'/');
 			}).catch((err)=>{
-				if (err.constraint&&err.constraint in GLOBAL.errors.editBoard_constraints){
-					err.message = GLOBAL.errors.editBoard_constraints[err.constraint];
-				}
-				req.body.mode = 'new';
-				next(err.withrender('editBoard.jade').setdata(req.body));
+				next(GLOBAL.lib.mkerr('editBoard',err).withrender('editBoard.jade').setdata(req.body));
 				// TODO: recache the board list and data?
 			});
 		}

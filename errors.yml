@@ -1,4 +1,4 @@
-editBoard_constraints:
+editBoard:
   boards_pkey: 'Board name already exists.'
   locked_preview_limit: 'Invalid value for locked thread preview limit. Must be between 0 and 10 inclusively.'
   pinned_preview_limit: 'Invalid value for pinned thread preview limit. Must be between 0 and 10 inclusively.'
@@ -13,5 +13,7 @@ editBoard_constraints:
   media_upload_limit: 'Invalid value for per post media upload limit. Must be between 0 and 4 inclusively.'
   archived_lifespan: 'Invalid value for archived posts lifespan. Must be between 1 day and 7 days inclusively.'
 
-logup:
+signup:
   users_username_key: 'Username is taken'
+
+

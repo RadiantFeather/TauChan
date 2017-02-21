@@ -10,7 +10,7 @@ echo "--------------------------------------"
 echo "Installing initial package dependencies"
 echo "--------------------------------------"
 sudo apt-get update
-sudo apt-get install -y build-essential
+sudo apt-get install -y autoconf automake build-essential libtool texinfo
 
 echo "--------------------------------------"
 echo "Installing the PostgreSQL dependencies..."
@@ -80,6 +80,19 @@ if [ $1 != "--manual" ]; then
     sudo make install
 fi
 sudo apt-get install -y tcl8.5
+
+echo "---------------------"
+echo "Installing FFMpeg dependencies"
+echo "---------------------"
+
+if [ $1 != "--manual" ]; then
+    pver="8.0"
+    mkdir -p /tmp/ffmpeginstaller && cd /tmp/ffmpeginstaller
+    wget http://mirror.ffmpeginstaller.com/old/scripts/ffmpeg8/ffmpeginstaller.$pver.tar.gz
+    tar -xvzf ffmpeginstaller.$pver.tar.gz
+    cd ffmpeginstaller.$pver/
+    sudo ./install.sh
+fi
 
 echo "---------------------"
 echo "Installing node dependencies"

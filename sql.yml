@@ -216,10 +216,25 @@ view:
   '
   
   user_roles: '
-    SELECT r.board,r.capcode,r.role,r.flags
+    SELECT r.*
     FROM assign a RIGHT OUTER JOIN roles r 
       ON (a.board = r.board AND a.role = r.role)
     WHERE a.id = ${id};
+  '
+  
+  board_roles: "
+    SELECT r.role,r.capcode,r.flags,u.username,u.screenname
+    FROM roles r 
+      LEFT OUTER JOIN (
+        assign a JOIN users u ON (a.id = u.id AND a.board = ${board})
+      ) ON (a.board = r.board AND a.role = r.role)
+      
+    WHERE r.board = ${board}
+    ORDER BY (r.role = 'owner') DESC, r.role ASC, u.screenname ASC;
+  "
+  
+  role: '
+    SELECT * FROM roles WHERE board = ${board} AND role = ${role};
   '
   
 modify:
