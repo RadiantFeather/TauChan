@@ -327,8 +327,8 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 						r.meta.type = data[0];
 						r.meta.dims = data[1];
 						r.meta.size = data[2];
-						this.resize(200, 200)
-						.write(__dirname+'/assets'+r.thumb,(err)=>{
+						this.resize(200, 200);
+						this.write(__dirname+'/assets'+r.thumb,(err)=>{
 							if (err) {
 								r = err;
 								done = true;
@@ -483,7 +483,6 @@ _.processMarkup = function(markdown, ticker=false){
 		item.start = [];
 	});
 	list.forEach((item)=>{item.exclusiveline = true;});
-	if (!ticker){
 	while (1){
 		let e = depth[depth.length-1];
 		

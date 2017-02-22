@@ -41,6 +41,7 @@ _.loadBoard = function(req,res,next){
 			{key:'spoilerimg',path:'spoiler.png'}
 			,{key:'missingimg',path:'missing.png'}
 			,{key:'deletedimg',path:'deleted.png'}
+			,{key:'processingimg',path:'processing.png'}
 			// ,{key:'videothumb',path:'video.png'}
 			// ,{key:'audiothumb',path:'audio.png'}
 			// ,{key:'banners',path:'banners'}

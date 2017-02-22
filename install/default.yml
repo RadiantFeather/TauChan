@@ -84,55 +84,44 @@ markdown:
       ordered: true
       class: 'smallalpha'
   custom:
+    # - key: 'string' # this is the key that the parser looks for (required)
+    #   exclusiveline: true # this denotes that the markdown requires to encase a single line of text
+    #   exclusivetext: false # this denotes that all markdown inside of this key will be ignored
+    #   nolinebreak: false # this denotes that line breaks are not allowed inside this key
+    #   brick: true # this wraps the key in braces similar to bbcode style syntax eg. [string][/string]
+    #   open: '<span class="start html">' # this is the opening markup, can be whatever needed (required)
+    #   close: '</span>' # this is the closing markup, can be whatever needed (required)
     - key: '=='
-      brick: false
-      exclusivetext: false
       exclusiveline: true
-      multiline: false
       open: <span class="important">
       close: </span>
     - key: '__'
-      brick: false
-      exclusivetext: false
-      exclusiveline: false
-      multiline: true
       open: <u>
       close: </u>
     - key: '""'
-      brick: false
-      exclusivetext: false
-      exclusiveline: false
-      multiline: true
       open: <i>
       close: </i>
     - key: '**'
-      brick: false
-      exclusivetext: false
-      exclusiveline: false
-      multiline: true
       open: <b>
       close: </b>
     - key: '~~'
-      brick: false
-      exclusivetext: false
-      exclusiveline: false
-      multiline: true
       open: <del>
       close: </del>
     - key: 's'
       brick: true
-      exclusivetext: false
-      exclusiveline: false
-      multiline: true
       open: <span class="spoiler">
       close: </span>
     - key: '```'
       exclusivetext: true
-      multiline: true
       open: <pre><code>
       close: </code></pre>
     - key: '``'
       exclusivetext: true
       open: <code>
       close: </code>
+    - key: 'code'
+      brick: true
+      exclusivetext: true
+      open: <pre><code>
+      close: </code></pre>
 

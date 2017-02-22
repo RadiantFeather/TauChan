@@ -1,7 +1,7 @@
 #!/bin/sh
 
 echo "Beginning Tauchan installation prerequisites setup."
-if [ $1 != "--manual" ]; then
+if [ "$1" != "--manual" ]; then
     echo "Installation order: PostgreSQL, GraphicsMagick, Redis, FFMpeg, Nodejs"
 fi
 sleep 3
@@ -19,9 +19,9 @@ sleep 3
 sudo service postgresql start
 pver=$( psql --version | sed -n 's/.* \([0-9.]*\)\.[0-9]*/\1/p' - )
 sudo service postgresql stop
-if [ $1 != "--manual" ]; then
+if [ "$1" != "--manual" ]; then
     fver="9.6"
-    if [ "$pver" != $fver ]; then
+    if [ "$pver" != "$fver" ]; then
         sudo apt-get -y --force-yes --purge remove postgresql-$pver
         sudo apt-get -y --force-yes --purge remove postgresql-contrib-$pver
     fi
@@ -37,7 +37,7 @@ fi
 PGDATA="/data/postgresql/$fver"
 mkdir -p /data/postgresql/$fver
 export PGDATA
-if [ $1 != "--manual" ]; then
+if [ "$1" != "--manual" ]; then
     sudo apt-get install -y --force-yes postgresql-$fver postgresql-contrib-$fver
     sudo service postgresql stop
 fi
@@ -56,7 +56,7 @@ echo "------------------------------------------"
 echo "Installing the GraphicsMagick dependencies..."
 echo "------------------------------------------"
 sleep 3
-if [ $1 != "--manual" ]; then
+if [ "$1" != "--manual" ]; then
     pver="1.3.25"
     mkdir -p /tmp/gm
     wget https://sourceforge.net/projects/graphicsmagick/files/graphicsmagick/$pver/GraphicsMagick-$pver.tar.gz/download -O /tmp/gm-$pver.tar.gz
@@ -71,7 +71,7 @@ echo "Installing the Redis dependencies..."
 echo "Dependency tests can take 5-10 minutes to complete."
 echo "----------------------------------"
 sleep 3
-if [ $1 != "--manual" ]; then
+if [ "$1" != "--manual" ]; then
     pver="3.2.6"
     mkdir -p /tmp/redis
     wget http://download.redis.io/releases/redis-$pver.tar.gz -O /tmp/redis-$pver.tar.gz
@@ -85,7 +85,7 @@ echo "---------------------"
 echo "Installing FFMpeg dependencies"
 echo "---------------------"
 
-if [ $1 != "--manual" ]; then
+if [ "$1" != "--manual" ]; then
     sudo add-apt-repository -y ppa:jonathonf/ffmpeg-3
     sudo apt update
     sudo apt install -y ffmpeg libav-tools x264 x265 libmp3lame0
@@ -95,7 +95,7 @@ echo "---------------------"
 echo "Installing node dependencies"
 echo "---------------------"
 cd $TWD
-if [ $1 != "--manual" ]; then
+if [ "$1" != "--manual" ]; then
     pver="6"
     if [ $( node --version ) ] && [ $( node --version | sed -n 's/v\([0-9]\)*\.[0-9]*\.[0-9]*/\1/p' ) != $pver ]; then
         if [ $( node --version ) != "" ]; then
@@ -107,5 +107,9 @@ if [ $1 != "--manual" ]; then
     fi
 fi
 npm install
+
+echo "Please enter a password for the site's database user: "
+read pass
+psql -U postgres -c "ALTER USER tauchan WITH ENCRYPTED PASSWORD '$pass';"
 
 echo "Installation prerequisites setup has completed."
