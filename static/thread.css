@@ -7,7 +7,7 @@ nav .pages span:not(:last-child):after { content: " | "; }
 .thread {
 	position:relative;
 }
-.thread .content +i{
+.thread .content +i {
 	display:block;
 	text-align:right;
 }
@@ -18,10 +18,9 @@ nav .pages span:not(:last-child):after { content: " | "; }
 	margin-top: 10px;
 	padding: 5px;
 	max-width:90%;
-}
-.thread.post.op {
-	margin-top: 5px;
-	border-top-width: 1px;
-	border-top-style: solid;
-	padding-top: 5px;
+	width: -webkit-max-content;
+	width: -moz-max-content;
+	width: -ms-max-content;
+	width: -o-max-content;
+	width: max-content;
 }

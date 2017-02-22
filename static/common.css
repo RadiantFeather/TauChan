@@ -12,6 +12,17 @@ input.toggle:not(:checked) +label +*.flip +*.switch {
 	display:none;
 }
 
+main {
+	margin-top: 5px;
+	padding-top: 5px;
+	border-top-width: 1px;
+	border-top-style: solid;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+	margin-bottom: 5px;
+	padding-bottom: 5px;
+}
+
 pre { margin: 0; padding:0; }
 
 input{

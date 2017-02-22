@@ -89,7 +89,7 @@ markdown:
     #   exclusivetext: false # this denotes that all markdown inside of this key will be ignored
     #   nolinebreak: false # this denotes that line breaks are not allowed inside this key
     #   brick: true # this wraps the key in braces similar to bbcode style syntax eg. [string][/string]
-    #   open: '<span class="start html">' # this is the opening markup, can be whatever needed (required)
+    #   open: '<span class="special">' # this is the opening markup, can be whatever needed (required)
     #   close: '</span>' # this is the closing markup, can be whatever needed (required)
     - key: '=='
       exclusiveline: true

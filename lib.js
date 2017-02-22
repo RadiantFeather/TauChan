@@ -140,7 +140,41 @@ URL.prototype.toString = URL.prototype.stringify = function(){
 };
 
 _.URL = (str)=>{ return new URL(str);};
-	
+
+_.getSpoiler = function(board,size){
+	if (!size || (board.spoilerimg && board.spoilerimg != "/_/spoiler.png")) return GLOBAL.cdn+board.spoilerimg;
+	// autosize the values to be proportional to 200px
+	let s = size.split('x');
+	if (s[0] > s[1]){ s[1] = parseInt(200 * s[1] / s[0]); s[0] = 200; } 
+	else if (s[1] > s[0]){ s[0] = parseInt(200 * s[0] / s[1]); s[1] = 200; } 
+	else { 	s[0] = 200; s[1] = 200; }
+	if (s[0] > 200) s[0] = 200;
+	if (s[1] > 200) s[1] = 200;
+	console.log('dyn spoiler fetch', s);
+	if (_.exists(__dirname+"/assets/_/media/spoiler."+s[0]+"x"+s[1]+".png"))
+		return GLOBAL.cdn+"/_/media/spoiler."+s[0]+"x"+s[1]+".png";
+	else return GLOBAL.cdn+"/_/spoiler.png";
+};
+
+function genSpoiler(board,size){
+	if (!size || (board.spoilerimg && board.spoilerimg != "/_/spoiler.png")) return;
+	// autosize the values to be proportional to 200px
+	let s = size.split('x'),r = '0';
+	if (s[0] > s[1]){ s[1] = parseInt(200 * s[1] / s[0]); s[0] = 200; } 
+	else if (s[1] > s[0]){ s[0] = parseInt(200 * s[0] / s[1]); s[1] = 200; r = '-90' } 
+	else { 	s[0] = 200; s[1] = 200; }
+	if (s[0] > 200) s[0] = 200;
+	if (s[1] > 200) s[1] = 200;
+	if (_.exists(__dirname+"/assets/_/media/spoiler."+s[0]+"x"+s[1]+".png")) return;
+	console.log('dynamic spoiler create', s);
+	_.mkdir(__dirname+'/assets/_/media/');
+	gm(s[0], s[1], "#000000") // customize color?
+		.fontSize(10)
+		.fill("#ffffff")
+		.drawText(0, 0, 'SPOILER', 'Center')
+		.write(__dirname+"/assets/_/media/spoiler."+s[0]+"x"+s[1]+".png", function (err) {if(err)console.log('spoilerGen',err);});
+}
+
 function parseExternalMedia(url) {
 	let s,m=null,done,key,found,r={meta:{}},
 		media = GLOBAL.cfg.external_media;
@@ -256,7 +290,7 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 				// extract filename
 				let fn = file.path.split('/')[file.path.split('/').length-1];
 				r.src = '/'+board+'/media/'+fn;
-				r.thumb = '/'+board+'/media/'+fn+'.thumb.jpg';
+				r.thumb = '/'+board+'/media/'+fn+'.thumb.png';
 				// get the unique md5 of the file
 				r.hash = crypto.createHash('md5').update(fs.readFileSync(__dirname+'/'+file.path, 'utf8')).digest('hex');
 				// move file from temp location to asset storage
@@ -271,23 +305,19 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 						r = err;
 						done = true;
 					} else {
-						data = data.split();
+						data = data.split(' ');
 						r.meta.all = data;
 						r.meta.type = data[0];
 						r.meta.dims = data[1];
 						r.meta.size = data[2];
+						// declare image as removable upon request error
+						trackfiles.push('/assets'+r.thumb);
 						if (['JPEG','JPG'].indexOf(data[0]) > -1)
 							this.noProfile();
 						this.resize(200, 200);
 						this.write(__dirname+'/assets'+r.thumb,(err)=>{
-							if (err) {
-								r = err;
-								done = true;
-							} else {
-								// declare image as removable upon request error
-								trackfiles.push('/assets'+r.thumb);
-								done = true;
-							}
+							if (err) r = err;
+							done = true;
 						});
 					}
 				});
@@ -306,7 +336,7 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 				// extract filename
 				let fn = file.path.split('/')[file.path.split('/').length-1];
 				r.src = '/'+board+'/media/'+fn;
-				r.thumb = '/'+board+'/media/'+fn+'.thumb.jpg';
+				r.thumb = '/'+board+'/media/'+fn+'.thumb.png';
 				// get the unique md5 of the file
 				r.hash = crypto.createHash('md5').update(fs.readFileSync(__dirname+'/'+file.path, 'utf8')).digest('hex');
 				// move file from temp location to asset storage
@@ -321,22 +351,17 @@ function parseInternalMedia(file,board,trackfiles) { // src hash thumb meta medi
 						r = err;
 						done = true;
 					} else {
-						console.log(data);
-						data = data.split();
+						data = data.split(' ');
 						r.meta.all = data;
 						r.meta.type = data[0];
 						r.meta.dims = data[1];
 						r.meta.size = data[2];
+						// declare image as removable upon request error
+						trackfiles.push('/assets'+r.thumb);
 						this.resize(200, 200);
 						this.write(__dirname+'/assets'+r.thumb,(err)=>{
-							if (err) {
-								r = err;
-								done = true;
-							} else {
-								// declare image as removable upon request error
-								trackfiles.push('/assets'+r.thumb);
-								done = true;
-							}
+							if (err) r = err;
+							done = true;
 						});
 					}
 				});
@@ -378,6 +403,7 @@ _.processPostMedia = function(board,body,files,trackfiles) {
 			let m = parseExternalMedia(body['out_media'+i]);
 			if (m instanceof Error) return m;
 			m.nsfw = !!body['spoiler_media'+i];
+			if (m.nsfw) genSpoiler(board,m.meta.dims);
 			media.push(m);
 		} else if (files) {
 			f = files.filter((cur)=>{return cur.fieldname == 'in_media'+i;});
@@ -385,6 +411,7 @@ _.processPostMedia = function(board,body,files,trackfiles) {
 			let m = parseInternalMedia(f[0],board.board,trackfiles);
 			if (m instanceof Error) return m;
 			m.nsfw = !!body['spoiler_media'+i];
+			if (m.nsfw) genSpoiler(board,m.meta.dims);
 			media.push(m);
 		}
 	}

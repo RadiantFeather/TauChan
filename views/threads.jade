@@ -14,10 +14,10 @@ mixin actions(board,post,ip)
 				
 mixin mactions(m)
 	- if (!m.nsfw && (user.auth('post.media.spoiler')||user.ip == m.ip))
-		div.spoiler.icon-cornerTL
+		div.spoilerimg.icon-cornerTL
 			a.icon-mute(title="spoiler",href="/"+m.board+"/spoilerMedia/"+m.post+"/"+m.sort)
 	- if (!m.deleted && (user.auth('post.media.delete')||user.ip == m.ip))
-		div.delete.icon-cornerBR
+		div.deleteimg.icon-cornerBR
 			a.icon-trashcan(title="delete",href="/"+m.board+"/deleteMedia/"+m.post+"/"+m.sort)
 
 mixin mediaitem(m,ip)
@@ -31,7 +31,7 @@ mixin mediaitem(m,ip)
 				div.filewrap
 					a.file(href=CDN+m.src,target="_blank")
 						- if (m.nsfw)
-							img.nsfw(src=CDN+board.spoilerimg,alt="Spoiler")
+							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
 						img.thumb(src=CDN+m.thumb,alt="Thumbnail")
 						img.full(src=CDN+m.src,alt="Original")
 					+mactions(m)
@@ -47,7 +47,7 @@ mixin mediaitem(m,ip)
 				div.filewrap
 					a.file(href=m.href, target="_blank")
 						- if (m.nsfw)
-							img.nsfw(src=CDN+board.spoilerimg, alt="Spoiler")
+							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
 						img.thumb(src=m.thumb, alt="Thumbnail")
 						iframe.full(src=m.src, alt="Original")
 					+mactions(m)
@@ -115,9 +115,9 @@ block main
 			article.thread.post.op(id='_'+data[i].post)
 				header.info
 					- if (data[i].email !== null)
-						a.name(href="mailto:"+data[i].email)= data[i].name
+						a.name(href="mailto:"+data[i].email)= data[i].name||board.noname
 					- else 
-						span.name= data[i].name
+						span.name= data[i].name||board.noname
 					- if (data[i].trip !== null)
 						span.trip= data[i].trip
 					- if (data[i].capcode !== null)
@@ -163,9 +163,9 @@ block main
 					article.post.reply(id='_'+data[i].post)
 						header.info
 							- if (data[i].email !== null)
-								a.name(href="mailto:"+data[i].email): span.name= data[i].name
+								a.name(href="mailto:"+data[i].email): span.name= data[i].name||board.noname
 							- else 
-								span.name= data[i].name
+								span.name= data[i].name||board.noname
 							- if (data[i].trip !== null)
 								span.trip= data[i].trip
 							- if (data[i].capcode !== null)

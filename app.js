@@ -66,6 +66,7 @@ app.locals.CDN = GLOBAL.cdn;
 app.locals.SITE = GLOBAL.cfg.site;
 app.locals.DEV = GLOBAL.cfg.devmode;
 app.locals.F_POSTID = GLOBAL.lib.posterID;
+app.locals.F_SPOILER = GLOBAL.lib.getSpoiler;
 app.locals.F_TOINTERVAL = GLOBAL.lib.toInterval;
 app.locals.F_UTC = (timestamp,mode)=>{
 	if (mode == 1) return (new Date(timestamp)).toUTCString();
@@ -162,6 +163,7 @@ app.get('/_/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
 		}
 	});
 });
+
 if (!GLOBAL.cfg.values.cdn_domain || GLOBAL.cfg.values.cdn_domain == 'localhost') {
 app.get('/:board/media/:file',(req,res,next)=>{ // board fileserve
 	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});

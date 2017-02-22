@@ -16,16 +16,16 @@ function loadBoardAssets(board,data,paths){
 				try {
 					data[paths[i].key] = fs.readdirSync('./assets/'+board+'/'+paths[i].path).map((cur)=>{return '/'+board+'/media/'+paths[i].path+'/'+cur;});
 				} catch(e) {
-					data[paths[i].key] = fs.readdirSync('./static/'+paths[i].path).map((cur)=>{return '/_/static/'+paths[i].path+'/'+cur;});
+					data[paths[i].key] = fs.readdirSync('./static/'+paths[i].path).map((cur)=>{return '/_/'+paths[i].path+'/'+cur;});
 				}
 				if (!data[paths[i].key].length)
-					data[paths[i].key] = fs.readdirSync('./static/'+paths[i].path).map((cur)=>{return '/_/static/'+paths[i].path+'/'+cur;});
+					data[paths[i].key] = fs.readdirSync('./static/'+paths[i].path).map((cur)=>{return '/_/'+paths[i].path+'/'+cur;});
 			}
 			else if (f.isFile()) data[paths[i].key] = '/'+board+'/media/'+paths[i].path;
 		} catch (e) {
 			try {
 				fs.statSync('./static/'+paths[i].path);
-				data[paths[i].key] = '/_/static/'+paths[i].path;
+				data[paths[i].key] = '/_/'+paths[i].path;
 			} catch(e) {
 				data[paths[i].key] = '';
 			}

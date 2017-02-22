@@ -15,7 +15,7 @@
 .post .clean.global:after,
 .post .clean.local:after { content:")"; }
 
-
+/* defining post actions dropdown menu */
 .post .postactions{
 	position:relative;
 	display:inline-block;
@@ -32,77 +32,94 @@
 	text-align:center;
 	line-height: 22px;
 }
-
 .post .postactions >ul >li{
 	white-space:nowrap;
 }
 
-html:not(.js) .post .media .file .nsfw +.thumb, 
-.post .media .file .full,
-.post .media.open .file .thumb, 
-.post .media.open .file .nsfw
-{ display:none; }
-html:not(.js) .post .media .file .nsfw,
-html:not(.js) .post .media .file .thumb,
-.post .media .file .thumb,
-.post .media.open .file .full
-{ display:block; }
-.post .media.open .file .thumb
-{ display:none!important; }
-
+/* defining post media wrappers */
 .post .media .item { 
-	display:inline-block; 
-	max-width:25vw; 
-	max-width:200px;
+	display:inline-block!important;
 	text-align:center;
+	width: -webkit-min-content;
+	width: -moz-min-content;
+	width: -ms-min-content;
+	width: -o-min-content;
+	width: min-content;
+	vertical-align: top;
 }
+.post .media .file .thumb,
+.post .media .file .nsfw { 
+	height:auto; 
+	max-width: 150px; 
+	margin: 0 auto; 
+}
+
+/* defining image viewing control (thumb, spoiler and full view) */
+.post .media .nsfw +.thumb, 
+.post .media .full,
+.post .media.open .thumb, 
+.post .media.open .nsfw
+{ display:none; }
+.post .media .nsfw,
+.post .media .thumb,
+.post .media.open .full
+{ display:block; }
+.post .media .item:hover .file .nsfw 
+{ display:none; }
+.post .media .item:hover .file .nsfw +.thumb 
+{ display:block; }
+
+/* defining the image action buttons */
 .post .media .filewrap {
 	position:relative;
 }
-
-.post .media .filewrap .spoiler,
-.post .media .filewrap .delete {
+.post .media .filewrap .spoilerimg,
+.post .media .filewrap .deleteimg {
 	transition:0.5s;
 	position: absolute;
-	font-size:65px;
+	font-size:50px;
 	opacity:0.0;
 }
-.post .media .filewrap .spoiler {
+@media (max-width:1000px) {
+	.post .media .filewrap .spoilerimg,
+	.post .media .filewrap .deleteimg {
+		font-size: calc(5vw + 10px);
+	}
+}
+
+.post .media .filewrap .spoilerimg {
 	top:0;
 	left:0;
 }
-.post .media .filewrap .delete {
+.post .media .filewrap .deleteimg {
 	bottom:0;
 	right:0;
 }
-.post .media .filewrap .spoiler >a,
-.post .media .filewrap .delete >a {
+.post .media .filewrap .spoilerimg >a,
+.post .media .filewrap .deleteimg >a {
 	position:absolute;
 	font-size:0.4em;
 }
-.post .media .filewrap .spoiler >a {
+.post .media .filewrap .spoilerimg >a {
 	bottom:1em;
 	left:0.5em;
 	color:white;
 }
-.post .media .filewrap .delete >a {
+.post .media .filewrap .deleteimg >a {
 	top:1.5em;
 	right:0.3em;
 	color:red;
 }
-.post .media .filewrap:hover .spoiler,
-.post .media .filewrap:hover .delete {
+.post .media .filewrap:hover .spoilerimg,
+.post .media .filewrap:hover .deleteimg {
 	opacity:0.5;
 }
-.post .media .filewrap:hover .spoiler >a,
-.post .media .filewrap:hover .delete >a {
+.post .media .filewrap:hover .spoilerimg >a,
+.post .media .filewrap:hover .deleteimg >a {
 	opacity:1.0;
 }
 
-.post .media .file .thumb,
-.post .media .file .nsfw
-{ height:auto; max-width:25vw; max-width:200px; }
-
+/* defining layouts for various image counts */
 .post .media.one { 
 	display:inline-block;
 	position:relative;
@@ -112,6 +129,6 @@ html:not(.js) .post .media .file .thumb,
 	margin-bottom:10px;
 }
 .post .media.many, .media.one.open { 
-	display:block; 
+	display:block;
 	margin-bottom:10px;
 }
