@@ -1,4 +1,4 @@
-
+"use strict";
 const fs = require('fs');
 // import {FS as fs} from 'fs';
 const noop = ()=>{};
@@ -215,7 +215,7 @@ const router = new Router();
 router.get('/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
 	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let options = {
-		root: __dirname
+		root: Config.cwd
 	};
 	if (ctx.params.ext == 'html' && !_exists('./'+ctx.params.file+'.'+ctx.params.ext)) {
 		ctx.cookies.set('curpage',ctx.path,{httpOnly:true});		
@@ -235,10 +235,10 @@ router.get('/_/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
 	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let f = ctx.params.file+'.'+ctx.params.ext, d = clientdepROOT,
 		options = {
-			root: __dirname +'/static/'
+			root: Config.cwd +'/static/'
 		};
 	if (f in d)
-		options.root = __dirname + d[f];
+		options.root = Config.cwd + d[f];
 	ctx.set('X-Sent',true);
 	ctx.set('X-Timestamp',ctx.state.NOW);
 	return FileSend(ctx, f, options);
@@ -248,7 +248,7 @@ if (!Config.cfg.values.cdn_domain || Config.cfg.values.cdn_domain == 'localhost'
 router.get('/:board/media/:file',(ctx,next)=>{
 	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let options = {
-		root: __dirname +'/assets/'+ ctx.params.board +'/media/',
+		root: Config.cwd +'/assets/'+ ctx.params.board +'/media/',
 	};
 	ctx.set('X-Sent',true);
 	ctx.set('X-Timestamp',ctx.state.NOW);
