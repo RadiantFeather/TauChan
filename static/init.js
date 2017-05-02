@@ -7,8 +7,8 @@ try{
 	a(3,undefined,5,4);
 }catch(e){
 	console.log(e);
-	alert('You are using an outdated browser. Please upgrade to a browser that supports ES6 standards.');
-	throw 'OutdatedBrowserError';
+	alert('You are using an outdated browser. Please upgrade to a browser that supports the latest javascript standards.');
+	throw new Error('OutdatedBrowserError');
 }
 document.documentElement.classList.add('js');
 if(1){

@@ -3,14 +3,16 @@ extends layout
 mixin actions(board,post,ip)
 	details.postactions
 		summary
-		ul
-			li: a(href="/"+board+"/report/"+post, target="_blank") Report
-			- if (user.auth('post.delete')||user.ip == ip)
-				li: a(href="/"+board+"/delete/"+post, target="_blank") Delete
-			- if (user.auth('post.ban'))
-				li: a(href="/"+board+"/ban/"+post, target="_blank") Ban
-			- if (user.auth(['post.ban','post.delete']))
-				li: a(href="/"+board+"/bnd/"+post, target="_blank") B&D
+		form(id="postactions_"+post, method="POST", target="_blank")
+			+CSRF
+			ul
+				li: button.aslink(formaction="/"+board+"/report/"+post) Report
+				- if (user.auth('post.delete')||user.ip == ip)
+					li: button.aslink(formaction="/"+board+"/delete/"+post) Delete
+				- if (user.auth('post.ban'))
+					li: button.aslink(formaction="/"+board+"/ban/"+post) Ban
+				- if (user.auth(['post.ban','post.delete']))
+					li: button.aslink(formaction="/"+board+"/bnd/"+post) B&D
 				
 mixin mactions(m)
 	- if (!m.nsfw && (user.auth('post.media.spoiler')||user.ip == m.ip))
@@ -21,10 +23,10 @@ mixin mactions(m)
 			a.icon-trashcan(title="delete",href="/"+m.board+"/deleteMedia/"+m.post+"/"+m.sort)
 
 mixin mediaitem(m,ip)
-	div.item(class={[m.mediatype]:true,'deleted':!!m.deleted,'nsfw':!!m.nsfw})
+	figure.item(class={[m.mediatype]:true,'deleted':!!m.deleted,'nsfw':!!m.nsfw})
 		- if (m.mediatype == 'img') //- Raw image
-			span.meta
-				a.url.brick(href=CDN+m.src,title=(m.meta.all||[]).join(' - '),target="_blank")= m.meta.title
+			figcaption.meta
+				a.url.brick(href=CDN+m.src,target="_blank",title=m.meta.title +"\n"+ (m.meta.all||[]).join(' - '))= m.meta.title
 			- if (m.deleted)
 				img.deleted(src=CDN+board.deletedimg,alt="Deleted")
 			- else 
@@ -33,11 +35,11 @@ mixin mediaitem(m,ip)
 						- if (m.nsfw)
 							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
 						img.thumb(src=CDN+m.thumb,alt="Thumbnail")
-						img.full(src=CDN+m.src,alt="Original")
+						img.full(data-src=CDN+m.src,alt="Original")
 					+mactions(m)
 		
 		- else if (m.mediatype == 'you') //- Youtube
-			span.meta
+			figcaption.meta
 				a.url.brick(href=m.href, target="_blank")= m.meta.title
 				- if (m.meta.duration)
 					span.duration= m.meta.duration
@@ -49,7 +51,7 @@ mixin mediaitem(m,ip)
 						- if (m.nsfw)
 							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
 						img.thumb(src=m.thumb, alt="Thumbnail")
-						iframe.full(src=m.src, alt="Original")
+						iframe.full(data-src=m.src, alt="Original")
 					+mactions(m)
 
 		//- - else if (m.mediatype == 'vid') //- Raw video
@@ -100,7 +102,7 @@ block head
 	+script('thread.js')
 	
 block header
-	include partials/newPost.jade
+	include partials/newPost
 								
 block main
 	//- include ticker.pug
@@ -133,16 +135,17 @@ block main
 					+date_time('stamp', data[i].posted)
 					- if (board.postids)
 						span.postid= F_POSTID(data[i].ip,data[i].board,data[i].thread)
+					//- Move the onclick to a clientside script
 					a.quote(href=(page.type=='index'?"/"+board.board+"/"+data[i].thread+"#_"+data[i].post:"#_"+data[i].post), onclick="if('"+page.type+"'=='thread')return quotePost("+data[i].post+"),false;")= data[i].post
 					+state(data[i])
 					+actions(board.board,data[i].post,data[i].ip)
 					span.cited
 						- if (data[i].targets !== null)
-							- each t in data[i].targets 
+							each t in data[i].targets 
 								cite: a(href="#_"+t.post)
 				div.media(class=(data[i].media === null ? 'none' : data[i].media.length > 1 ? 'many' : data[i].media.length == 1 ? 'one' : 'none'))
 					- if (data[i].media !== null) 
-						- each m in data[i].media 
+						each m in data[i].media 
 							+mediaitem(m,data[i].ip)
 				span.content!= data[i].markup
 				- if (data[i].banned !== null)
@@ -181,15 +184,16 @@ block main
 							+date_time('stamp', data[i].posted)
 							- if (board.postids)
 								span.postid= F_POSTID(data[i].ip,data[i].board,data[i].thread)
+							//- Move the onclick to a clientside script
 							a.quote(href=(page.type=='index'?"/"+board.board+"/"+data[i].thread+"#_"+data[i].post:"#_"+data[i].post), onclick="if('"+page.type+"'=='thread')return quotePost('"+data[i].post+"'),false;")= data[i].post
 							+actions(board.board,data[i].post,data[i].ip)
 							span.cited
 								- if (data[i].targets !== null)
-									- each t in data[i].targets
+									each t in data[i].targets 
 										cite: a(href="#_"+t.post) >>#{t.post}
 						div.media(class=(data[i].media === null ? 'none' : data[i].media.length > 1 ? 'many' : data[i].media.length == 1 ? 'one' : 'none'))
 							- if (data[i].media !== null)
-								- each m in data[i].media
+								each m in data[i].media
 									+mediaitem(m,data[i].ip)
 						span.content!= data[i].markup
 						- if (data[i].banned !== null)
@@ -244,4 +248,4 @@ block nav
 				span.pages
 					- var i = 0
 					- while (++i <= data[0].pages)
-						span: a(href=(i!=curpage)?"/"+board.board+"/?page="+(i):false) !{i}}
+						span: a(href=(i!=curpage)?"/"+board.board+"/?page="+(i):false) !{i}

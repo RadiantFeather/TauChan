@@ -17,7 +17,7 @@ nav .pages span:not(:last-child):after { content: " | "; }
 	border-style: solid;
 	margin-top: 10px;
 	padding: 5px;
-	max-width:90%;
+	max-width:80%;
 	width: -webkit-max-content;
 	width: -moz-max-content;
 	width: -ms-max-content;

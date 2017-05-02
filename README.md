@@ -12,17 +12,19 @@ Very raw. Could contain embarrassing code.
 ### App routing plan: /:board/:page/:action?/:data? (simplicity is best, right?)
 #### GET cascade
 
-* / - overboard
+* / - overboard index
+* /_/ - underboard index
+* /:board/ - board index
 
 ###### Global
-* /_/(index)? - moderator frontpage view
+* /_/index - underboard index alias
 * /_/bans - list all bans for boards with public bans endabled (filterable)
 * /_/banned - list all global and board level bans that your IP is affected by
 * /_/logs - global moderator actions log (restricted access)
 * /_/reports - list all reports that have been escalated to global (restricted access)
 
 ###### Boards
-* /:board/(index)? - board index
+* /:board/index - board index alias
 * /:board/:thread(\d+) - view thread or redirect to thread containing the post
 * /:board/bans - list all bans for requested board (restricted access if public bans disabled)
 * /:board/banned - check if your IP is banned from requested board (includes global bans)

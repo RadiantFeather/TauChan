@@ -1,19 +1,19 @@
 post:
   delete: 'delete a post'
-  ban: 'ban an IP'
   media:
     delete: 'delete media from a post'
     spoiler: 'spoiler media in a post'
+  ban: 'ban an IP'
   
 thread:
-  sage: 'set flag to prevent new replies bumping the thread'
-  pinned: 'set flag to keep thread at the very top of the board (only one allowed per board)'
-  sticky: 'set flag to keep thread above normal threads'
+  sage: 'set flag to prevent new replies from bumping a thread'
+  pinned: 'set flag to keep a thread at the very top of the board (only one allowed per board)'
+  sticky: 'set flag to keepa a thread above normal threads'
   cycle: 'set flag to have old posts truncated in favor of new posts in a thread'
-  anchor: 'set flag to keep thread on the board even if autosaged or bumplimit is active'
-  locked: 'set flag to prevent unauthorized users from posting in the thread'
-  archive: 'archive or revive a thread'
-  feature: 'mark as a featured thread that will permanently stay in the archive (can still be reported on)'
+  anchor: 'set flag to keep a thread on the board even if autosaged or bumplimit is active'
+  locked: 'set flag to prevent unauthorized users from posting in a thread'
+  archive: 'manually archive or revive a thread'
+  feature: 'set flag to keep a thread permanently in the archive (can still be reported on)'
   
 board:
   view:
@@ -27,22 +27,24 @@ board:
     reports: 'view, escalate and delete reports'
     pages: 'edit custom board pages'
     settings: 'view and/or edit board settings'
-    roles: 'edit board roles and authorized users'
-    history: 'see the post history for the entire board'
     logs: 
       info: 'view logs with INFO severity level (on by default)'
       notice: 'view logs with NOTICE and lower severity level'
       warning: 'view logs with WARNING and lower severity level'
       error: 'view logs with ERROR and lower severity level'
+    roles: 
+      view: 'view board roles and authorized users'
+      edit: 'edit board roles and authorized users'
+    history: 'see the post history for the entire board'
   settings:
-    info: 'edit board information settings like the Title and board tags'
+    info: 'edit board information settings like the title and board tags'
     limits: 'edit various limit values for the board and its threads'
     flags: 'enable/disable various boolean options for the board'
     header: 'edit the board announcement section/header'
-    archive_lifespan: 'edit the lifespan of threads to exisst in the archive'
-      
+    archive_lifespan: 'edit the lifespan of threads in an archived state'
+    
   
-site:
-  board:
-    create: 'create a new board'
+#site:
+#  boards:
+#    create: 'create a new board'
 

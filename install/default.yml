@@ -1,7 +1,7 @@
-version: 0.0.1
+version: 0.0.3
 port: 8080
 devmode: true
-secret: this_will_be_generated_when_you_install_the_app_installation
+secret: this_will_be_generated_when_you_run_the_app_installation
 site:
   name: Tauchan Imageboard
   desc: An imageboard based on the tauchan imageboard framework.
@@ -32,6 +32,7 @@ capcodes:
   - Admin
   - Owner
   - Manager
+  - Vol
 custom_tripcodes:
   '#demotrip': '4ctual_tr!p'
   '##demosecuretrip': '4ctual_$ecur3_tr!p'
@@ -93,35 +94,35 @@ markdown:
     #   close: '</span>' # this is the closing markup, can be whatever needed (required)
     - key: '=='
       exclusiveline: true
-      open: <span class="important">
-      close: </span>
+      open: '<span class="important">'
+      close: '</span>'
     - key: '__'
-      open: <u>
-      close: </u>
+      open: '<u>'
+      close: '</u>'
     - key: '""'
-      open: <i>
-      close: </i>
+      open: '<i>'
+      close: '</i>'
     - key: '**'
-      open: <b>
-      close: </b>
+      open: '<b>'
+      close: '</b>'
     - key: '~~'
-      open: <del>
-      close: </del>
+      open: '<del>'
+      close: '</del>'
     - key: 's'
       brick: true
-      open: <span class="spoiler">
-      close: </span>
+      open: '<span class="spoiler">'
+      close: '</span>'
     - key: '```'
       exclusivetext: true
-      open: <pre><code>
-      close: </code></pre>
+      open: '<pre><code>'
+      close: '</code></pre>'
     - key: '``'
       exclusivetext: true
-      open: <code>
-      close: </code>
+      open: '<code>'
+      close: '</code>'
     - key: 'code'
       brick: true
       exclusivetext: true
-      open: <pre><code>
-      close: </code></pre>
+      open: '<pre><code>'
+      close: '</code></pre>'
 

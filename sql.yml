@@ -223,7 +223,7 @@ view:
   '
   
   board_roles: "
-    SELECT r.role,r.capcode,r.flags,u.username,u.screenname
+    SELECT r.role,r.capcode,u.username,u.screenname
     FROM roles r 
       LEFT OUTER JOIN (
         assign a JOIN users u ON (a.id = u.id AND a.board = ${board})

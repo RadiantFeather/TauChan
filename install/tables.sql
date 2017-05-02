@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS boards (
 	created TIMESTAMP DEFAULT NOW(),
 	bumped TIMESTAMP,
 	global BOOLEAN DEFAULT FALSE,
-	noname VARCHAR(16) DEFAULT 'Anonymous',
+	noname VARCHAR(32) DEFAULT 'Anonymous',
 	lockedlimit SMALLINT DEFAULT 0 CONSTRAINT locked_preview_limit CHECK (0 <= lockedlimit AND lockedlimit <= 10),
 	pinnedlimit SMALLINT DEFAULT 1 CONSTRAINT pinned_preview_limit CHECK (0 <= pinnedlimit AND pinnedlimit <= 10),
 	stickylimit SMALLINT DEFAULT 2 CONSTRAINT sticky_preview_limit CHECK (0 <= stickylimit AND stickylimit <= 10),

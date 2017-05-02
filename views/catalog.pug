@@ -5,7 +5,7 @@ block head
 	+style('newPost.css')
 
 block header
-	include partials/newPost.jade
+	include partials/newPost
 
 block main
 	- var i = -1
@@ -20,7 +20,7 @@ block main
 						- if (data[i].nsfw)
 							img.nsfw(src=CDN+board.spoilerimg,alt="Image is spoilered")
 						img(src=CDN+data[i].thumb,alt="Thumbnail")
-					- else
+					- else 
 						img(src=CDN+board.deletedimg,alt="Image is deleted")
 			span.meta
 				span.replies(title="Replies")= data[i].replies

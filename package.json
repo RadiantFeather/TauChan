@@ -28,24 +28,34 @@
     "url": "https://github.com/TauChan/alpha/issues"
   },
   "dependencies": {
-    "bluebird": "^3.4.7",
-    "cookie": "^0.3.1",
-    "cookie-parser": "^1.4.3",
-    "deasync": "^0.1.9",
-    "express": "^4.14.0",
-    "express-session": "^1.14.2",
     "fluent-ffmpeg": "^2.1.0",
     "gm": "^1.23.0",
-    "jade": "^1.11.0",
-    "marked": "^0.3.6",
-    "multer": "^1.2.1",
+    "koa": "^2.2.0",
+    "koa-bodyparser": "^4.2.0",
+    "koa-csrf": "^3.0.5",
+    "koa-isajax": "^1.0.5",
+    "koa-pug": "^3.0.0-2",
+    "koa-redis": "^3.0.0",
+    "koa-router": "^7.1.1",
+    "koa-send": "^4.1.0",
+    "koa-session2": "^2.2.3",
+    "koa-useragent": "^1.0.0",
+    "marked-promise": "^2.0.0",
+    "multer": "^1.3.0",
     "node-html-encoder": "0.0.2",
     "pg-promise": "^5.5.2",
-    "pug": "^2.0.0-beta6",
+    "promisified-request": "0.0.3",
+    "promisifier": "^0.1.4",
     "read-yaml": "^1.0.0",
-    "redis": "^2.6.5",
     "request": "^2.79.0",
     "socket.io": "^1.7.2",
+    "underscore": "^1.6.x",
     "write-yaml": "^0.2.2"
+  },
+  "devDependencies": {
+    "koa-logger": "^2.0.1"
+  }
+  "engines":{
+    "node": ">= 7.9.0"
   }
 }

@@ -23,6 +23,10 @@ main {
 	padding-bottom: 5px;
 }
 
+details { margin-right:0!important; }
+
+figure { margin:15px; }
+
 pre { margin: 0; padding:0; }
 
 input{

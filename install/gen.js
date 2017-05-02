@@ -1,6 +1,9 @@
 "use strict";
-const Chance = require(__dirname+'/chance.js');
-
+//*/
+const Chance = require('./chance');
+/*/
+import Chance from './chance';
+//*/
 
 // Random helper functions
 function initOptions(options, defaults) {
@@ -585,7 +588,7 @@ class Gen extends Chance {
         var stemp = this.genRandomSentenceTemplate();
         var i;
         var s = "";
-        for ( i=0; i<stemp.length; i++ ) {;
+        for ( i=0; i<stemp.length; i++ ) {
             var c = stemp.substring(i,i+1);
             var w = "";
             switch (c) {
@@ -606,3 +609,4 @@ class Gen extends Chance {
 }
 
 module.exports = Gen;
+// export {Gen as default};

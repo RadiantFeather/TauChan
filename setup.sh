@@ -17,7 +17,7 @@ echo "Installing the PostgreSQL dependencies..."
 echo "--------------------------------------"
 sleep 3
 sudo service postgresql start
-pver=$( psql --version | sed -n 's/.* \([0-9.]*\)\.[0-9]*/\1/p' - )
+pver=$( psql --version | sed -n 's/.* \([0-9.]*\)\.[0-9]*$/\1/p' - )
 sudo service postgresql stop
 if [ "$1" != "--manual" ]; then
     fver="9.6"
@@ -68,11 +68,10 @@ fi
 
 echo "----------------------------------"
 echo "Installing the Redis dependencies..."
-echo "Dependency tests can take 5-10 minutes to complete."
 echo "----------------------------------"
 sleep 3
 if [ "$1" != "--manual" ]; then
-    pver="3.2.6"
+    pver="3.2.8"
     mkdir -p /tmp/redis
     wget http://download.redis.io/releases/redis-$pver.tar.gz -O /tmp/redis-$pver.tar.gz
     tar -xvzf /tmp/redis-$pver.tar.gz -C /tmp/redis --strip-components=1 && unlink /tmp/redis-$pver.tar.gz
@@ -81,9 +80,9 @@ if [ "$1" != "--manual" ]; then
 fi
 sudo apt-get install -y tcl8.5
 
-echo "---------------------"
-echo "Installing FFMpeg dependencies"
-echo "---------------------"
+echo "------------------------------"
+echo "Installing FFMpeg dependencies..."
+echo "------------------------------"
 
 if [ "$1" != "--manual" ]; then
     sudo add-apt-repository -y ppa:jonathonf/ffmpeg-3
@@ -91,25 +90,31 @@ if [ "$1" != "--manual" ]; then
     sudo apt install -y ffmpeg libav-tools x264 x265 libmp3lame0
 fi
 
-echo "---------------------"
-echo "Installing node dependencies"
-echo "---------------------"
+echo "----------------------------"
+echo "Installing node dependencies..."
+echo "----------------------------"
 cd $TWD
 if [ "$1" != "--manual" ]; then
-    pver="6"
-    if [ $( node --version ) ] && [ $( node --version | sed -n 's/v\([0-9]\)*\.[0-9]*\.[0-9]*/\1/p' ) != $pver ]; then
-        if [ $( node --version ) != "" ]; then
-            sudo apt-get -y --purge remove nodejs
-        fi
-        curl -sL https://deb.nodesource.com/setup_$pver.x | sudo -E bash -
-        sudo apt-get install nodejs
-        echo "Node version: $( nodejs --version )"
+    pver="7"
+    if [ "_$NVM_DIR" != "_" ]; then # if NVM is present, remove
+        rm -rf $NVM_DIR/
+        sed -i 's/\(.*nvm.*\)//g' ~/.profile
+        export PATH="$( echo $PATH | sed 's|:*[^:]*nvm[^:]*:*|:|' )"
+    fi                            # else use apt-get
+    if [ "_$( nodejs --version )" != "_" ]; then
+        sudo apt-get -y --purge remove nodejs
+        sudo apt-get -y autoremove
     fi
+    curl -sL https://deb.nodesource.com/setup_$pver.x | sudo -E bash -
+    sudo apt-get -y install nodejs
+    if [ -e /usr/bin/node ]; then
+        sudo rm /usr/bin/node
+    fi
+    sudo ln -s /usr/bin/nodejs /usr/bin/node
+    echo "Node version: $( nodejs --version )"
 fi
 npm install
 
-echo "Please enter a password for the site's database user: "
+echo "Please enter a password for the site's database use: "
 read pass
 psql -U postgres -c "ALTER USER tauchan WITH ENCRYPTED PASSWORD '$pass';"
-
-echo "Installation prerequisites setup has completed."

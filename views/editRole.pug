@@ -1,0 +1,47 @@
+extends layout
+
+block head
+    +style('roles.css')
+    
+    
+mixin roleloop(level,depth)
+    - var j = 0
+    - while (++j <=2)
+        each v, i in level 
+            - depth.push(i);
+            - if (typeof v == 'object' && j == 2)
+                - var printlevel = false 
+                each x, i in v
+                    - if (typeof x != 'object')
+                        - printlevel = true
+                        - break
+                - if (printlevel)
+                    tr: td.group(data-depth=depth.length-1)
+                            b: big= "> "+depth.map((item)=>{return item.toCamelCase();}).join(" > ")
+                +roleloop(v,depth)
+            - else if (typeof v != 'object' && j == 1)
+                tr
+                    td.value(data-depth=depth.length-1)= i.toLowerCamelCase(" ")
+                    td.desc Can #{v}.
+                    td
+                        input(type="radio",name=depth.join("."),value="yes")
+                    td
+                        input(type="radio",name=depth.join("."),value="default")
+                    td
+                        input(type="radio",name=depth.join("."),value="no")
+            - depth.pop();
+    
+block main 
+    
+    form(method="POST",enctype="application/x-www-form-urlencoded")
+        +CSRF
+        table
+            thead
+                th Role
+                th Description
+                th Allowed
+                th Default
+                th Denied
+            tbody
+                +roleloop(flags,[])
+                

@@ -3,14 +3,12 @@
 --
 CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER AS $$
 BEGIN
-	IF (NEW.passphrase IS NOT NULL) THEN
-		NEW.passphrase := crypt(NEW.passphrase,gen_salt('md5'::TEXT));
-	END IF;
+	NEW.passphrase := crypt(NEW.passphrase,gen_salt('md5'::TEXT));
 	RETURN NEW;
 END;$$ LANGUAGE plpgsql;
 
 CREATE TRIGGER hash_password
-	BEFORE INSERT OR UPDATE ON users
+	BEFORE INSERT OR UPDATE OF passphrase ON users
 	FOR EACH ROW
 	EXECUTE PROCEDURE hash_password();
 	

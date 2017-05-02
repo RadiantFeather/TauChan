@@ -1,0 +1,29 @@
+extends layout
+
+block head
+    +style('roles.css')
+    
+block header
+    h2.newrole
+        a.brick(href='/'+board.board+'/roles/new/') New Role
+    
+block main
+    div.roles
+        each role in data 
+            fieldset.role
+                legend 
+                    span #{role.role} # #{role.capcode} 
+                    -if (role.role != 'owner')
+                        a.brick(href='/'+board.board+'/roles/edit/'+role.role) - Edit Role
+                form(method="POST",action='/'+board.board+'/roles/addto/'+role.role)
+                    +CSRF
+                    input(type="text",name="user",pattern="^[a-zA-Z0-9_]*$")
+                    input(type="submit",value="Add User")
+                each u in role.users 
+                    div.user #{u.screenname} [#{u.username}]
+                        form(method="POST",action='/'+board.board+'/roles/removefrom/'+role.role)
+                            +CSRF
+                            input(type="hidden",name="user",value=u.username)
+                            input(type="submit",value="Remove")
+                    
+            

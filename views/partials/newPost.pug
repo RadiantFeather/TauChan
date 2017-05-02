@@ -9,32 +9,33 @@
 		- else if (page.type == 'thread')
 			h1.brick New Reply
 	form#newpost(method="POST", enctype="multipart/form-data", action=(page.type!='thread'&&page.param!='archived_thread'?"/"+board.board:""))
+		+CSRF
 		table
 			tr: td Name
-				td: input(name="name", type="text", placeholder=board.noname)
+				td: input(name="name", type="text", tabindex="0", placeholder=board.noname)
 			- if (board.emailsubmit)
 				tr: td Email
-					td: input(name="email", type="text", placeholder="or sage")
+					td: input(name="email", type="text", tabindex="0", placeholder="or sage")
 			tr: td Subject
 				td
-					input(name="subject", type="text")
-					input(type="submit", value=(page.type=='index'?"New Thread":page.type=='thread'?"New Reply":"New Post"))
+					input(name="subject", tabindex="0", type="text")
+					input(type="submit", tabindex="2", value=(page.type=='index'?"New Thread":page.type=='thread'?"New Reply":"New Post"))
 			tr: td Comment
-				td: textarea(name="markdown", placeholder="Write your dank memes here.")
+				td: textarea(name="markdown", tabindex="0", placeholder="Write your dank memes here.", required)
 			- if (board.mediauploadlimit > 0)
 				tr: td Media
 					td
 						div.upload
 							- var i = -1
 							- while (++i < board.mediauploadlimit)
-								input.toggle.showsource(name="include"+i, type="checkbox", id="showsource"+i)
+								input.toggle.showsource(name="include"+i, tabindex="1", type="checkbox", id="showsource"+i)
 								label.hide(for="showsource"+i) Add Source
 								div
-									input(id="spoiler"+i,type="checkbox", name="spoiler_media"+i)
+									input(id="spoiler"+i,type="checkbox", tabindex="1", name="spoiler_media"+i)
 									label(for="spoiler"+i) NSFW
-									input.toggle.source(name="is_external"+i, type="checkbox",id="source"+i)
+									input.toggle.source(name="is_external"+i, tabindex="1", type="checkbox",id="source"+i)
 									label.brick(for="source"+i) Source
-									input(type="text", name="out_media"+i, accept="image/*,video/*,audio/*", placeholder="External Media")
+									input(type="text", name="out_media"+i, tabindex="1", accept="image/*,video/*,audio/*", placeholder="External Media")
 									input.switch(type="file", name="in_media"+i, accept="image/*,video/*,audio/*", placeholder="External Media")
 								
 			- if (page.type=='index')

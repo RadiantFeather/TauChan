@@ -1,0 +1,16 @@
+.newrole {
+    font-weight:bold;
+    font-size:30px;
+    text-align:center;
+}
+.roles .role {
+    width:fit-content;
+    display:inline-block;
+}
+.roles .role .user{
+    margin-top:10px;
+}
+.roles .role .user >form{
+    display:inline-block;
+    margin-left:10px;
+}

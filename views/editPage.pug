@@ -4,7 +4,8 @@ block header
 	h1 Create a New Custom Page
 
 block content
-	form#editPage(method="POST",action="",enctype="multipart/form-data")
+	form#editPage(method="POST",action="",enctype="application/x-www-form-urlencoded")
+		+CSRF
 		- if (err && (DEV || status != 500))
 			h4._error= err.message
 		- else if (err)

@@ -1,6 +1,7 @@
-"use strict";
-require('./extend.js');
+
 const fs = require('fs');
+// import {FS as fs} from 'fs';
+const noop = ()=>{};
 const _exists = function(path){
 	try {
 		fs.statSync(path);
@@ -10,43 +11,76 @@ const _exists = function(path){
 if (!_exists('./conf/installed')) return console.log('App has not been installed yet. Please run the /install/app.js script to setup the application.');
 if (!_exists('./conf/config.yml')) return console.log('Missing config file. Please run the /install/app.js script to setup the config file.');
 console.log('Loading server...');
-const express = require('express'),
-	// cookie = require('cookie'),
-	cookieParser = require('cookie-parser'),
-	session = require('express-session'),
-	yml = {read: require('read-yaml'), write: require('write-yaml')};
-
-const pgpopts = {promiseLib: require('bluebird'), capSQL:true};
+require('./extend');
 
 
-// Configuations
-GLOBAL.cfg = yml.read.sync('./conf/config.yml');
-GLOBAL.db = (GLOBAL.pgp = require('pg-promise')(pgpopts))(GLOBAL.cfg.database);
-GLOBAL.sql = yml.read.sync('./sql.yml');
-GLOBAL.flags = yml.read.sync('./flags.yml');
-GLOBAL.errors = yml.read.sync('./errors.yml');
+//*/
 
-// var monitor = require('pg-monitor');
-// monitor.attach(pgpopts);
+// imports
+const Koa = require('koa');
+const Session = require('koa-session2');
+//const Convert = require('koa-convert');
+const CSRF = require('koa-csrf').default;
+const Pug = require('koa-pug');
+const Redis = require('koa-redis');
+const FileSend = require('koa-send');
+const UserAgent = require('koa-useragent');
+const BodyParser = require('koa-bodyparser');
+const Router = require('koa-router');
+const DetectAjax = require('koa-isajax');
 
-if (GLOBAL.cfg.values.cdn_domain == 'localhost') GLOBAL.cdn = '';
-else if (GLOBAL.cfg.values.cdn_domain.indexOf('://')<0)
-	GLOBAL.cdn = GLOBAL.cfg.values.cdn_domain?'//'+GLOBAL.cfg.values.cdn_domain:'';
+const Config = require('./config');
+const Lib = require('./lib');
+Config.lib = Lib;
 
-// Common functions
-GLOBAL.lib = require('./lib');
+/*/ 
 
-// Content Security Policy setter function
-let whitelist = GLOBAL.cfg.external_whitelist;
+// imports for when the feature is supported in node.
+import Koa from 'koa';
+import Session from 'koa-session2';
+//import Convert from 'koa-convert';
+import CSRF from 'koa-csrf';
+import Pug from 'koa-pug';
+import Redis from 'koa-redis';
+import FileSend from 'koa-send';
+import UserAgent from 'koa-useragent';
+import BodyParser from 'koa-bodyparser';
+import Router from 'koa-router';
+import DetectAjax from 'koa-isajax';
 
+import Config from './config';
+import Lib from './lib';
+Config.lib = Lib;
+
+//*/
+
+// Content Security Policy value
+let whitelist = Config.cfg.external_whitelist;
 const cspheadervalue = "default-src 'self';"+
-	"script-src 'self' "+GLOBAL.cdn+" "+(whitelist.script||[]).join(' ')+"; "+
-	"style-src 'self' "+GLOBAL.cdn+" "+(whitelist.style||[]).join(' ')+"; "+
+	"script-src 'self' 'nonce-#inline#' "+Config.cdn+" "+(whitelist.script||[]).join(' ')+"; "+
+	"style-src 'self' 'nonce-#inline#' "+Config.cdn+" "+(whitelist.style||[]).join(' ')+"; "+
 	"img-src 'self' data: "+(whitelist.raw||[]).join(' ')+"; "+
 	"media-src 'self' "+(whitelist.raw||[]).join(' ')+"; "+
 	"connect-src 'self'; "+
-	"child-src 'self' "+(whitelist.embed||[]).join(' ')+"; "
-const CSPheader = (req,res,next)=>{res.set('Content-Security-Policy',cspheadervalue);if(next)return next();};
+	"child-src 'self' "+(whitelist.embed||[]).join(' ')+"; ";
+	
+// Request headers setter function
+const HTMLheaders = (ctx,next)=>{
+	ctx.state.INLINEHASH = Config.lib.genNonce();
+	let cspval = cspheadervalue.replace(new RegExp("#inline#",'g'),ctx.state.INLINEHASH);
+	ctx.set('Content-Security-Policy',cspval);
+	ctx.set('X-Content-Security-Policy',cspval); // Old IE
+	ctx.set('X-Webkit-CSP',cspval); // Old Chrome
+	ctx.set('Content-Type', 'text/html; charset=utf-8');
+	// ctx.set('Expect-CT', 'enforce; max-age=60;');
+	ctx.set('Referrer-Policy', 'strict-origin');
+	ctx.set('X-Xss-Protection', '1; mode=block');
+	ctx.set('X-Content-Type-Options', 'nosniff');
+	ctx.set('X-Frame-Options', 'SAMEORIGIN');
+	// ctx.set('Strict-Transport-Security', 'max-age=631138519');
+	// ctx.set('Public-Key-Pins', 'pin-sha256="INSERTSTRINGHERE"; max-age=1000; includeSubdomains;');
+	if (next) return next();
+};
 
 
 // Page request handlers
@@ -54,46 +88,87 @@ const global = require('./global'),
 	boards = require('./boards'),
 	middle = require('./middleware');
 
-var app = express();
 
-// override using the old jade engine
-// uncomment only when pug has hit official release!
-// app.set('view engine','pug');
-// app.engine('pug', require('pug').__express);
-
-// Persistent locals for templates
-app.locals.CDN = GLOBAL.cdn;
-app.locals.SITE = GLOBAL.cfg.site;
-app.locals.DEV = GLOBAL.cfg.devmode;
-app.locals.F_POSTID = GLOBAL.lib.posterID;
-app.locals.F_SPOILER = GLOBAL.lib.getSpoiler;
-app.locals.F_TOINTERVAL = GLOBAL.lib.toInterval;
-app.locals.F_UTC = (timestamp,mode)=>{
+// Setting up Pug Template Renderer
+const pug = new Pug({
+  viewPath: './views',
+  debug: Config.env === 'development',
+  pretty: false,
+  compileDebug: false,
+  locals: {},
+  //basedir: 'path/for/pug/extends',
+  helperPath: [
+  ]
+});
+// Persistent locals
+pug.locals.CDN = Config.cdn;
+pug.locals.DEV = Config.cfg.devmode;
+pug.locals.F_POSTID = Config.lib.posterID;
+pug.locals.F_SPOILER = Config.lib.getSpoiler;
+pug.locals.F_TOINTERVAL = Config.lib.toInterval;
+pug.locals.F_UTC = (timestamp,mode)=>{
 	if (mode == 1) return (new Date(timestamp)).toUTCString();
 	else if (mode == 2) return (new Date(timestamp)).toLocaleString();
 	else return (new Date(timestamp)).toISOString();
 };
-app.locals.CLIENTDEPS = {
+// client dependencies: External url or leave blank for local
+pug.locals.CLIENTDEPS = {
 	'vQuery.js':'',
 	'socket.io.js':'',
 	'common.css':'',
 	'icons.css':''
 };
-for (let i in app.locals.CLIENTDEPS){
-	if (GLOBAL.cfg.external_sources && GLOBAL.cfg.external_sources[i])
-		app.locals.CLIENTDEPS[i] = GLOBAL.cfg.external_sources[i];
-	else app.locals.CLIENTDEPS[i] = GLOBAL.cdn+'/_/'+i;
+// Dependencies are internal or external?
+for (let i in pug.locals.CLIENTDEPS){
+	if (Config.cfg.external_sources && Config.cfg.external_sources[i])
+		pug.locals.CLIENTDEPS[i] = Config.cfg.external_sources[i];
+	else pug.locals.CLIENTDEPS[i] = Config.cdn+'/_/'+i;
 }
+// alternate local locations if not located in the /static/ folder
 var clientdepROOT = {
 	'socket.io.js':'/node_modules/socket.io-client/'
-}, requestCount = 0;
+};
 
-app.use(cookieParser());
-app.use(session({
-	secret: GLOBAL.cfg.secret,
-	name: 'sid',
-	saveUninitialized: false,
-	resave: false,
+
+// BEGIN APP DECLARATION
+
+const app = new Koa();
+
+// CSRF validator
+const checkCSRF = new CSRF({
+  invalidSessionSecretMessage: 'Invalid session secret',
+  invalidSessionSecretStatusCode: 403,
+  invalidTokenMessage: 'Invalid CSRF token',
+  invalidTokenStatusCode: 403,
+  excludedMethods: [ 'GET', 'HEAD', 'OPTIONS' ],
+  disableQuery: true
+});
+
+app.context.checkCSRF = function(){
+	return checkCSRF(this,noop);
+};
+
+app.context.json = (obj)=>{
+	this.type = 'text/json';
+	this.body = JSON.stringify(obj);
+};
+
+app.keys = [Config.cfg.secret,'reeeenormiesgetoutofmycode'];
+pug.use(app);
+
+// Error handling must be first!
+app.use(middle.handleErrors);
+
+// ctx.request.body
+app.use(BodyParser());
+// ctx.userAgent
+app.use(UserAgent);
+// ctx.state.xhr
+app.use(DetectAjax());
+
+app.use(Session({
+	key: 'sid',
+	//store: new Redis(),
 	cookie: {
 		path: '/',
 		httpOnly: true,
@@ -102,161 +177,194 @@ app.use(session({
 	}
 })); // TODO: implement Redis into sessions
 
-app.use((req,res,next)=>{
-	if (req.method == 'GET') {
+app.use((ctx,next)=>{
+	// Handle use for the redirection cookies
+	if (ctx.method == 'GET') {
 		let opts = {httpOnly:true};
-		if (!req.cookies.curpage) res.cookie('lastpage', req.path, opts);
-		else res.cookie('lastpage', req.cookies.curpage, opts);
-		res.cookie('curpage', req.path, opts);
+		if (!ctx.cookies.get('curpage')) ctx.cookies.set('lastpage', ctx.path, opts);
+		else ctx.cookies.set('lastpage', ctx.cookies.get('curpage'), opts);
+		ctx.cookies.set('curpage', ctx.path, opts);
 	}
-	if (GLOBAL.cfg.devmode) {
-		GLOBAL.cfg = yml.read.sync('./conf/config.yml');
-		GLOBAL.sql = yml.read.sync('./sql.yml');
-		GLOBAL.flags = yml.read.sync('./flags.yml');
-		req.IP = req.query.simip||req.ip;
-		console.log(req.path, req.ip);
-	}
-	res.locals.NOW = Date.now();
-	res.locals.META = {};
+	
+	// Devmode dynamic reloading
+	if (Config.env == 'development') {
+		Config.reload();
+		if ('simip' in ctx.query){
+			if (ctx.query.simip == '')
+				delete ctx.session.IP;
+			ctx.IP = ctx.session.IP = ctx.query.simip||ctx.ip;
+		} else ctx.IP = ctx.session.IP||ctx.ip;
+	} else ctx.IP = ctx.ip;
+	
+	ctx.state.NOW = Date.now();
+	ctx.state.META = {};
+	ctx.state.SITE = Config.cfg.site;
+	
 	return next();
 });
 
-app.get('/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
-	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
+// ----------------   BEGIN ROUTER DECLARATION  ----------------------
+
+const router = new Router();
+
+// ----------------   BEGIN FILE SERVE   ----------------------
+
+
+
+// Global custom pages if HTML or optional whitelisted files in server root
+router.get('/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
+	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let options = {
-		root: __dirname,
-		dotfiles: 'deny',
-		headers: {
-			'x-timestamp': res.locals.NOW,
-			'x-sent': true
-		}
+		root: __dirname
 	};
-	if (req.params.ext == 'html' && !_exists('./'+req.params.file+'.'+req.params.ext)) {
-		res.cookie('curpage',req.path,{httpOnly:true});		
+	if (ctx.params.ext == 'html' && !_exists('./'+ctx.params.file+'.'+ctx.params.ext)) {
+		ctx.cookies.set('curpage',ctx.path,{httpOnly:true});		
 		// view for custom global pages
-		CSPheader(0,res);
-		global.pages(req,res,next);
-	} else if ((GLOBAL.cfg.root_whitelist||[]).indexOf(req.params.file+'.'+req.params.ext) > -1) {
-		res.sendFile(req.params.file+'.'+req.params.ext,options, function (err) {
-			if (err) res.sendStatus(err.status).end();
-		});
-	} else res.sendStatus(403).end();
+		HTMLheaders(ctx);
+		return global.pages(ctx,next);
+	} else if ((Config.cfg.root_whitelist||[]).contains(ctx.params.file+'.'+ctx.params.ext)) {
+		//TODO convert to koa-send
+		ctx.set('X-Timestamp',ctx.state.NOW);
+		ctx.set('X-Sent',true);
+		return FileSend(ctx, ctx.params.file+'.'+ctx.params.ext,options);
+	} else ctx.throw(403);
 });
 
-app.get('/_/:file.:ext',(req,res,next)=>{ // replace with nginx serve?
-	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
-	let f = req.params.file+'.'+req.params.ext, d = clientdepROOT,
+// Static file serve for things like CSS and JS
+router.get('/_/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
+	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
+	let f = ctx.params.file+'.'+ctx.params.ext, d = clientdepROOT,
 		options = {
-			root: __dirname +'/static/',
-			dotfiles: 'deny',
-			headers: {
-				'x-timestamp': res.locals.NOW,
-				'x-sent': true
-			}
+			root: __dirname +'/static/'
 		};
 	if (f in d)
 		options.root = __dirname + d[f];
-	res.sendFile(f, options, (err)=>{
-		if (err) {
-		  console.log('file error: ', f, err);
-		  res.sendStatus(err.status).end();
-		}
-	});
+	ctx.set('X-Sent',true);
+	ctx.set('X-Timestamp',ctx.state.NOW);
+	return FileSend(ctx, f, options);
 });
-
-if (!GLOBAL.cfg.values.cdn_domain || GLOBAL.cfg.values.cdn_domain == 'localhost') {
-app.get('/:board/media/:file',(req,res,next)=>{ // board fileserve
-	res.cookie('curpage',req.cookies.lastpage,{httpOnly:true});
+// Board specific media serve
+if (!Config.cfg.values.cdn_domain || Config.cfg.values.cdn_domain == 'localhost') { // possibly manage with nginx
+router.get('/:board/media/:file',(ctx,next)=>{
+	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let options = {
-		root: __dirname +'/assets/'+ req.params.board +'/media/',
-		dotfiles: 'deny',
-		headers: {
-			'x-timestamp': res.locals.NOW,
-			'x-sent': true
-		}
+		root: __dirname +'/assets/'+ ctx.params.board +'/media/',
 	};
-	res.sendFile(req.params.file, options, function (err) {
-		if (err) {
-		  console.log('file error: ', req.params.file, err);
-		  res.status(err.status).end();
-		}
-	});
+	ctx.set('X-Sent',true);
+	ctx.set('X-Timestamp',ctx.state.NOW);
+	return FileSend(ctx,ctx.params.file,options);
 });
 }
 
-app.use((req,res,next)=>{
-	console.log(
+
+// ----------------    END FILE SERVE   ----------------------
+
+
+
+// CSRF setter only, bypass validation on methods
+const setCSRF = new CSRF({
+	excludedMethods: [ 'GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS' ],
+	disableQuery: true
+});
+
+// set CSRF only on page GET requests
+router.use((ctx,next)=>{
+	if (ctx.method == "GET"){
+		setCSRF(ctx,noop);
+		// make CSRF available to templates.
+		ctx.state.CSRF = ctx.csrf;
+	}
+	return next();
+});
+
+// simple request logger
+var requestCount = 0;
+router.use((ctx,next)=>{
+	console.log(ctx.path, ctx.IP,
 		"Requests made since boot: "+
 		(++requestCount)+
-		" - "+req.originalUrl+
-		"; XHR: "+req.xhr+
-		"; "+req.method+
-		"; "+req.protocol+"; "
+		" - "+ctx.originalUrl+
+		(ctx.state.xhr?"; XHR: ":" ")+
+		"; "+ctx.method+
+		"; "+ctx.protocol+"; "
 	);
 	return next();
 });
 
-app.use('/_',middle.loadUser);
-app.use('/:board',middle.loadUser);
-app.use('/',middle.loadUser);
-app.use(CSPheader);
+// API Endpoint?
+//router.use('/$',API.router);
 
-app.all('/_/:page/:action?/:data?',middle.loadGlobal,(req,res,next)=>{
-	let err;
-	if (global[req.method] && global[req.method][req.params.page]) // global preset page
-		if (global[req.method][req.params.page].reg && !res.locals.user.reg)
-			res.redirect('/_/login');
-		else if (global[req.method][req.params.page].auth)
-			if ((err=global[req.method][req.params.page].auth(req,res,next))===true)
-				global[req.method][req.params.page](req,res,next);
-			else
-				return next(err instanceof Error?err.setstatus(403):(new Error(err.messge||'Unauthorized')).setstatus(403));
-		else global[req.method][req.params.page](req,res,next);
+router.use('/_',middle.loadUser);
+router.use('/:board',middle.loadUser);
+router.use('/',middle.loadUser);
+router.use(HTMLheaders);
+
+
+router.all('/_/:page/:action?/:data?',middle.loadGlobal, (ctx,next)=>{
+	if (!!global[ctx.method] && !!global[ctx.method][ctx.params.page]) // global preset page
+		if (!!global[ctx.method][ctx.params.page].reg && !ctx.state.user.reg)
+			ctx.redirect('/_/login');
+		else if (!!global[ctx.method][ctx.params.page].auth)
+			try {
+				// Auth must throw if user is unauthorized for this method/page
+				global[ctx.method][ctx.params.page].auth(ctx,next);
+				return global[ctx.method][ctx.params.page](ctx,next);
+			} catch(err){
+				ctx.throw(err.message||'Unauthorized',401);
+			}
+		else return global[ctx.method][ctx.params.page](ctx,next);
 	else
-		return next((new Error('Page not found')).setstatus(404).setloc('global page route'));
+		throw (new Error('Page not found')).setstatus(404).setloc('global page route');
 });
 
-app.all('/:board/:page/:action?/:data?',middle.loadBoard,(req,res,next)=>{
-	let err;
-	if (boards[req.method] && boards[req.method][req.params.page] && req.params.page != 'thread')
-		if (boards[req.method][req.params.page].reg && !res.locals.user.reg)
-			res.redirect('/_/login');
-		else if (boards[req.method][req.params.page].auth)
-			if ((err=boards[req.method][req.params.page].auth(req,res,next))===true)
-				boards[req.method][req.params.page](req,res,next);
-			else
-				return next(err instanceof Error?err.setstatus(403):(new Error(err.message||'Unauthorized')).setstatus(403));
-		else boards[req.method][req.params.page](req,res,next);
-	else if (boards[req.method] && boards[req.method].thread && /^\d+$/.test(req.params.page)) 
-		boards[req.method].thread(req,res,next);
-	else if (req.method == 'GET' && boards[req.method] && boards[req.method].pages) 
-		boards[req.method].pages(req,res,next); // Run as a custom board page
+router.all('/:board/:page/:action?/:data?',middle.loadBoard,(ctx,next)=>{
+	if (!!boards[ctx.method] && !!boards[ctx.method][ctx.params.page] && ctx.params.page != 'thread')
+		if (!!boards[ctx.method][ctx.params.page].reg && !ctx.state.user.reg)
+			ctx.redirect('/_/login');
+		else if (!!boards[ctx.method][ctx.params.page].auth)
+			try {
+				// Auth must throw if user is unauthorized for this method/page
+				boards[ctx.method][ctx.params.page].auth(ctx,next);
+				return boards[ctx.method][ctx.params.page](ctx,next);
+			} catch(err){
+				ctx.throw(err.message||'Unauthorized',401);
+			}
+		else return boards[ctx.method][ctx.params.page](ctx,next);
+	else if (!!boards[ctx.method] && boards[ctx.method].thread && /^\d+$/.test(ctx.params.page)) 
+		return boards[ctx.method].thread(ctx,next);
+	else if (ctx.method == 'GET' && !!boards[ctx.method] && !!boards[ctx.method].pages) 
+		return boards[ctx.method].pages(ctx,next); // Run as a custom board page
 	else
-		return next((new Error('Page not found')).setstatus(404).setloc('board page route'));
+		throw (new Error('Page not found')).setstatus(404).setloc('board page route');
 });
 
-app.all('/_',middle.loadGlobal,(req,res,next)=>{
-	if (global[req.method] && global[req.method].index)
-		global[req.method].index(req,res,next);
+router.all('/_',middle.loadGlobal,(ctx,next)=>{
+	if (!!global[ctx.method] && global[ctx.method].index)
+		return global[ctx.method].index(ctx,next);
 	else
-		return next((new Error('Page not found')).setstatus(404).setloc('underboard route'));
+		throw (new Error('Page not found')).setstatus(404).setloc('underboard route');
 });
-app.all('/:board',middle.loadBoard,(req,res,next)=>{
-	if (boards[req.method] && boards[req.method].index) 
-		boards[req.method].index(req,res,next);
+router.all('/:board',middle.loadBoard,(ctx,next)=>{
+	if (!!boards[ctx.method] && boards[ctx.method].index) 
+		return boards[ctx.method].index(ctx,next);
 	else
-		return next((new Error('Page not found')).setstatus(404).setloc('board route'));
+		throw (new Error('Page not found')).setstatus(404).setloc('board index route');
 });
 
-app.get('/',(req,res,next)=>{
-	if (global.index)
-		global.index(req,res,next);
+router.get('/',(ctx,next)=>{
+	if (!!global.index)
+		return global.index(ctx,next);
 	else
-		return next((new Error('Page not found')).setstatus(404).setloc('overboard route'));
+		throw (new Error('Page not found')).setstatus(404).setloc('overboard route');
 });
 
-app.use(middle.handleAjaxError,middle.handleError);
-
-app.listen(GLOBAL.cfg.port,()=>{
-  console.log('Now listening on port '+GLOBAL.cfg.port+'.');
+app.use(router.routes());
+app.listen(Config.cfg.port,()=>{
+  console.log('Now listening on port '+Config.cfg.port+'.');
 });
+
+// require('http2')
+// 	.createServer({key:'',cert:''},app)
+// 	.listen(Config.cfg.port,()=>{
+// 	  console.log('Now listening on port '+Config.cfg.port+'.');
+// 	});

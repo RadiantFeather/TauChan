@@ -1,0 +1,12 @@
+extends layout
+
+block header
+	style(nonce=INLINEHASH).
+		h3{white-space:pre-line;}
+
+block content
+	h1= status
+	h3= err.message
+	- if (err.stack !== undefined && DEV)
+		pre: code !{err.stack}
+	a(href=err.back) Return
