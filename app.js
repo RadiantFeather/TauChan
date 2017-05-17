@@ -66,7 +66,7 @@ const cspheadervalue = "default-src 'self';"+
 	
 // Request headers setter function
 const HTMLheaders = (ctx,next)=>{
-	ctx.state.INLINEHASH = Config.lib.genNonce();
+	ctx.state.INLINEHASH = Config.lib.genSecure();
 	let cspval = cspheadervalue.replace(new RegExp("#inline#",'g'),ctx.state.INLINEHASH);
 	ctx.set('Content-Security-Policy',cspval);
 	ctx.set('X-Content-Security-Policy',cspval); // Old IE
@@ -93,8 +93,9 @@ const global = require('./global'),
 const pug = new Pug({
   viewPath: './views',
   debug: Config.env === 'development',
+  noCache: Config.env === 'development',
   pretty: false,
-  compileDebug: false,
+  compileDebug: Config.env === 'development',
   locals: {},
   //basedir: 'path/for/pug/extends',
   helperPath: [
@@ -102,7 +103,7 @@ const pug = new Pug({
 });
 // Persistent locals
 pug.locals.CDN = Config.cdn;
-pug.locals.DEV = Config.cfg.devmode;
+pug.locals.DEV = Config.env === 'development';
 pug.locals.F_POSTID = Config.lib.posterID;
 pug.locals.F_SPOILER = Config.lib.getSpoiler;
 pug.locals.F_TOINTERVAL = Config.lib.toInterval;
@@ -133,6 +134,9 @@ var clientdepROOT = {
 // BEGIN APP DECLARATION
 
 const app = new Koa();
+app.env = Config.env;
+Lib.use(app);
+pug.use(app);
 
 // CSRF validator
 const checkCSRF = new CSRF({
@@ -145,7 +149,9 @@ const checkCSRF = new CSRF({
 });
 
 app.context.checkCSRF = function(){
-	return checkCSRF(this,noop);
+	let res = checkCSRF(this,noop);
+	this.state.CSRF = this.csrf;
+	return res;
 };
 
 app.context.json = (obj)=>{
@@ -154,12 +160,30 @@ app.context.json = (obj)=>{
 };
 
 app.keys = [Config.cfg.secret,'reeeenormiesgetoutofmycode'];
-pug.use(app);
 
+app.on('error',async function(err,ctx){
+	console.log('Error emitted: With context? ',!!ctx,err);
+	console.log();
+	return;
+	try {
+		await db.none(Config.sql.modify.new_log,{
+			board: ctx.params.board||'_',
+			user: ctx.state.user.reg&&ctx.board.loguser?ctx.state.user.username:null,
+			level: err.log,
+			detail: err.message
+		});
+	} catch(err){
+		console.log('LOGGING ERROR: ',err);
+		console.log('Board: ',ctx.params.board||'_');
+		console.log('User: ',ctx.state.user.reg&&ctx.board.loguser?ctx.state.user.username:'Not Available');
+		console.log('Level: ',err.log);
+		console.log('Detail: ',err.message);
+	}
+});
 // Error handling must be first!
 app.use(middle.handleErrors);
 
-// ctx.request.body
+// ctx.request.body (must use Multer for multipart/form-data)
 app.use(BodyParser());
 // ctx.userAgent
 app.use(UserAgent);
@@ -187,13 +211,14 @@ app.use((ctx,next)=>{
 	}
 	
 	// Devmode dynamic reloading
-	if (Config.env == 'development') {
+	if (Config.env === 'development') {
 		Config.reload();
+		// Simulate a custom IP value for testing
 		if ('simip' in ctx.query){
 			if (ctx.query.simip == '')
-				delete ctx.session.IP;
-			ctx.IP = ctx.session.IP = ctx.query.simip||ctx.ip;
-		} else ctx.IP = ctx.session.IP||ctx.ip;
+				delete ctx.session.mockIP;
+			ctx.IP = ctx.session.mockIP = ctx.query.simip||ctx.ip;
+		} else ctx.IP = ctx.session.mockIP||ctx.ip;
 	} else ctx.IP = ctx.ip;
 	
 	ctx.state.NOW = Date.now();
@@ -208,11 +233,11 @@ app.use((ctx,next)=>{
 const router = new Router();
 
 // ----------------   BEGIN FILE SERVE   ----------------------
-
+// possibly manage with nginx?
 
 
 // Global custom pages if HTML or optional whitelisted files in server root
-router.get('/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
+router.get('/:file.:ext',(ctx,next)=>{ 
 	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let options = {
 		root: Config.cwd
@@ -230,8 +255,9 @@ router.get('/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
 	} else ctx.throw(403);
 });
 
+if (!Config.cdn || Config.cdn == 'localhost') { 
 // Static file serve for things like CSS and JS
-router.get('/_/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
+router.get('/_/:file.:ext',(ctx,next)=>{
 	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let f = ctx.params.file+'.'+ctx.params.ext, d = clientdepROOT,
 		options = {
@@ -244,12 +270,13 @@ router.get('/_/:file.:ext',(ctx,next)=>{ // replace with nginx serve?
 	return FileSend(ctx, f, options);
 });
 // Board specific media serve
-if (!Config.cfg.values.cdn_domain || Config.cfg.values.cdn_domain == 'localhost') { // possibly manage with nginx
 router.get('/:board/media/:file',(ctx,next)=>{
 	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let options = {
 		root: Config.cwd +'/assets/'+ ctx.params.board +'/media/',
 	};
+	if ('download' in ctx.request.query)
+		ctx.response.attachment(ctx.params.file);
 	ctx.set('X-Sent',true);
 	ctx.set('X-Timestamp',ctx.state.NOW);
 	return FileSend(ctx,ctx.params.file,options);
@@ -280,19 +307,18 @@ router.use((ctx,next)=>{
 // simple request logger
 var requestCount = 0;
 router.use((ctx,next)=>{
-	console.log(ctx.path, ctx.IP,
-		"Requests made since boot: "+
-		(++requestCount)+
-		" - "+ctx.originalUrl+
-		(ctx.state.xhr?"; XHR: ":" ")+
-		"; "+ctx.method+
-		"; "+ctx.protocol+"; "
+	console.log("From - "+ctx.IP+"; "
+		+"Requests made since boot: "+(++requestCount)+"; "
+		+(ctx.state.xhr?"XHR":"Not XHR")+"; "
+		+ctx.protocol+"; "
+		+ctx.method+"; "
+		+ctx.originalUrl+"; "
 	);
 	return next();
 });
 
 // API Endpoint?
-//router.use('/$',API.router);
+//router.use('/$',API.router());
 
 router.use('/_',middle.loadUser);
 router.use('/:board',middle.loadUser);
@@ -300,37 +326,37 @@ router.use('/',middle.loadUser);
 router.use(HTMLheaders);
 
 
-router.all('/_/:page/:action?/:data?',middle.loadGlobal, (ctx,next)=>{
+router.all('/_/:page/:action?',middle.loadGlobal, (ctx,next)=>{
 	if (!!global[ctx.method] && !!global[ctx.method][ctx.params.page]) // global preset page
 		if (!!global[ctx.method][ctx.params.page].reg && !ctx.state.user.reg)
 			ctx.redirect('/_/login');
 		else if (!!global[ctx.method][ctx.params.page].auth)
 			try {
 				// Auth must throw if user is unauthorized for this method/page
-				global[ctx.method][ctx.params.page].auth(ctx,next);
+				global[ctx.method][ctx.params.page].auth(ctx);
 				return global[ctx.method][ctx.params.page](ctx,next);
 			} catch(err){
-				ctx.throw(err.message||'Unauthorized',401);
+				ctx.throw(401,(typeof err=='string'?err:err.message)||'Unauthorized');
 			}
 		else return global[ctx.method][ctx.params.page](ctx,next);
 	else
 		throw (new Error('Page not found')).setstatus(404).setloc('global page route');
 });
 
-router.all('/:board/:page/:action?/:data?',middle.loadBoard,(ctx,next)=>{
+router.all('/:board/:page/:action?',middle.loadBoard,(ctx,next)=>{
 	if (!!boards[ctx.method] && !!boards[ctx.method][ctx.params.page] && ctx.params.page != 'thread')
 		if (!!boards[ctx.method][ctx.params.page].reg && !ctx.state.user.reg)
 			ctx.redirect('/_/login');
 		else if (!!boards[ctx.method][ctx.params.page].auth)
 			try {
 				// Auth must throw if user is unauthorized for this method/page
-				boards[ctx.method][ctx.params.page].auth(ctx,next);
+				boards[ctx.method][ctx.params.page].auth(ctx);
 				return boards[ctx.method][ctx.params.page](ctx,next);
 			} catch(err){
-				ctx.throw(err.message||'Unauthorized',401);
+				ctx.throw(401,(typeof err=='string'?err:err.message)||'Unauthorized');
 			}
 		else return boards[ctx.method][ctx.params.page](ctx,next);
-	else if (!!boards[ctx.method] && boards[ctx.method].thread && /^\d+$/.test(ctx.params.page)) 
+	else if (!!boards[ctx.method] && !!boards[ctx.method].thread && /^\d+$/.test(ctx.params.page)) 
 		return boards[ctx.method].thread(ctx,next);
 	else if (ctx.method == 'GET' && !!boards[ctx.method] && !!boards[ctx.method].pages) 
 		return boards[ctx.method].pages(ctx,next); // Run as a custom board page
@@ -339,13 +365,13 @@ router.all('/:board/:page/:action?/:data?',middle.loadBoard,(ctx,next)=>{
 });
 
 router.all('/_',middle.loadGlobal,(ctx,next)=>{
-	if (!!global[ctx.method] && global[ctx.method].index)
+	if (!!global[ctx.method] && !!global[ctx.method].index)
 		return global[ctx.method].index(ctx,next);
 	else
 		throw (new Error('Page not found')).setstatus(404).setloc('underboard route');
 });
 router.all('/:board',middle.loadBoard,(ctx,next)=>{
-	if (!!boards[ctx.method] && boards[ctx.method].index) 
+	if (!!boards[ctx.method] && !!boards[ctx.method].index) 
 		return boards[ctx.method].index(ctx,next);
 	else
 		throw (new Error('Page not found')).setstatus(404).setloc('board index route');

@@ -167,8 +167,8 @@ BEGIN
 	
 	SELECT COUNT(1) INTO i FROM posts WHERE board = NEW.board AND post <> thread AND capcode IS NULL;
 	IF (NEW.capcode IS NULL AND i >= b.postlimit) THEN
-		RAISE check_violation	--Validate thread reply limit
-			USING MESSAGE = 'New post failed.',
+		RAISE check_violation USING	--Validate thread reply limit
+			MESSAGE = 'New post failed.',
 			DETAIL = 'Thread has reached the reply limit.',
 			CONSTRAINT = 'thread_reply_limit_reached';
 	END IF;

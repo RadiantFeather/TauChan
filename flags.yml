@@ -16,26 +16,32 @@ thread:
   feature: 'set flag to keep a thread permanently in the archive (can still be reported on)'
   
 board:
-  view:
-    ip: 'see the raw IP for each poster'
-    ipmask: 'see the partially masked IP for each poster'
-    iphash: 'see the encrypted hex IP value for each poster'
+  ips:
+    raw: 'see the raw IP for each poster'
+    mask: 'see the partially masked IP for each poster'
+    hash: 'see the encrypted hex IP value for each poster'
   reply:
     locked: 'post in locked threads'
     archive: 'post in archived threads'
   manage:
-    reports: 'view, escalate and delete reports'
+    reports: 
+      view: 'can view all reports for the board'
+      escalate: 'can escalate a report from local to global'
+      delete: 'can delete any reports from the board'
     pages: 'edit custom board pages'
-    settings: 'view and/or edit board settings'
-    logs: 
-      info: 'view logs with INFO severity level (on by default)'
-      notice: 'view logs with NOTICE and lower severity level'
-      warning: 'view logs with WARNING and lower severity level'
-      error: 'view logs with ERROR and lower severity level'
     roles: 
       view: 'view board roles and authorized users'
       edit: 'edit board roles and authorized users'
+      manage: 'add/remove a user to/from an existing role'
     history: 'see the post history for the entire board'
+    bans: 
+      view: 'view a list of all active bans'
+      remove: 'remove a ban on an IP'
+  logs: 
+    info: 'view logs with INFO severity level (on by default)'
+    notice: 'view logs with NOTICE and lower severity level'
+    warning: 'view logs with WARNING and lower severity level'
+    error: 'view logs with ERROR and lower severity level'
   settings:
     info: 'edit board information settings like the title and board tags'
     limits: 'edit various limit values for the board and its threads'
@@ -44,7 +50,4 @@ board:
     archive_lifespan: 'edit the lifespan of threads in an archived state'
     
   
-#site:
-#  boards:
-#    create: 'create a new board'
 

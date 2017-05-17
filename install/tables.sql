@@ -127,11 +127,12 @@ CREATE TABLE IF NOT EXISTS users (
 INSERT INTO users VALUES (0,'#system#','SYSTEM','','',TRUE,TRUE,NULL); --Passphrase-less user for system driven database operations that require a user
 
 CREATE TABLE IF NOT EXISTS roles (
+	id SERIAL,
 	role VARCHAR(16) NOT NULL,
 	board VARCHAR(32) NOT NULL REFERENCES boards (board) 
 		ON DELETE CASCADE ON UPDATE CASCADE,
+	capcode VARCHAR(32) NOT NULL,
 	flags JSONB NOT NULL DEFAULT '{}',
-	capcode TEXT NOT NULL,
 	PRIMARY KEY (role, board)
 );
 

@@ -7,6 +7,10 @@ nav .pages span:not(:last-child):after { content: " | "; }
 .thread {
 	position:relative;
 }
+.thread:not(:first-of-type) { 
+	border-top: solid 1px black; 
+	padding-top:5px;
+}
 .thread .content +i {
 	display:block;
 	text-align:right;

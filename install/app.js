@@ -246,28 +246,30 @@ const yn = /^y(?:es)?/i
 		yml.write.sync(__dirname+'/../conf/config.yml',cfg);
 	}
 	
-	cfg.site.name = CLO.s.q?cfg.site.name:await prompt("What do you want the site's name to be? (Leave empty for existing value '"+cfg.site.name+"'): ") || cfg.site.name;
+	// ----   Move this functionality into the global settings editor  ----
+	//
+	// cfg.site.name = CLO.s.q?cfg.site.name:await prompt("What do you want the site's name to be? (Leave empty for existing value '"+cfg.site.name+"'): ") || cfg.site.name;
 	
-	function consolidateKeys(stale,fresh) {
-		for (var key in stale.options) if (fresh.options.hasOwnProperty(key)) {
-			if (!stale.options.hasOwnProperty(key))
-				stale.options[key] = fresh.options[key];
-			else if (typeof fresh.options[key] === 'object' && !(fresh.options[key] instanceof Array))
-				consolidateKeys(stale.options[key],fresh.options[key]);
-		}
-	}
-	consolidateKeys(cfg,dcfg);
-	if (!CLO.s.q && yn.test(await prompt('Do you want to configure the additional boolean options available for the app? (y/n): '))) {
-		console.log('Answer the following questions with either a yes or no. (y/n is fine as well)');
-		let questions = yml.read.sync(__dirname+'/options.yml'), options = dcfg.options, missed = [];
-		for (var key in options) { if (options.hasOwnProperty(key)) { 
-			if (questions.hasOwnProperty(key)) {
-				if (questions[key]) cfg.options[key] = yn.test(await prompt(questions[key]+': ',null,true));
-			} else missed.push(key);
-		}}
-		yml.write.sync(__dirname+'/../conf/config.yml',cfg);
-		console.log('Option configuration complete.' + (missed.length ? ' (This configuration has not covered all the available options. Please see /conf/config.yml for the full list.)':''));
-	}
+	// function consolidateKeys(stale,fresh) {
+	// 	for (var key in stale.options) if (fresh.options.hasOwnProperty(key)) {
+	// 		if (!stale.options.hasOwnProperty(key))
+	// 			stale.options[key] = fresh.options[key];
+	// 		else if (typeof fresh.options[key] === 'object' && !(fresh.options[key] instanceof Array))
+	// 			consolidateKeys(stale.options[key],fresh.options[key]);
+	// 	}
+	// }
+	// consolidateKeys(cfg,dcfg);
+	// if (!CLO.s.q && yn.test(await prompt('Do you want to configure the additional boolean options available for the app? (y/n): '))) {
+	// 	console.log('Answer the following questions with either a yes or no. (y/n is fine as well)');
+	// 	let questions = yml.read.sync(__dirname+'/options.yml'), options = dcfg.options, missed = [];
+	// 	for (var key in options) { if (options.hasOwnProperty(key)) { 
+	// 		if (questions.hasOwnProperty(key)) {
+	// 			if (questions[key]) cfg.options[key] = yn.test(await prompt(questions[key]+': ',null,true));
+	// 		} else missed.push(key);
+	// 	}}
+	// 	yml.write.sync(__dirname+'/../conf/config.yml',cfg);
+	// 	console.log('Option configuration complete.' + (missed.length ? ' (This configuration has not covered all the available options. Please see /conf/config.yml for the full list.)':''));
+	// }
 	
 	console.log("Application installation completed. You can start the app by running 'nodejs app.js' from the app's root directory.");
 	

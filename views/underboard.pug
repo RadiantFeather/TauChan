@@ -25,7 +25,7 @@ block main
 					td #{item.role}
 					td ###{item.capcode}
 					td
-						- if (user.auth('board.manage.logs!any',item.board))
+						- if (user.auth('board.logs',item.board))
 							a.action(href="/"+item.board+"/logs") Logs
 						- if (user.auth('board.manage.reports',item.board))
 							a.action(href="/"+item.board+"/reports") Reports
@@ -35,7 +35,7 @@ block main
 							a.action(href="/"+item.board+"/bans") Bans
 						- if (user.auth('board.manage.pages',item.board))
 							a.action(href="/"+item.board+"/pages") Custom Pages
-						- if (user.auth('board.manage.settings',item.board))
+						- if (user.auth('board.settings',item.board))
 							a.action(href="/"+item.board+"/settings") Settings
 						- if (user.auth('board.manage.roles',item.board))
 							a.action(href="/"+item.board+"/roles") Roles

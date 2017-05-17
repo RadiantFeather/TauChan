@@ -1,29 +1,42 @@
 extends layout
 
+block head
+	+style('pages.css')
+
 block header
 	- if (page.type == 'custom')
-		h1= data.title
+		h1.frontandcenter= data.title
+		div
+			a.brick(href='/'+board.board+'/pages') Go to pages listing
+			- if (managepages) 
+				a.brick(href='/'+board.board+'/editPage/'+data.page) Edit this Page
+	- else 
+		h2.frontandcenter
+			- if (managepages)
+				a.brick(href='/'+board.board+'/editPage/') New Page
+			- else 
+				| Custom Board Pages
 
 block content
 	- if (page.type == 'custom')
-		div!= data.markdown
-		- if (user.auth('board.manage.pages')) 
-			h4: a(href='/'board.board+'/editPage/'+data.page)
+		div.contain!= data.markup
 
 	- else if (page.type == 'index')
-		h4: a(href='/'+board.board+'/editPage/') Create a New Page
-		table
-			tr
-				th Page
-				th Title
-				th Actions
-			- var i = -1
-			- while (++i < data.length)
-				tr
-					td 
-						a(href='/'+board.board+'/'+data[i].page)= data[i].page
-					td= data[i].title
-					td.actions
-						- if (user.auth('board.manage.pages'))
-							a.edit(href='/'+board.board'/editPage/'+data[i].page)
-		
+		div.pages
+			- if (data&&data.length)
+				each page in data 
+					fieldset.page.contentcollapse
+						legend 
+							a(href='/'+board.board+'/'+page.page) /#{board.board}/#{page.page}
+							- if (managepages)
+								|&nbsp;-&nbsp;
+								a.brick(href='/'+board.board+'/editPage/'+page.page) Edit Page
+						h1= page.title
+						- if (managepages)
+							div._error Type the name of the role to confirm deletion.
+							form.contentcollapse(method="POST",action='/'+board.board+'/deletePage/'+page.page,enctype="application/x-www-form-urlencoded")
+								+CSRF
+								input(type="text",name="verify",placeholder=page.page)
+								input(type="submit",value="Delete Page")
+			- else 
+				h1.frontandcenter No custom pages have been created for this board.

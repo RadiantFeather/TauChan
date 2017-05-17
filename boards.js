@@ -8,6 +8,7 @@ const Socket = require('socket.io');
 const Redis = require('koa-redis');
 const Crypto = require('crypto');
 const Config = require('./config');
+const Lib = require('./lib');
 /*/
 import {FS as fs} from 'fs';
 import Multer from 'koa-multer';
@@ -17,13 +18,18 @@ import Socket from 'socket.io';
 import Redis from 'koa-redis';
 import Crypto from 'crypto';
 import Config from './config';
+import Lib from './lib';
 //*/
 const request = PRequest.create(Request.defaults({}));
 const db = Config.db;
 const pgp = Config.pgp;
 const handlers = {};
 const noop = ()=>{};
+const __ = (arg)=>{console.log('Val check',arg); return arg;};
 var _ = {};
+
+const roleRegex = /^[^!@#$%^&*()_+~`={}|[\]\/\\?"'<>,.:;-]+$/;
+const pageRegex = /^[0-9]*[a-zA-Z_]+[0-9]*$/;
 	
 const processPostFiles = Multer({
 		storage: Multer.diskStorage({
@@ -72,17 +78,31 @@ _.archive = async function(ctx,next) {	// archive view
 };
 
 _.thread = async function(ctx,next) {	// thread view
-	let data = await db.any(Config.sql.view.thread, {
-		board: ctx.params.board,
-		thread: parseInt(ctx.params.page,10),
-		limit: ctx.query.preview ? parseInt(ctx.query.preview,10) : null,
-	});
-	data.forEach((x,i,a)=>{a[i].longhash = Config.lib.maskIP(x.ip);});
-	ctx.state.META.keywords = '/'+ctx.state.board.board+'/';
-	ctx.state.META.desc = data[0].markdown.substring(128);
-	ctx.state.META.title = '/'+ctx.state.board.board+'/ - '+(data[0].subject || data[0].markdown.substring(0,24));
-	ctx.state.page = {type:(data[0].archived===null?'thread':'archived_thread'),param:ctx.params.page};
-	ctx.render('threads',{data});
+	try{
+		let data = await db.many(Config.sql.view.thread, {
+			board: ctx.params.board,
+			post: parseInt(ctx.params.page,10),
+			limit: ctx.query.preview ? parseInt(ctx.query.preview,10) : null,
+		});
+		data.forEach((x,i,a)=>{a[i].longhash = Config.lib.maskData(x.ip);});
+		ctx.state.META.keywords = '/'+ctx.state.board.board+'/';
+		ctx.state.META.desc = data[0].markdown.substring(128);
+		ctx.state.META.title = '/'+ctx.state.board.board+'/ - '+(data[0].subject || data[0].markdown.substring(0,24));
+		ctx.state.page = {type:(data[0].archived===null?'thread':'archived_thread'),param:ctx.params.page};
+		ctx.render('threads',{data});
+	} catch(err){
+		// If post is not a thread OP, check if post exists at all and redirect accordingly
+		try{
+			let post = await db.one(Config.sql.view.post,{
+				board:ctx.params.board,
+				post:parseInt(ctx.params.page,10)
+			});
+			ctx.redirect('/'+post.board+'/'+post.thread+'#_'+post.post);
+		}catch(e){
+			// Post doesn't exist at all
+			throw e.setloc('thread view');
+		}
+	}
 };
 
 _.catalog = async function(ctx,next) {
@@ -100,8 +120,9 @@ _.spoilerMedia = async function(ctx,next) {
 	// TODO
 	
 };
-_.spoilerMedia.auth = function(ctx,next){
-	return ctx.state.user.auth('post.spoiler_media');
+_.spoilerMedia.auth = function(ctx){
+	if(!ctx.state.user.auth('post.media.spoiler'))
+		throw '';
 };
 
 _.deleteMedia = async function(ctx,next) {
@@ -109,8 +130,9 @@ _.deleteMedia = async function(ctx,next) {
 	// TODO
 	
 };
-_.deleteMedia.auth = function(ctx,next) {
-	return ctx.state.user.auth('post.delete_media');
+_.deleteMedia.auth = function(ctx){
+	if(!ctx.state.user.auth('post.media.delete'))
+		throw '';
 };
 
 _.ban = async function(ctx,next) {
@@ -124,8 +146,9 @@ _.ban = async function(ctx,next) {
 		post:parseInt(ctx.params.action,10)
 	});
 };
-_.ban.auth = function(ctx,next) {
-	return ctx.state.user.auth('thread.post_ban');
+_.ban.auth = function(ctx) {
+	if(!ctx.state.user.auth('post.ban'))
+		throw 'Unauthorized for: thread.post.ban';
 };
 
 _.delete = async function(ctx,next) {
@@ -137,8 +160,9 @@ _.delete = async function(ctx,next) {
 	});
 	ctx.render('bnd',{mode:'d',data});
 };
-_.delete.auth = function(ctx,next){
-	return ctx.state.user.auth('thread.post_delete');
+_.delete.auth = function(ctx){
+	if(!ctx.state.user.auth('post.delete'))
+		throw '';
 };
 
 _.bnd = async function(ctx,next) {
@@ -150,8 +174,9 @@ _.bnd = async function(ctx,next) {
 	});
 	ctx.render('bnd',{mode:'bd',data});
 };
-_.bnd.auth = function(ctx,next){
-	return ctx.state.user.auth(['thread.post.ban','thread.post.delete']);
+_.bnd.auth = function(ctx){
+	if(!ctx.state.user.auth(['thread.post.ban','thread.post.delete']))
+		throw 403;
 };
 
 _.bans = async function(ctx,next) {
@@ -185,9 +210,13 @@ _.reports = async function(ctx,next) {
 };
 
 _.pages = async function(ctx,next) { // custom board pages
+	ctx.state.managepages = ctx.state.user.auth('board.manage.pages');
 	if (ctx.params.page != 'pages'){
 		try {
-			let data = await db.one(Config.sql.view.page, ctx.params);
+			let data = await db.one(Config.sql.view.page, {
+				board: ctx.params.board,
+				page: ctx.params.page
+			});
 			ctx.state.page = {type:'custom',param:ctx.params.page};
 			ctx.render('pages',{data});  // TODO
 		} catch(err){
@@ -201,18 +230,32 @@ _.pages = async function(ctx,next) { // custom board pages
 };
 
 _.editPage = async function(ctx,next){
-	
+	if (ctx.params.action){
+		let data = await db.one(Config.sql.view.page,{
+			board: ctx.params.board,
+			page: ctx.params.action
+		});
+		ctx.state.page = {type:'manage',param:'editpage'};
+		ctx.state.flags = Config.flags;
+		ctx.state.editmode = true;
+		ctx.render('editPage',{data});
+	} else {
+		ctx.state.page = {type:'manage',param:'newpage'};
+		ctx.state.flags = Config.flags;
+		ctx.render('editPage');
+	}
 };
 
-_.deletePage = async function(ctx,next){
-	
+_.editPage.auth = function(ctx){
+	if (!ctx.state.user.auth('board.manage.pages'))
+		throw '';
 };
 
 _.settings = async function(ctx,next) {
 	let data = await db.one(Config.sql.view.board_settings,{board:ctx.params.board});
 	data.tags = data.tags.join(',');
 	ctx.state.editmode = true;
-	ctx.state.page = {type:'mod',param:'settings'};
+	ctx.state.page = {type:'manage',param:'settings'};
 	ctx.render('editBoard',{
 		data,
 		info_auth: !ctx.state.user.auth('board.settings.info'),
@@ -222,26 +265,9 @@ _.settings = async function(ctx,next) {
 		lifespan_auth: !ctx.state.user.auth('board.settings.archive_lifespan')
 	});
 };
-_.settings.auth = function(ctx,next){
-	return ctx.state.user.auth('board.settings!any');
-};
-
-_.editRole = async function(ctx,next){
-	if (ctx.params.action){
-		ctx.state.page = {type:'mod',param:'editrole'};
-		let data = await db.one(Config.sql.view.role,{
-			board: ctx.params.board,
-			role: ctx.params.data
-		});
-		ctx.render('editRole.pug',{data,flags:Config.flags});
-	} else {
-		ctx.state.page = {type:'mod',param:'newrole'};
-		ctx.render('editRole',{flags:Config.flags});
-	}
-};
-_.editRole.reg = true;
-_.editRole.auth = function(ctx,next){
-	return ctx.state.user.auth('board.manage.roles.edit');
+_.settings.auth = function(ctx){
+	if(!ctx.state.user.auth('board.settings'))
+		throw '';
 };
 
 _.roles = async function(ctx,next){
@@ -253,18 +279,46 @@ _.roles = async function(ctx,next){
 			lastrole = item.role;
 			out.push({role:item.role,capcode:item.capcode,users:[]});
 		}
-		out[out.length-1].users.push({username:item.username,screenname:item.screenname});
+		out[out.length-1].users.push({username:item.username,screenname:item.screenname,id:item.id});
 	});
+	ctx.state.manageroles = ctx.state.user.auth('board.manage.roles.edit');
+	ctx.state.manageusers = ctx.state.user.auth('board.manage.roles.manage');
 	ctx.state.page = {type:'index',param:'roles'};
 	ctx.render('roles',{data:out});
 };
-_.roles.auth = function(ctx,next){
-	return ctx.state.user.auth('board.manage.roles!any');
+_.roles.auth = function(ctx){
+	if(!ctx.state.user.auth('board.manage.roles!any'))
+		throw '';
+};
+
+_.editRole = async function(ctx,next){
+	if (ctx.params.action){
+		let data = await db.one(Config.sql.view.role,{
+			board: ctx.params.board,
+			role: ctx.params.action
+		});
+		ctx.state.page = {type:'manage',param:'editrole'};
+		ctx.state.flags = Config.flags;
+		ctx.state.editmode = true;
+		ctx.render('editRole',{data});
+	} else {
+		ctx.state.page = {type:'manage',param:'newrole'};
+		ctx.state.flags = Config.flags;
+		ctx.render('editRole');
+	}
+};
+_.editRole.reg = true;
+_.editRole.auth = function(ctx){
+	if (!ctx.state.user.auth('board.manage.roles.edit'))
+		throw '';
+	if (ctx.params.action == 'owner')
+		throw 'Cannot edit the Owner role.';
 };
 
 handlers.GET = _;
-// prevent custom pages from path names already is use by app
-const reservedPages = Object.keys(_).push('media');
+// prevent custom pages (only via GET method) from path names already is use by app
+const reservedPages = Object.keys(_);
+reservedPages.push('media');
 _ = {};
 
 /*
@@ -290,7 +344,7 @@ _.index = _.catalog = async function(ctx,next) { // New thread
 		});
 	post.board = ctx.params.board;
 	post.ip = ctx.IP;
-	post.hash = Config.lib.maskIP(ctx.IP,ctx.params.board);
+	post.hash = Config.lib.maskData(ctx.IP,ctx.params.board);
 	if (post.name && post.name.indexOf('#') != -1){
 		ctx.request.body.trip = post.name.substr(post.name.indexOf('#')+1);
 		post.name = post.name.slice(0,post.name.indexOf('#'));
@@ -334,7 +388,7 @@ _.thread = async function(ctx,next) { // New reply to thread
 	post.board = ctx.params.board;
 	post.thread = parseInt(ctx.params.page,10);
 	post.ip = ctx.IP;
-	post.hash = Config.lib.maskIP(ctx.IP,ctx.params.board);
+	post.hash = Config.lib.maskData(ctx.IP,ctx.params.board);
 	post.sage = !!ctx.request.body.sage;
 	if (post.name && !post.name.contains('#')){
 		ctx.request.body.trip = post.name.substr(post.name.indexOf('#')+1);
@@ -382,23 +436,80 @@ _.ban = async function(ctx,next) {
 };
 _.ban.auth = handlers.GET.ban.auth;
 
-_.pages = async function(ctx,next) { // Manage custom board pages
+// ------------- Modify custom board pages -------------------
+
+_.editPage = async function(ctx,next){
 	ctx.checkCSRF();
-	
-	let markup = Config.lib.processMarkup(ctx.request.body.markdown);
-	try {
-		await db.none(Config.sql.modify.page,{
-			title: ctx.request.body.title,
-			
-		});
+	ctx.state.editmode = !!ctx.params.action;
+	let err;
+	if (!ctx.params.action&&!ctx.request.body.page)
+		err = new Error("No page was specified.");
+	else if (!pageRegex.test(ctx.params.action||ctx.request.body.page))
+		err = new Error("Invalid page name. Must only contain letters and numbers and cannot be only numbers.");
+	else if ((ctx.params.action || ctx.request.body.page).length > 16)
+		err = new Error("Page name is too long. Must be no more than 16 characters.");
+	else if (ctx.request.body.title.length > 32)
+		err = new Error("Page title is too long. Must be no more than 32 characters.");
+	else if (ctx.request.body.markdown.length > 4096)
+		err = new Error("Markdown content is too long. Must be no more than 4096 characters.");
+	else if (~reservedPages.indexOf(ctx.params.action||ctx.request.body.page))
+		err = new Error("Page name conflicts with a reserved page. Please choose a different name.");
 		
-	} catch(err){
-		throw err.withlog('error');
+	if (ctx.params.action) ctx.request.body.page = ctx.params.action;
+	if (err) throw err.withrender('editPage').setdata(ctx.request.body);
+	
+	let markup = Lib.processMarkup(ctx.request.body.markdown);
+	if (ctx.query.preview){
+		ctx.render('editPage',{data:ctx.request.body,previewMarkup:markup});
+		return;
 	}
+	
+	let t = {};
+	t.board = ctx.params.board;
+	t.title = ctx.request.body.title;
+	t.markdown = Config.pgp.as.text(ctx.request.body.markdown);
+	t.markup = Config.pgp.as.text(markup);
+	
+	if (ctx.params.action) {
+		t.page = ctx.params.action;
+		await db.none(Config.sql.modify.old_page,t);
+		ctx.redirect('/'+ctx.params.board+'/'+ctx.params.action);
+	} else {
+		t.page = ctx.request.body.page;
+		await db.none(Config.sql.modify.new_page,t);
+		ctx.redirect('/'+ctx.params.board+'/'+ctx.request.body.page);
+	}
+	
+};
+_.editPage.auth = function(ctx){
+	if (!ctx.state.user.auth('board.manage.pages'))
+		throw '';
 };
 
+_.deletePage = async function(ctx,next){
+	ctx.checkCSRF();
+	let err;
+	if (ctx.params.action != ctx.request.body.verify)
+		err = new Error("Verification field does not match.");
+	
+	if (err) throw err;
+	
+	await db.none(Config.sql.modify.delete_page,{
+		board:ctx.params.board,
+		page:ctx.params.action
+	});
+	ctx.redirect('/'+ctx.params.board+'/pages');
+};
+_.deletePage.auth = function(ctx){
+	if (!ctx.params.action)
+		throw 'Must specify a page to delete.';
+	if (!ctx.state.user.auth('baord.manage.pages'))
+		throw '';
+};
+
+// ----------------- Modify board settings -------------------
+
 _.settings = async function(ctx,next) {
-	console.log(ctx.params);
 	ctx.checkCSRF();
 	let err;
 	ctx.request.body.tags = ctx.request.body.tags.replace(/(?:^,|,$)/g,'');
@@ -408,7 +519,7 @@ _.settings = async function(ctx,next) {
 	else if (ctx.request.body.tags.replace(/,/g,'').length > 0 && !(/^[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+)*$/.test(ctx.request.body.tags)))
 		err = new Error('A tag with invalid characters was submitted.');
 	else if (ctx.request.body.tags.split(',').length > 8)
-		err = new Error('Too many tags were submitted. Must have no more than 8 tags.');
+		err = new Error('Too many tags were submitted. Boards can have no more than 8 tags.');
 	else if (ctx.request.body.title.length > 32)
 		err = new Error('Board title is too long. Must be 32 characters or less.');
 	else if (ctx.request.body.noname.length > 32)
@@ -418,9 +529,8 @@ _.settings = async function(ctx,next) {
 	else if (ctx.request.body.ticker.length > 256)
 		err = new Error('Board information header is too long. Must be 256 characters or less.');
 	
-	if (err) {
-		throw err.withrender('editBoard').setdata(ctx.request.body);
-	} else {
+	if (err) throw err.withrender('editBoard').setdata(ctx.request.body);
+	else {
 		// finish
 		let t = {};
 		if(ctx.state.user.auth('board.settings.info'))
@@ -462,26 +572,145 @@ _.settings = async function(ctx,next) {
 			});
 			ctx.redirect('/'+ctx.params.board+'/');
 		} catch(err){
-			if (err.constraint&&err.constraint in Config.errors.editBoard_constraints){
-				err.message = Config.errors.editBoard_constraints[err.constraint];
-			}
-			throw err.withrender('editBoard').setdata(ctx.request.body);
+			throw Lib.mkerr('editBoard',err).withrender('editBoard').setdata(ctx.request.body);
 			// TODO: recache the board list and data?
 		}
 	}
 };
 _.settings.auth = handlers.GET.settings.auth;
 
+// -------------- Modify board roles and users ------------------
+
 _.editRole = async function(ctx,next){
 	ctx.checkCSRF();
-	if (ctx.params.action){
-		switch(ctx.params.action){
-			case 'add':
-				break;
-			case 'remove':
-				break;
+	ctx.state.editmode = !!ctx.params.action;
+	let err;
+	if (!ctx.params.action&&!ctx.request.body.role)
+		err = new Error("No role was specified.");
+	else if (!roleRegex.test(ctx.params.action||ctx.request.body.role))
+		err = new Error("Invalid role name. Verify no special characters are present.");
+	else if (('capcode' in ctx.request.body) && !/^[^#].{3,}/.test(ctx.request.body.capcode))
+		err = new Error("Invalid capcode. Verify it has at least 4 characters and doesn't start with a \#.");
+	else if ((ctx.params.action || ctx.request.body.role).length > 16)
+		err = new Error("Role name is too long. Must be no more than 16 characters.");
+	else if (ctx.request.body.capcode.length > 32)
+		err = new Error("Role capcode is too long. Must be no more than 32 characters.");
+	// normalize flags firstly
+	const nflags = {};
+	let cflags = Lib.flattenFlags(Config.flags);
+	for (let flag in cflags) {
+		if (flag in ctx.request.body) {
+			if (ctx.request.body[flag].toLowerCase() == 'yes') nflags[flag] = true;
+			if (ctx.request.body[flag].toLowerCase() == 'no') nflags[flag] = false;
 		}
 	}
+	if (err) {
+		ctx.state.flags = Config.flags;
+		throw err.setstatus(400).withrender('editRole').setdata({
+			role:ctx.params.role||ctx.request.body.role,
+			capcode:ctx.request.body.capcode,
+			flags:nflags
+		});
+	}
+	else {
+		let t = {};
+		t.board = ctx.params.board;
+		t.flags = pgp.as.json(nflags);
+		t.capcode = ctx.request.body.capcode;
+		
+		try {
+			if (ctx.params.action){
+				t.role = ctx.params.action;
+				await db.none(Config.sql.modify.old_role, t);
+			} else {
+				t.role = ctx.request.body.role.toLowerCase();
+				await db.none(Config.sql.modify.new_role, t);
+			}
+			ctx.redirect('/'+t.board+'/roles/');
+		} catch(err){
+			ctx.state.flags = Config.flags;
+			throw Lib.mkerr('editRole',err).withrender('editRole').setdata({
+				role:ctx.params.action||ctx.request.body.role,
+				capcode:ctx.request.body.capcode,
+				flags:nflags
+			});
+		}
+	}
+};
+_.editRole.auth = handlers.GET.editRole.auth;
+
+_.deleteRole = async function(ctx,next){
+	ctx.checkCSRF();
+	let err;
+	if (ctx.params.action != ctx.request.body.verify)
+		err = new Error('Role name verification failed. Double check your spelling.');
+		
+	if (err) throw err;
+	
+	await db.none(Config.sql.modify.delete_role,{
+		board: ctx.params.board,
+		role: ctx.params.action
+	});
+	ctx.redirect('/'+ctx.params.board+'/roles');
+	
+};
+_.deleteRole.auth = function(ctx){
+	if (!ctx.params.action)
+		throw 'Must specify a role to delete.';
+	if (ctx.params.action == ctx.state.user.roles[ctx.params.board].role)
+		throw 'Cannot delete the role you belong to.';
+	if (ctx.params.action == 'owner')
+		throw 'Cannot delete the owner role.';
+	if (!ctx.state.user.auth(['board.manage.roles.edit','board.manage.roles.manage']))
+		throw '';
+};
+
+_.addToRole = async function(ctx,next){
+	ctx.checkCSRF();
+	let err;
+	if (ctx.request.body.username == ctx.state.user.username)
+		err = (new Error('Cannot add yourself to a role.')).setstatus(403);
+	
+	if (err) throw err;
+	
+	await db.none(Config.sql.modify.add_to_role,{
+		board: ctx.params.board,
+		role: ctx.params.action,
+		username: ctx.request.body.username
+	});
+	ctx.redirect('/'+ctx.params.board+'/roles');
+};
+_.addToRole.auth = function(ctx){
+	if (!ctx.state.user.auth('board.manage.roles.manage'))
+		throw '';
+	if (!ctx.params.action)
+		throw 'Must specify a role to add to.';
+	if (ctx.params.action == 'owner' && ctx.state.user.roles[ctx.params.board].role != 'owner')
+		throw 'Only the board owner(s) can promote a user to the OWNER role.';
+};
+
+_.removeFromRole = async function(ctx,next){
+	ctx.checkCSRF();
+	let err;
+	if (ctx.request.body.username == ctx.state.user.username)
+		err = (new Error('Cannot remove yourself from a role.')).setstatus(403);
+		
+	if (err) throw err;
+	
+	await db.none(Config.sql.modify.remove_from_role,{
+		board: ctx.params.board,
+		username: ctx.request.body.username
+	});
+	ctx.redirect('/'+ctx.params.board+'/roles');
+	
+};
+_.removeFromRole.auth = function(ctx){
+	if (!ctx.state.user.auth('board.manage.roles.manage'))
+		throw '';
+	if (!ctx.params.action)
+		throw 'Must specify a role to remove from.';
+	if (ctx.params.action == 'owner' && ctx.state.user.roles[ctx.params.board].role != 'owner')
+		throw 'Only the board owner(s) can demote a user from the OWNER role.';
 };
 
 handlers.POST = _;

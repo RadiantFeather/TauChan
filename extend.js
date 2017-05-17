@@ -1,4 +1,15 @@
 "use strict";
+
+//*/
+const fs = require('fs');
+const path = require('path');
+const gm = require('gm');
+/*/
+import fs from 'fs';
+import path from 'path';
+import gm from 'gm';
+//*/
+
 console._ = (arg)=>{
 	console.log(arg);
 	return arg;
@@ -39,7 +50,7 @@ Array.prototype.rpush = function(a){ this.push(a); return this; };
 Array.prototype.rpop = function(a){ this.pop(); return this; };
 Array.prototype.rshift = function(a){ this.shift(a); return this; };
 Array.prototype.runshift = function(a){ this.unshift(); return this; };
-Array.prototype.contains = Array.prototype.contains|| function(a){ return this.indexOf(a) !== -1; };
+Array.prototype.contains = Array.prototype.contains|| function(a){ return ~this.indexOf(a); };
 Error.prototype.setloc = function(str){ this.loc = str; return this; };
 Error.prototype.setmsg = function(str){ this.message = str; return this; };
 Error.prototype.setstatus = function(status){
@@ -60,7 +71,6 @@ Error.prototype.withrender = function(view){
 	return this;
 };
 
-var fs = require('fs'), path = require('path');
 fs.rmdirall = function(dirToRemove, callback) {
     var dirList = [];
     var fileList = [];
@@ -125,7 +135,6 @@ fs.rmdirall = function(dirToRemove, callback) {
     flattenDeleteLists(dirToRemove, onFinishedFlattening);
 };
 
-const gm = require('gm');
 let m = ['write','toBuffer','size','identify','format','orientation','depth','color','res','filesize','compare'];
 for (let f in m) promisify(gm.prototype,m[f]);
 promisify(gm.prototype,'thumb',6);

@@ -1,11 +1,7 @@
-.newrole {
-    font-weight:bold;
-    font-size:30px;
-    text-align:center;
-}
+.roles { display:flex; }
 .roles .role {
-    width:fit-content;
     display:inline-block;
+    min-height:75px;
 }
 .roles .role .user{
     margin-top:10px;

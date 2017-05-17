@@ -35,17 +35,7 @@ html
 		block head
 	body
 		header
-			nav
-				a(href="/") Overboard
-				| &nbsp;
-				a(href="/_") Underboard
-				- if (user && user.reg)
-					| &nbsp;
-					a(href="/_/logout") Logout
-			- if (user && user.reg)
-				h1 Hello #{user.screenname||'Anonymous (logged in)'}
-			- else 
-				h1 Hello Anonymous
+			include partials/headerNav
 			block header
 		nav
 			block nav
@@ -57,4 +47,4 @@ html
 		footer#bottom
 			block footer
 			p This page layout request was completed in #{NOW *-1 + Date.now()}ms
-		input(type="hidden",name="_csrf",value=CSRF,form="")
+		input#globalCSRF(type="hidden",name="_csrf",value=CSRF,form="")

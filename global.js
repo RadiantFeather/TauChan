@@ -9,6 +9,7 @@ const Socket = require('socket.io');
 const Redis = require('koa-redis');
 const Crypto = require('crypto');
 const Config = require('./config');
+const Lib = require('./lib');
 
 /*/
 import * as fs from 'fs';
@@ -19,6 +20,7 @@ import Socket from 'socket.io';
 import Redis from 'koa-redis';
 import Crypto from 'crypto';
 import Config from './config';
+import Lib from './lib';
 
 //*/
 
@@ -37,7 +39,7 @@ _.index = async function(ctx,next){	// moderation front page aka underboard
 	let data = await db.any(Config.sql.view.user_roles,{
 		id: ctx.state.user.id
 	});
-	ctx.state.page = {type:'mod',param:'index'};
+	ctx.state.page = {type:'manage',param:'index'};
 	ctx.render('underboard',{data});
 };
 
@@ -63,7 +65,11 @@ _.logout = async function(ctx,next){
 		});
 		if (ctx.session.user) delete ctx.session.user;
 		if (ctx.cookies.user) ctx.cookies.set('user',undefined,{httpOnly:true});
-		return ctx.redirect(ctx.cookies.get('lastpage')!=ctx.path?ctx.cookies.get('lastpage'):'/_');
+		console.log('last: ',ctx.cookies.get('lastpage'), ' current: ',ctx.cookies.get('curpage'));
+		ctx.cookies.set('lastpage',ctx.params.board?'/'+ctx.params.board+'/':'/_/',{httpOnly:true});
+		let board = /^\/([a-zA-Z0-9_]+)\/.*/.exec(ctx.cookies.get('curpage'));
+		console.log(board);
+		ctx.redirect(board?'/'+board[1]+'/':'/');
 	} catch(err){
 		throw err.setloc('/_/logout');
 	}
@@ -87,25 +93,25 @@ _.createBoard.auth = function(ctx,next){
 _.bans = async function(ctx,next){
 	ctx.body = 'Preset Global Page: /_/'+ ctx.params.page;
 	return;
-	ctx.state.page = {type:'mod',param:'bans'};
+	ctx.state.page = {type:'manage',param:'bans'};
 };
 
 _.banned = async function(ctx,next){
 	ctx.body = 'Preset Global Page: /_/'+ ctx.params.page;
 	return;
-	ctx.state.page = {type:'mod',param:'banned'};
+	ctx.state.page = {type:'manage',param:'banned'};
 };
 
 _.logs = async function(ctx,next){
 	ctx.body = 'Preset Global Page: /_/'+ ctx.params.page;
 	return;
-	ctx.state.page = {type:'mod',param:'logs'};
+	ctx.state.page = {type:'manage',param:'logs'};
 };
 
 _.reports = async function(ctx,next){
 	ctx.body = 'Preset Global Page: /_/'+ ctx.params.page;
 	return;
-	ctx.state.page = {type:'mod',param:'reports'};
+	ctx.state.page = {type:'manage',param:'reports'};
 };
 
 handlers.GET = _;
@@ -163,10 +169,11 @@ _.signup = async function(ctx,next){
 	let token = Crypto
 		.createHash('sha1')
 		.update(ctx.request.body.username)
-		.update(ctx.ip)
+		.update(ctx.IP)
 		.update(Config.cfg.secret)
 		.digest('hex');
 	try {
+		ctx.request.body.email = Lib.maskData(ctx.request.body.email);
 		await db.none(Config.sql.modify.new_user,{
 			user:ctx.request.body.username,
 			nick:ctx.request.body.screenname||ctx.request.body.username,
@@ -181,7 +188,7 @@ _.signup = async function(ctx,next){
 		ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true,expires:0});
 		ctx.redirect('/_/login');
 	} catch(err){
-		throw Config.lib.mkerr('signup',err).withrender('signup').setdata(ctx.request.body);
+		throw Lib.mkerr('signup',err).withrender('signup').setdata(ctx.request.body);
 	}
 };
 
@@ -252,7 +259,7 @@ _.createBoard = async function(ctx,next){
 			ctx.session.user = null; // Force recache of user data
 			ctx.redirect('/'+ctx.request.body.board+'/');
 		} catch(err){
-			throw Config.lib.mkerr('editBoard',err).withrender('editBoard').setdata(ctx.request.body);
+			throw Lib.mkerr('editBoard',err).withrender('editBoard').setdata(ctx.request.body);
 			// TODO: recache the board list and data?
 		}
 	}

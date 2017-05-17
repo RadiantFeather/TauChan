@@ -1,7 +1,7 @@
 extends layout
 
 block head
-    +style('roles.css')
+    +style('editRole.css')
     
     
 mixin roleloop(level,depth)
@@ -20,21 +20,43 @@ mixin roleloop(level,depth)
                             b: big= "> "+depth.map((item)=>{return item.toCamelCase();}).join(" > ")
                 +roleloop(v,depth)
             - else if (typeof v != 'object' && j == 1)
+                - let name = depth.join('-');
+                - let pname = depth.join('.');
                 tr
                     td.value(data-depth=depth.length-1)= i.toLowerCamelCase(" ")
                     td.desc Can #{v}.
                     td
-                        input(type="radio",name=depth.join("."),value="yes")
+                        input(type="radio",name=name,value="yes",checked=data&&data.flags[name]==true)
                     td
-                        input(type="radio",name=depth.join("."),value="default")
+                        input(type="radio",name=name,value="default",checked=!data||!(name in data.flags))
                     td
-                        input(type="radio",name=depth.join("."),value="no")
+                        input(type="radio",name=name,value="no",checked=data&&data.flags[name]==false)
             - depth.pop();
+    
+block header
+    - if (!!editmode)
+        h1 Editing Role: #{data.role}
+    - else 
+        h1 Creating New Role
+    div
+        a(href='/'+board.board+'/roles/') Return to Roles
     
 block main 
     
-    form(method="POST",enctype="application/x-www-form-urlencoded")
+    form.editrole(method="POST",enctype="application/x-www-form-urlencoded")
         +CSRF
+        - if (err && (DEV || status != 500))
+            h4._error= err.message
+        - else if (err)
+            h4._error An unknown error occured. Role was unable to be saved.
+        label Role Name
+            input.role(type="text",name="role",value=data&&data.role?data.role:false,
+                disabled=!!editmode?true:false,maxLength="16",required=true,
+                pattern="^[^!@#$%^&*()_+~`={}|[\\]/\\\\?\"'<>,.:;-]+$",placeholder="No special characters")
+        label Role Capcode
+            input.capcode(type="text",name="capcode",required=true,value=data&&data.capcode?data.capcode:false,
+                maxLength="32",pattern="^[^#].{3,}",placeholder="Cannot start with a #")
+        input(type="submit",value="Save Role")
         table
             thead
                 th Role
@@ -44,4 +66,14 @@ block main
                 th Denied
             tbody
                 +roleloop(flags,[])
+                
+block footer
+    - if (!!editmode && data.role != user.roles[board.board].role)
+        div._error DANGER ZONE
+        form.deleterole(method="POST",action='/'+board.board+'/deleteRole/'+data.role,enctype="application/x-www-form-urlencoded")
+            +CSRF
+            div Type the name of the role to confirm deletion.
+            input(type="text",name="verify",placeholder=data.role)
+            input(type="submit",value="DELETE ROLE")
+        
                 

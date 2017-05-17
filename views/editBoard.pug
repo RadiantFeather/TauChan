@@ -1,5 +1,12 @@
 extends layout
 
+block header
+	div
+		a(href="/_/") Return to Underboard
+	- if (!!editmode)
+		div
+			a(href='/'+board.board+'/') Return to board index
+
 block head
 	+style('editBoard.css')
 
@@ -9,7 +16,7 @@ block main
 		- if (err && (DEV || status != 500))
 			h4._error= err.message
 		- else if (err)
-			h4._error An unknown error occured. Board was unable to be created.
+			h4._error An unknown error occured. Board was unable to be saved.
 		fieldset.category
 			legend Board Information
 			label Board:&nbsp;

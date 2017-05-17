@@ -1,0 +1,11 @@
+.editrole input[type="text"]:invalid {
+    border-color:red;
+}
+.editrole input[type="text"]:valid {
+    border-color:green;
+}
+.editrole input[type="text"]{
+    border-color:black;
+    border-width:1px;
+    border-style:solid;
+}

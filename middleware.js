@@ -5,11 +5,13 @@
 const fs = require('fs');
 const Redis = require('koa-redis');
 const Config = require('./config');
+const Lib = require('./lib');
 /*/
 
 import * as fs from 'fs';
 import Redis from 'koa-redis';
 import Config from './config';
+import Lib from './lib';
 //*/
 
 const db = Config.db;
@@ -62,12 +64,12 @@ _.loadBoard = async function(ctx,next){
 		//TODO cache board assets
 		return next();
 	} catch(err) {
-		ctx.throw(err.message,404);
+		ctx.throw(404,err.message);
 	}
 };
 
 _.loadUser = async function(ctx,next){
-	if (ctx.state.user) return next(); // User has already been defined, skip
+	if (ctx.state.user) return next(); // User has already been defined for this request, skip
 	console.log("\nUser session",ctx.session);
 	if (ctx.session.user){ // User data is present, set with new IP and board references
 		ctx.state.user = new Config.lib.User(ctx.session.user,ctx.params.board,ctx.IP);
@@ -82,8 +84,7 @@ _.loadUser = async function(ctx,next){
 	try {
 		let data = await db.one(Config.sql.view.user,{
 			user: ctx.cookies.get('user'),
-			pass: null,
-			board: ctx.params.board || '_'
+			pass: null
 		});
 		ctx.session.user = {};
 		for (let key in data)
@@ -98,46 +99,35 @@ _.loadUser = async function(ctx,next){
 	}
 };
 
-_.loadGlobal = async function(ctx,next){ // don't know if we'll actually need this but it's here if so.
+_.loadGlobal = async function(ctx,next){
+	ctx.params.board = '_';
 	return next();
-};
-
-_.log = async function(ctx,err){
-	console.log(err);
-	return;
-	try {
-		await db.none(Config.sql.modify.new_log,{
-			board: ctx.params.board||'_',
-			user: ctx.state.user.reg&&ctx.board.loguser?ctx.state.user.username:null,
-			level: err.log,
-			detail: err.message
-		});
-	} catch(err){
-		console.log('LOGGING ERROR: ',err);
-		console.log('Level: '+err.log,'Detail: '+err.message);
-	}
 };
 
 _.handleErrors = async function(ctx,next){
 	try {
 		await next();
 	} catch (err){
+		err.xhr = !!ctx.state.xhr;
 		if (ctx.state.xhr) {
-			if (err.log) _.log(ctx,err);
-			console.log('Ajax Error');
-			console.log(err);
+			if (Config.env === 'development')
+				console.log('Ajax Error: ',err);
+			if (err.status) ctx.status = err.status;
 			ctx.json({success:false,data:{status:ctx.status||500,message:err.message}});
 		} else {
-			if (err.log) _.log(ctx,err);
 			let x,y=[];
 			for (x in ctx.params){
 				y.push(x+': '+ctx.params[x]);
 			}
-			console.log('Request Error');
-			console.log(err);
-			err.back = ctx.cookies.get('lastpage');
-			if (err.sendStatus) ctx.status = err.status||ctx.status;
-			else ctx.render(err.render||'error',{status:ctx.status||500,err:err,data:err.data||null});
+			if (Config.env === 'development') {
+				err.expose = true;
+				console.log('Request Error: ',err);
+			}
+			if (err.status) ctx.status = err.status;
+			if (ctx.status == 401) err.back = '/';
+			else err.back = ctx.cookies.get('lastpage');
+			ctx.render(err.render||'error',{status:ctx.status||500,err:err,data:err.data||null});
+			// remove any leftover files that need to be removed.
 			let tf = ctx.state.trackfiles;
 			if (tf && tf.length) {
 				let i=-1;
@@ -147,7 +137,7 @@ _.handleErrors = async function(ctx,next){
 					} catch (e) {}
 			}
 		}
-		//ctx.app.emit('error', err, ctx);
+		if (err.log) ctx.app.emit('error', err, ctx);
 	}
 };
 

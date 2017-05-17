@@ -1,0 +1,34 @@
+post:
+  delete: 'delete a post'
+  media:
+    delete: 'delete media from a post'
+  ban: 'ban an IP'
+  unban: 'remove a ban on an IP'
+  
+board:
+  view:
+    ip: 'see the raw IP for each poster'
+    ipmask: 'see the partially masked IP for each poster'
+    iphash: 'see the encrypted hex IP value for each poster'
+  manage:
+    reports: 'view, escalate and delete reports'
+    settings: 'view and/or edit board settings'
+    logs: 
+      info: 'view logs with INFO severity level (on by default)'
+      notice: 'view logs with NOTICE and lower severity level'
+      warning: 'view logs with WARNING and lower severity level'
+      error: 'view logs with ERROR and lower severity level'
+    history: 'see the post history for the entire board'
+  
+global:
+  board:
+    create: 'explicitly create a new board (ignored if the global disable_usermade_boards option is false)'
+  roles: 
+    view: 'view global roles and authorized users'
+    edit: 'edit global roles and authorized users'
+    manage: 'add/remove a user to/from an existing role'
+  settings:
+    info: 'edit site whitelabel settings like the site name, description, keywords, etc'
+    drop: 'edit the settings for when a board is considered a candidate for removal'
+    
+

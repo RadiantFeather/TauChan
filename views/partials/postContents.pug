@@ -1,0 +1,91 @@
+include mediaItem
+
+append head
+	+style('post.css')
+
+mixin actions(board,post,ip)
+	details.postactions
+		summary
+		form(id="postactions_"+post, method="POST", target="_blank")
+			+CSRF
+			ul
+				li: button.aslink(formaction="/"+board+"/report/"+post) Report
+				- if (user.auth('post.delete')||user.ip == ip)
+					li: button.aslink(formaction="/"+board+"/delete/"+post) Delete
+				- if (user.auth('post.ban'))
+					li: button.aslink(formaction="/"+board+"/ban/"+post) Ban
+				- if (user.auth(['post.ban','post.delete']))
+					li: button.aslink(formaction="/"+board+"/bnd/"+post) B&D
+				
+mixin mactions(m)
+	- if (!m.nsfw && (user.auth('post.media.spoiler')||user.ip == m.ip))
+		div.spoilerimg.icon-cornerTL
+			a.icon-mute(title="spoiler",href="/"+m.board+"/spoilerMedia/"+m.post+"/"+m.sort)
+	- if (!m.deleted && (user.auth('post.media.delete')||user.ip == m.ip))
+		div.deleteimg.icon-cornerBR
+			a.icon-trashcan(title="delete",href="/"+m.board+"/deleteMedia/"+m.post+"/"+m.sort)
+		
+
+mixin state(t)
+	span.is
+		- if (t.pinned)
+			span.pinned
+		- else if (t.sticky)
+			span.sticky
+		- if (t.locked)
+			span.locked
+		- else if (t.cycle)
+			span.cycle
+		- if (t.nsfw)
+			span.nsfw
+			
+mixin date_time(classes,val)
+	time(class=classes,
+		datetime=F_UTC(val,0),
+		data-interval=F_TOINTERVAL(NOW - (new Date(val)).getTime()), 
+		data-time=F_UTC(val,1)
+	)= F_UTC(val,2)
+
+
+
+mixin postContents(data)
+	header.info
+		- if (data.email !== null)
+			a.name(href="mailto:"+data.email): span.name= data.name||board.noname
+		- else 
+			span.name= data.name||board.noname
+		- if (data.trip !== null)
+			span.trip= data.trip
+		- if (data.capcode !== null)
+			span.capcode= data.capcode
+		- if (data.subject !== null)
+			span.subject= data.subject
+		- if (user.auth('board.ips.raw'))
+			a.ip.brick(href="/"+board.board+"/history/"+data.longhash)= data.ip
+		- else if (user.auth('board.ips.mask'))
+			a.ip.brick(href="/"+board.board+"/history/"+data.longhash)= data.mask
+		- else if (user.auth('board.ips.hash'))
+			a.ip.brick(href="/"+board.board+"/history/"+data.longhash)= data.longhash.substr(0,16)
+		+date_time('stamp', data.posted)
+		- if (board.postids)
+			span.postid= F_POSTID(data.ip,data.board,data.thread)
+		//- Move the onclick to a clientside script
+		a.quote(href=(page.type=='index'?"/"+board.board+"/"+data.thread+"#_"+data.post:"#_"+data.post), onclick="if('"+page.type+"'=='thread')return quotePost('"+data.post+"'),false;")= data.post
+		+actions(board.board,data.post,data.ip)
+		span.cited
+			- if (data.targets !== null)
+				each t in data.targets 
+					cite: a(href="#_"+t.post) >>#{t.post}
+	div.media(class=(data.media === null ? 'none' : data.media.length > 1 ? 'many' : data.media.length == 1 ? 'one' : 'none'))
+		- if (data.media !== null)
+			each m in data.media
+				+mediaItem(m,data.ip)
+	span.content!= data.markup
+	- if (data.banned !== null)
+		div.banned= data.banned
+	- if (board.publicedits && data.edited !== null)
+		+date_time('edited', data.edited)
+	- if (data.globalstamp !== null)
+		+date_time('clean global', data.globalstamp)
+	- else if (data.localstamp !== null)
+		+date_time('clean local', data.localstamp)

@@ -52,8 +52,13 @@ view:
     LIMIT 50 OFFSET 50 * (${page}-1);
   "
   
-  thread: '
-    WITH page AS (SELECT fetch_page(${board},${thread}) AS page)
+  post: "
+    SELECT * FROM posts p
+    WHERE board = ${board} AND post = ${post} LIMIT 1;
+  "
+  
+  thread: "
+    WITH page AS (SELECT fetch_page(${board},${post}) AS page)
     SELECT x.*, page.page FROM (
       SELECT p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, 
         (p.post = t.op) AS is_op, cl.localstamp, cl.globalstamp, fetch_media(p.board,p.post) AS media,
@@ -62,12 +67,12 @@ view:
       FROM threads t, (posts p 
         LEFT OUTER JOIN cites c USING (board,post))
         LEFT OUTER JOIN clean cl USING (board,post)
-      WHERE p.board = ${board} AND p.thread = ${thread} AND t.board = p.board AND t.op = p.thread 
+      WHERE p.board = ${board} AND p.thread = ${post} AND t.board = p.board AND t.op = p.thread 
       ORDER BY (p.post = t.op) DESC, p.posted DESC 
       LIMIT ${limit} + 1
     ) x, page
     ORDER BY (x.post = x.thread) DESC, posted ASC;
-  '
+  "
 
   catalog: '
     SELECT t.*, (SELECT COUNT(1) FROM posts p WHERE p.board = t.board AND p.thread = t.op AND p.post <> t.op) AS replies,
@@ -200,14 +205,15 @@ view:
   '
   
   page: '
-    SELECT title,markup,markdown FROM pages 
+    SELECT page,title,markup,markdown FROM pages 
     WHERE board = ${board} AND page = ${page};
   '
   
-  pages: '
+  pages: "
     SELECT page,title FROM pages
-    WHERE board = ${board};
-  '
+    WHERE board = ${board}
+    ORDER BY (page IN ('rules','RULES','Rules')) DESC, page ASC;
+  "
   
   user: '
     SELECT u.id,u.username,u.email,u.screenname,
@@ -223,7 +229,7 @@ view:
   '
   
   board_roles: "
-    SELECT r.role,r.capcode,u.username,u.screenname
+    SELECT r.role,r.capcode,u.id,u.username,u.screenname
     FROM roles r 
       LEFT OUTER JOIN (
         assign a JOIN users u ON (a.id = u.id AND a.board = ${board})
@@ -316,3 +322,43 @@ modify:
     INSERT INTO ban (board,creator,reason,expires,notice,range,post) 
     VALUES (${board},${user},${reason},${expires},${bantext},${range},${post});
   '
+  
+  new_role: "
+    INSERT INTO roles (role, board, capcode, flags) VALUES (${role},${board},${capcode},${flags:raw});
+  "
+  
+  old_role: "
+    UPDATE roles SET (capcode, flags) = (${capcode},${flags:raw})
+      WHERE role = ${role} AND board = ${board};
+  "
+  
+  delete_role: "
+    DELETE FROM roles WHERE board = ${board} AND role = ${role};
+  "
+  
+  add_to_role: "
+    WITH u AS (SELECT *, ${board} as board, ${role} as role FROM users WHERE username = ${username})
+    INSERT INTO assign (role, board, id)
+      SELECT role, board, id FROM u
+      ON CONFLICT (id,board) DO 
+      UPDATE SET role = ${role};
+  "
+  
+  remove_from_role: "
+    WITH u AS (SELECT id FROM users WHERE username = ${username})
+    DELETE FROM assign a USING u WHERE board = ${board} AND a.id = u.id;
+  "
+  
+  new_page: "
+    INSERT INTO pages (board, page, title, markdown, markup)
+      VALUES (${board},${page},${title},${markdown^},${markup^});
+  "
+  
+  old_page: "
+    UPDATE pages SET (title,markdown,markup) = (${title},${markdown^},${markup^})
+      WHERE board = ${board} AND page = ${page};
+  "
+  
+  delete_page: "
+    DELETE FROM pages WHERE board = ${board} AND page = ${page};
+  "

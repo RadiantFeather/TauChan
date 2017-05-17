@@ -1,0 +1,11 @@
+nav#globalNav
+	a(href="/") Overboard
+	| &nbsp;
+	a(href="/_") Underboard
+	- if (user && user.reg)
+		| &nbsp;
+		a(href="/_/logout") Logout
+- if (user && user.reg)
+	h1 Hello #{user.screenname||'Anonymous (logged in)'}
+- else 
+	h1 Hello Anonymous

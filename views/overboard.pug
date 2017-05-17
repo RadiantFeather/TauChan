@@ -28,11 +28,11 @@ block main
 			input(type="text",name="tags",list="taglist",placeholder="search,+tags,-here",pattern="^ *[+-]?[a-zA-Z0-9_]+ *(?:, *[+-]?[a-zA-Z0-9_]+ *)*$",value=tags||'')
 			div 
 				label Either
-					input(type="radio",name="nsfw",value="NULL",checked=(nsfw==="NULL"?true:false))
+					input(type="radio",name="nsfw",value="NULL",checked=(nsfw==="NULL"))
 				label SFW
-					input(type="radio",name="nsfw",value="FALSE",checked=(nsfw==="FALSE"?true:false))
+					input(type="radio",name="nsfw",value="FALSE",checked=(nsfw==="FALSE"))
 				label NSFW
-					input(type="radio",name="nsfw",value="TRUE",checked=(nsfw==="TRUE"?true:false))
+					input(type="radio",name="nsfw",value="TRUE",checked=(nsfw==="TRUE"))
 			input(type="submit",value="Search")
 			datalist#taglist
 				each t in taglist 
@@ -66,14 +66,14 @@ block main
 				each item in data 
 					tr
 						td.board
-							a(href="/#{item.board}/") #{item.board}
-						td.title #{item.title}
-						td.desc #{item.subtitle}
-						td.nsfw #{item.nsfw?"Yes":"No"}
-						td.tags(title=item.tags) #{item.tags}
-						td.pph #{item.posts_per_hour}
-						td.au #{item.active_users}
-						td.pc #{item.post_count}
+							a(href="/"+item.board+"/")= item.board
+						td.title= item.title
+						td.desc= item.subtitle
+						td.nsfw= (item.nsfw?"Yes":"No")
+						td.tags(title=item.tags)= item.tags
+						td.pph= item.posts_per_hour
+						td.au= item.active_users
+						td.pc= item.post_count
 		- else 
 			h1 NO BOARDS FOUND
 		+overnav

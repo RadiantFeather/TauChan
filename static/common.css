@@ -5,10 +5,10 @@
 
 input.toggle,
 input.toggle:checked +label.hide,
-input.toggle:checked +label +*.flip,
+input.toggle:checked +label +.flip,
 input.toggle:not(:checked) +label +*:not(.flip),
-input.toggle:checked +label +*:not(.flip) +*.switch,
-input.toggle:not(:checked) +label +*.flip +*.switch {
+input.toggle:checked +label +*:not(.flip) +.switch,
+input.toggle:not(:checked) +label +.flip +.switch {
 	display:none;
 }
 
@@ -45,6 +45,16 @@ nav:empty{
 .spoiler{color:black;background-color:black;} .spoiler:hover{color:white;}
 .important{color:red;font-size:125%;font-weight:bold;}
 
-.click{cursor:pointer;}
+.click,.clickable{cursor:pointer;}
 
 a[target="_blank"] {cursor:alias;}
+
+.frontandcenter {
+    font-weight:bold;
+    font-size:30px;
+    text-align:center;
+}
+
+.contentcollapse {
+	display:inline-block;
+}

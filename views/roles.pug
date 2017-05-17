@@ -1,29 +1,32 @@
 extends layout
 
 block head
-    +style('roles.css')
-    
+	+style('roles.css')
+	
 block header
-    h2.newrole
-        a.brick(href='/'+board.board+'/roles/new/') New Role
-    
+	h2.frontandcenter
+		a.brick(href='/'+board.board+'/editRole/') New Role
+	
 block main
-    div.roles
-        each role in data 
-            fieldset.role
-                legend 
-                    span #{role.role} # #{role.capcode} 
-                    -if (role.role != 'owner')
-                        a.brick(href='/'+board.board+'/roles/edit/'+role.role) - Edit Role
-                form(method="POST",action='/'+board.board+'/roles/addto/'+role.role)
-                    +CSRF
-                    input(type="text",name="user",pattern="^[a-zA-Z0-9_]*$")
-                    input(type="submit",value="Add User")
-                each u in role.users 
-                    div.user #{u.screenname} [#{u.username}]
-                        form(method="POST",action='/'+board.board+'/roles/removefrom/'+role.role)
-                            +CSRF
-                            input(type="hidden",name="user",value=u.username)
-                            input(type="submit",value="Remove")
-                    
-            
+	div.roles
+		each role in data 
+			fieldset.role
+				legend 
+					span #{role.role} ## #{role.capcode} 
+					- if (role.role != 'owner' && manageroles && role.role != user.roles[board.board].role)
+						a.brick(href='/'+board.board+'/editRole/'+role.role) - Edit Role
+				- if (manageusers)
+					form(method="POST",action='/'+board.board+'/addToRole/'+role.role, enctype="application/x-www-form-urlencoded")
+						+CSRF
+						input(type="text",name="username",pattern="^[a-zA-Z0-9_]*$")
+						input(type="submit",value="Add User")
+				each u in role.users 
+					- if (u.id != null) 
+						div.user #{u.screenname} [#{u.username}]
+							- if (u.id != user.id && manageusers && !(role.role == 'owner' && user.roles[board.board].role != 'owner'))
+								form(method="POST",action='/'+board.board+'/removeFromRole/'+role.role, enctype="application/x-www-form-urlencoded")
+									+CSRF
+									input(type="hidden",name="username",value=u.username)
+									input(type="submit",value="Remove")
+					
+			

@@ -1,9 +1,7 @@
 #tags,#boardlist {
 	display:inline-block;
 }
-#tags {
-	float:left;
-}
+main { display:flex; }
 #cloud {
 	width:200px;
 	font-size:125%;

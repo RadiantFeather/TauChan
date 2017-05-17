@@ -16,6 +16,7 @@ const pgp = PgPromise({capSQL:true});
 const db = pgp(cfg.database);
 var sql = yml.read.sync('./sql.yml');
 var flags = yml.read.sync('./flags.yml');
+var globalflags = yml.read.sync('./flags.global.yml');
 var errors = yml.read.sync('./errors.yml');
 var cwd = process.cwd();
 
@@ -26,16 +27,17 @@ const env = cfg.devmode? 'development' : process.env.NODE_ENV||'production';
 // Monitor.attach(pgpopts);
 
 var cdn;
-if (cfg.values.cdn_domain == 'localhost') cdn = '';
-else if (cfg.values.cdn_domain.indexOf('://')<0)
+if (!cfg.options.use_external_cdn || cfg.values.cdn_domain == 'localhost') cdn = '';
+else if (!cfg.values.cdn_domain.contains('://'))
 	cdn = cfg.values.cdn_domain?'//'+cfg.values.cdn_domain:'';
 
 const configs = {
-    yml,cfg,sql,pgp,db,flags,errors,cdn,env,cwd,
+    yml,cfg,sql,pgp,db,flags,globalflags,errors,cdn,env,cwd,
     reload: ()=>{
 		this.cfg = yml.read.sync('./conf/config.yml');
 		this.sql = yml.read.sync('./sql.yml');
 		this.flags = yml.read.sync('./flags.yml');
+		this.globalflags = yml.read.sync('./flags.global.yml');
 		this.errors = yml.read.sync('./errors.yml');
     }
 };

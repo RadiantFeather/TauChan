@@ -1,0 +1,50 @@
+mixin mediaItem(m,ip)
+	figure.item(class={[m.mediatype]:true,'deleted':!!m.deleted,'nsfw':!!m.nsfw})
+		- if (m.mediatype == 'img') //- Raw image
+			figcaption.meta
+				a.url.brick(href=CDN+m.src,target="_blank",title=m.meta.title +"\n"+ (m.meta.all||[]).join(' - '))= m.meta.title
+			- if (m.deleted)
+				img.deleted(src=CDN+board.deletedimg,alt="Deleted")
+			- else 
+				div.filewrap
+					a.file(href=CDN+m.src,target="_blank")
+						- if (m.nsfw)
+							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
+						img.thumb(src=CDN+m.thumb,alt="Thumbnail")
+						img.full(data-src=CDN+m.src,alt="Original")
+					+mactions(m)
+		
+		- else if (m.mediatype == 'you') //- Youtube
+			figcaption.meta
+				a.url.brick(href=m.href, target="_blank")= m.meta.title
+				- if (m.meta.duration)
+					span.duration= m.meta.duration
+			- if (m.deleted)
+				img.deleted(src=CDN+board.deletedimg, alt="Deleted")
+			- else 
+				div.filewrap
+					a.file(href=m.href, target="_blank")
+						- if (m.nsfw)
+							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
+						img.thumb(src=m.thumb, alt="Thumbnail")
+						iframe.full(data-src=m.src, alt="Original")
+					+mactions(m)
+
+		//- - else if (m.mediatype == 'vid') //- Raw video
+		
+		//- - else if (m.mediatype == 'aud') //- Raw audio
+		
+		//- - else if (m.mediatype == 'dly') //- Dailymotion
+		
+		//- - else if (m.mediatype == 'snd') //- Soundcloud
+		
+		//- - else if (m.mediatype == 'voc') //- Vocaroo
+		
+		//- - else if (m.mediatype == 'liv') //- Livestream
+		
+		//- - else if (m.mediatype == 'twi') //- Twitch
+		
+		//- - else if (m.mediatype == 'box') //- Hitbox
+		
+		//- - else if (m.mediatype == 'ust') //- Ustream
+		
