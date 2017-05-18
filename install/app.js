@@ -277,4 +277,4 @@ const yn = /^y(?:es)?/i;
 	
 	fs.writeFileSync(__dirname+'/../conf/installed',VERSION.fresh);
 
-})().catch(err=>{console.log(err);});
+})().catch(err=>{console.log(err); pgp.end();});
