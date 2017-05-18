@@ -20,7 +20,7 @@ require('./extend');
 const Koa = require('koa');
 const Session = require('koa-session2');
 //const Convert = require('koa-convert');
-const CSRF = require('koa-csrf').default;
+const CSRF = require('koa-csrf');
 const Pug = require('koa-pug');
 const Redis = require('koa-redis');
 const FileSend = require('koa-send');
@@ -144,7 +144,7 @@ const checkCSRF = new CSRF({
   invalidSessionSecretStatusCode: 403,
   invalidTokenMessage: 'Invalid CSRF token',
   invalidTokenStatusCode: 403,
-  excludedMethods: [ 'GET', 'HEAD', 'OPTIONS' ],
+  excludedMethods: [ 'GET', 'POST', 'HEAD', 'OPTIONS' ],
   disableQuery: true
 });
 
