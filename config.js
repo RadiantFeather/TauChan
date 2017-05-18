@@ -11,7 +11,12 @@ import PgPromise from 'pg-promise';
 const yml = {read: ReadYaml, write: WriteYaml};
 
 // Configuations
-var cfg = yml.read.sync('./conf/config.yml');
+var cfg;
+try {
+	cfg = yml.read.sync('./conf/config.yml');
+} catch (e){
+	cfg = yml.read.sync('./install/default.yml');
+}
 const pgp = PgPromise({capSQL:true});
 const db = pgp(cfg.database);
 var sql = yml.read.sync('./sql.yml');
