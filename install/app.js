@@ -14,12 +14,12 @@ import Crypto from 'crypto';
 import Config from '../config';
 //*/
 
-const cfg = Config.cfg;
+var cfg = Config.cfg;
 const pgp = Config.pgp;
 const db = Config.db;
 const yml = Config.yml;
 const sql = (file) => pgp.QueryFile(file,{debug: true, minify: false});
-const yn = /^y(?:es)?/i
+const yn = /^y(?:es)?/i;
 
 (async()=>{
 	// Parse options
@@ -37,7 +37,7 @@ const yn = /^y(?:es)?/i
 		}
 	} while(0);
 	
-	const readLine = async function(prompt, stdinout){
+	const ask = async function(prompt, stdinout){
 		if (!stdinout)
 			stdinout = ReadLine.createInterface({
 				input: process.stdin,
@@ -45,7 +45,7 @@ const yn = /^y(?:es)?/i
 				terminal: false
 			});
 		return new Promise((res,rej)=>{
-			stdinout(prompt,input=>res(input));
+			stdinout.question(prompt.toString(),(input)=>{res(input)});
 		});
 	};
 		
@@ -63,7 +63,7 @@ const yn = /^y(?:es)?/i
 				else console.log('Invalid input.');
 				res = undefined;
 			}
-			res = await readLine(prompt,rl.question);
+			res = await ask(question);
 		} while ((notempty && res === '') || (validate && !validate.test(res)));
 		rl.close();
 		if (/^\d+$/i.test(res)) return parseInt(res,10);
@@ -277,4 +277,4 @@ const yn = /^y(?:es)?/i
 	
 	fs.writeFileSync(__dirname+'/../conf/installed',VERSION.fresh);
 
-})();
+})().catch(err=>{console.log(err);});
