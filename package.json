@@ -54,7 +54,7 @@
   },
   "devDependencies": {
     "koa-logger": "^2.0.1"
-  }
+  },
   "engines":{
     "node": ">= 7.9.0"
   }
