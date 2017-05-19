@@ -6,6 +6,7 @@ post:
   unban: 'remove a ban on an IP'
   
 board:
+  create: 'explicitly create a new board (ignored if the global disable_usermade_boards option is false)'
   view:
     ip: 'see the raw IP for each poster'
     ipmask: 'see the partially masked IP for each poster'
@@ -22,7 +23,8 @@ board:
   
 global:
   board:
-    create: 'explicitly create a new board (ignored if the global disable_usermade_boards option is false)'
+    create: ''
+    delete: ''
   roles: 
     view: 'view global roles and authorized users'
     edit: 'edit global roles and authorized users'

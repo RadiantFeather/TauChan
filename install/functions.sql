@@ -165,12 +165,14 @@ BEGIN
 		END IF;
 	END IF;
 	
-	SELECT COUNT(1) INTO i FROM posts WHERE board = NEW.board AND post <> thread AND capcode IS NULL;
-	IF (NEW.capcode IS NULL AND i >= b.postlimit) THEN
-		RAISE check_violation USING	--Validate thread reply limit
-			MESSAGE = 'New post failed.',
-			DETAIL = 'Thread has reached the reply limit.',
-			CONSTRAINT = 'thread_reply_limit_reached';
+	IF (NEW.thread != NEW.post) THEN
+		SELECT COUNT(1) INTO i FROM posts WHERE board = NEW.board AND thread = NEW.thread AND post <> thread AND capcode IS NULL;
+		IF (NEW.capcode IS NULL AND i >= b.postlimit) THEN
+			RAISE check_violation USING	--Validate thread reply limit
+				MESSAGE = 'New post failed.',
+				DETAIL = 'Thread has reached the reply limit.',
+				CONSTRAINT = 'thread_reply_limit_reached';
+		END IF;
 	END IF;
 	
 	INSERT INTO posts(post, thread, board, posted, ip, hash, name, trip, subject, email, capcode, markdown, markup) VALUES (

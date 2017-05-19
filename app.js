@@ -134,6 +134,7 @@ var clientdepROOT = {
 // BEGIN APP DECLARATION
 
 const app = new Koa();
+app.proxy = true;
 app.env = Config.env;
 Lib.use(app);
 pug.use(app);

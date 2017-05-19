@@ -84,10 +84,10 @@ _.createBoard.reg = true;
 _.createBoard.auth = function(ctx,next){
 	if (Config.cfg.options.disable_usermade_boards)
 		if (!ctx.state.user.global || !ctx.state.user.auth('site.board.create',0))
-			throw new Error('Unauthorized to create a board.');
+			throw '';
 	else if (Config.cfg.options.require_valid_email)
 		if (!ctx.state.user.verified || !ctx.state.user.auth('site.board.create',1))
-			throw new Error('Unauthorized to create a board.');
+			throw '';
 };
 
 _.bans = async function(ctx,next){
@@ -266,6 +266,15 @@ _.createBoard = async function(ctx,next){
 };
 _.createBoard.reg = true;
 _.createBoard.auth = handlers.GET.createBoard.auth; 
+
+_.deleteBoard = async function(ctx,next){
+	
+	
+};
+_.deleteBoard.reg = true;
+_.deleteBoard.auth = function(ctx){
+	
+};
 
 handlers.POST = _;
 

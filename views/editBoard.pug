@@ -92,9 +92,9 @@ block footer
 		div.dangerzone
 			h2 DANGER ZONE
 			p Proceeding will delete this board. This action cannot be undone!
-			form(method="POST",action="/"+board.board+"/destroy",enctype="application/x-www-form-urlencoded")
+			form(method="POST",action='/_/deleteBoard/'+board.board,enctype="application/x-www-form-urlencoded")
 				+CSRF
 				p Type in the name of the board to confirm deletion of this board.
-				input(type="text",name="verified",required,pattern="^"+board.board+"$")
+				input(type="text",name="verify",required,pattern="^"+board.board+"$")
 				input(type="submit",value="Destroy this board")
 		

@@ -5,7 +5,7 @@ console.log('Loading Demo Setup...');
 //*/
 
 const Config = require('../config');
-const Lib = require('../Lib');
+const Lib = require('../lib');
 const Gen = require('./gen');
 
 /*/
@@ -29,11 +29,12 @@ require('../extend');
 	const cfg = yml.read.sync(__dirname+'/demo.yml');
 	
 	var opts = {};
-	opts.max_posts_per_board = cfg.max_posts_per_board;
-	opts.num_of_boards = parseInt(process.argv[2],10)||cfg.num_of_boards;
+	opts.max_posts_per_board = cfg.max_posts_per_board||250;
+	opts.min_posts_per_board = cfg.min_posts_per_board||50;
+	opts.num_of_boards = parseInt(process.argv[2],10)||cfg.num_of_boards||500;
 	opts.posted_max = Chance.natural({min:172800,max:259200}); // between 48 and 72 hours
 	
-	function kv(obj,keys){
+	function kv(obj){
 		let out = {k:[],v:[]};
 		for (var x in obj){
 			out.k.push(x);
@@ -66,25 +67,30 @@ require('../extend');
 		if ('name' in x) posts[i].name = x.name;
 		if ('subject' in x) posts[i].subject = x.subject;
 		if ('email' in x) posts[i].email = x.email;
-		console.log(posts[i]);
-		console.log('-----------');
+		// console.log(posts[i]);
+		// console.log('-----------');
 	}
-	// console.log(posts);
 	
 	
 	function genboard(){
 		//board, title, listed, nsfw, tags
-		let out = {};
-		let t = genboards.map((item)=>{return item.board;});
+		let out = {},reset=false,tries=0;
 		let l = Chance.natural({min:1,max:8});
+		let t = genboards.map((item)=>{return item.board;});
 		do {
+			if (tries > 100) reset = true;
+			if (reset){
+				l = l%8+1;
+				tries = 0;
+				reset = false;
+			}
 			out.board = Chance.word({length:l});
+			tries++;
 		} while (t.contains(out.board));
 		out.title = Chance.n(Chance.word,Chance.natural({min:1,max:4}),{length:Chance.natural({min:4,max:7})}).join(' ');
 		out.listed = Chance.bool({likelihood:75});
 		out.nsfw = Chance.bool();
 		out.tags = gentags();
-		out.postlimit = opts.max_posts_per_board;
 		return out;
 	}
 	
@@ -106,7 +112,7 @@ require('../extend');
 	function genuser(){
 		let out = {};
 		out.ip = Chance.bool()?Chance.ip():Chance.ipv6();
-		out.hash = Lib.maskIP(out.ip);
+		out.hash = Lib.maskData(out.ip);
 		if (Chance.bool({likelihood:90})){ //anonymous
 			if (Chance.bool({likelihood:30})) out.sage = true;
 		} else { //registered
@@ -130,8 +136,13 @@ require('../extend');
 	function genpost(board){
 		let out = {};
 		out.board = board?board:Chance.pickone(boards).board;
-		if (threads[out.board].ops.length && Chance.bool({likelihood:90}))
-			out.thread = Chance.pickone(threads[out.board].ops);
+		let tries = 0;
+		if (threads[out.board].ops.length && (Chance.bool({likelihood:90}) || threads[out.board].ops.length >= 150))
+			do {
+				tries++;
+				out.thread = Chance.pickone(threads[out.board].ops);
+			} while((threads[out.board].replies[out.thread.toString()]) >= 1000 && tries <= 150);
+		if (tries > 150) throw 'Too many posts.';
 		out.markdown = Chance.genParagraph({sentences:Chance.natural({min:2,max:10})});
 		out.markdown = out.markdown.slice(0,out.markdown.lastIndexOf('.',2048)+1);
 		out.markup = Lib.processMarkup(out.markdown);
@@ -153,13 +164,14 @@ require('../extend');
 	console.log('Setting up the demo...');
 	
 	console.log('Setting up custom and generated boards and posts...');
-	
 	for (let i=-1,b,m,SQL;++i < opts.num_of_boards;) {
 		if (i < boards.length) b = boards[i];
 		else b = genboard();
 		genboards.push(b);
+		b.threadlimit = 150;
+		b.postlimit = 1000;
 		b.tags = pgp.as.json(b.tags);
-		if (!threads[b.board]) threads[b.board] = {posts:[],ops:[]};
+		if (!threads[b.board]) threads[b.board] = {posts:[],ops:[],replies:{}};
 		m = kv(b);
 		SQL = 'INSERT INTO boards ('+m.k.join(',')+') '+
 			'VALUES ('+Array(m.v.length).fill('').map((item,i)=>{
@@ -178,10 +190,11 @@ require('../extend');
 			return;
 		}
 		if (i) process.stdout.write("\n");
-		console.log('Setting up posts for board \''+b.board+'\' (#'+(i+1)+')');
 		m = posts.filter((item)=>{return item.board == b.board});
-		let postnum = Chance.natural({min:5,max:opts.max_posts_per_board});
+		let postnum = Chance.natural({min:opts.min_posts_per_board,max:opts.max_posts_per_board});
+		console.log('Setting up posts for board \''+b.board+'\' (#'+(i+1)+') with '+postnum+' posts');
 		for (let j=-1,y,n,p;++j < postnum;){
+			//let waitTill = new Date(new Date().getTime() + 120); // speed limit the post insertion
 			process.stdout.write("\rPost #"+(j+1));
 			if (j < m.length) p = posts[j];
 			else p = genpost(b.board);
@@ -196,16 +209,23 @@ require('../extend');
 			try {
 				let data = await db.one(SQL,n.v);
 				threads[data.board].posts.push(data.post);
-				if (data.post == data.thread)
+				if (data.post == data.thread) {
 					threads[data.board].ops.push(data.thread);
+					threads[data.board].replies[data.thread.toString()] = 0;
+				} else {
+					threads[data.board].replies[data.thread.toString()]++;
+				}
 			} catch(e){
 				process.stdout.write("\n");
 				console.log(e);
 				pgp.end();
 				console.log('Setup failed. Exiting.');
+				console.log(threads[b.board].replies);
+				console.log('Failed on '+b.board+' with thread '+p.thread);
 				return;
 			}
 			if (j+1 == opts.postnum) process.stdout.write("\n");
+			//while(waitTill > new Date()){}
 		}
 		process.stdout.write("\n");
 	}
@@ -213,4 +233,4 @@ require('../extend');
 	pgp.end();
 	console.log('Demo setup is complete.');
 	return;
-})();
+})().catch(err=>{console.log(err);pgp.end();});

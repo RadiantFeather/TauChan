@@ -417,6 +417,8 @@ _.thread = async function(ctx,next) { // New reply to thread
 	}
 };
 
+// ---------- Manage bans ----------------
+
 _.ban = async function(ctx,next) {
 	ctx.checkCSRF();
 	try {
@@ -481,6 +483,7 @@ _.editPage = async function(ctx,next){
 	}
 	
 };
+_.editPage.reg = true;
 _.editPage.auth = function(ctx){
 	if (!ctx.state.user.auth('board.manage.pages'))
 		throw '';
@@ -500,6 +503,7 @@ _.deletePage = async function(ctx,next){
 	});
 	ctx.redirect('/'+ctx.params.board+'/pages');
 };
+_.deletePage.reg = true;
 _.deletePage.auth = function(ctx){
 	if (!ctx.params.action)
 		throw 'Must specify a page to delete.';
@@ -577,6 +581,7 @@ _.settings = async function(ctx,next) {
 		}
 	}
 };
+_.settings.reg = true;
 _.settings.auth = handlers.GET.settings.auth;
 
 // -------------- Modify board roles and users ------------------
@@ -637,6 +642,7 @@ _.editRole = async function(ctx,next){
 		}
 	}
 };
+_.editRole.reg = true;
 _.editRole.auth = handlers.GET.editRole.auth;
 
 _.deleteRole = async function(ctx,next){
@@ -654,6 +660,7 @@ _.deleteRole = async function(ctx,next){
 	ctx.redirect('/'+ctx.params.board+'/roles');
 	
 };
+_.deleteRole.reg = true;
 _.deleteRole.auth = function(ctx){
 	if (!ctx.params.action)
 		throw 'Must specify a role to delete.';
@@ -680,6 +687,7 @@ _.addToRole = async function(ctx,next){
 	});
 	ctx.redirect('/'+ctx.params.board+'/roles');
 };
+_.addToRole.reg = true;
 _.addToRole.auth = function(ctx){
 	if (!ctx.state.user.auth('board.manage.roles.manage'))
 		throw '';
@@ -704,6 +712,7 @@ _.removeFromRole = async function(ctx,next){
 	ctx.redirect('/'+ctx.params.board+'/roles');
 	
 };
+_.removeFromRole.reg = true;
 _.removeFromRole.auth = function(ctx){
 	if (!ctx.state.user.auth('board.manage.roles.manage'))
 		throw '';
