@@ -29,9 +29,9 @@ require('../extend');
 	const cfg = yml.read.sync(__dirname+'/demo.yml');
 	
 	var opts = {};
-	opts.max_posts_per_board = cfg.max_posts_per_board||250;
-	opts.min_posts_per_board = cfg.min_posts_per_board||50;
-	opts.num_of_boards = parseInt(process.argv[2],10)||cfg.num_of_boards||500;
+	opts.max_posts_per_board = parseInt(process.argv[3]||cfg.max_posts_per_board||250,10);
+	opts.min_posts_per_board = parseInt(process.argv[4]||cfg.min_posts_per_board||50,10);
+	opts.num_of_boards = parseInt(process.argv[2]||cfg.num_of_boards||500,10);
 	opts.posted_max = Chance.natural({min:172800,max:259200}); // between 48 and 72 hours
 	
 	function kv(obj){
@@ -135,14 +135,14 @@ require('../extend');
 	
 	function genpost(board){
 		let out = {};
-		out.board = board?board:Chance.pickone(boards).board;
+		board = board?board:Chance.pickone(boards);
+		out.board = board.board;
 		let tries = 0;
-		if (threads[out.board].ops.length && (Chance.bool({likelihood:90}) || threads[out.board].ops.length >= 150))
+		if (threads[out.board].ops.length && Chance.bool({likelihood:90}))
 			do {
 				tries++;
 				out.thread = Chance.pickone(threads[out.board].ops);
-			} while((threads[out.board].replies[out.thread.toString()]) >= 1000 && tries <= 150);
-		if (tries > 150) throw 'Too many posts.';
+			} while(threads[out.board].replies[out.thread.toString()].length > board.postlimit);
 		out.markdown = Chance.genParagraph({sentences:Chance.natural({min:2,max:10})});
 		out.markdown = out.markdown.slice(0,out.markdown.lastIndexOf('.',2048)+1);
 		out.markup = Lib.processMarkup(out.markdown);
@@ -167,9 +167,6 @@ require('../extend');
 	for (let i=-1,b,m,SQL;++i < opts.num_of_boards;) {
 		if (i < boards.length) b = boards[i];
 		else b = genboard();
-		genboards.push(b);
-		b.threadlimit = 150;
-		b.postlimit = 1000;
 		b.tags = pgp.as.json(b.tags);
 		if (!threads[b.board]) threads[b.board] = {posts:[],ops:[],replies:{}};
 		m = kv(b);
@@ -178,9 +175,10 @@ require('../extend');
 				let o = '$'+(i+1);
 				if (m.k[i] == 'tags') o+='^';
 				return o;
-			}).join(',')+');';
+			}).join(',')+') RETURNING *,archivedlifespan::TEXT AS archivedlifespan;';
 		try{
-			await db.none(SQL,m.v);
+			let data = await db.one(SQL,m.v);
+			genboards.push(data);
 		} catch(e){
 			if (e.constraint == 'boards_pkey') 
 				console.log(genboards);
@@ -197,7 +195,7 @@ require('../extend');
 			//let waitTill = new Date(new Date().getTime() + 120); // speed limit the post insertion
 			process.stdout.write("\rPost #"+(j+1));
 			if (j < m.length) p = posts[j];
-			else p = genpost(b.board);
+			else p = genpost(b);
 			if (j>0) {
 				y -= Chance.natural({max:y/(opts.max_posts_per_board-j)});
 			} else y = opts.posted_max;

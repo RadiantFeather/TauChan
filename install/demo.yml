@@ -1,5 +1,5 @@
-max_posts_per_board: 100000
-min_posts_per_board: 1000
+max_posts_per_board: 250
+min_posts_per_board: 50
 num_of_boards: 600
 boards: 
   - board: 'b'
