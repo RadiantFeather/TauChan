@@ -1,7 +1,6 @@
 "use strict";
 console.log('Loading Demo Setup...');
-
-
+const CWD = process.cwd();
 //*/
 
 const Config = require('../config');
@@ -26,8 +25,8 @@ const Chance = new Gen(Config.cfg.secret);
 require('../extend');
 	
 (async ()=>{
-	const cfg = yml.read.sync(__dirname+'/demo.yml');
-	
+	const cfg = yml.read.sync(CWD+'/install/demo.yml');
+	  
 	var opts = {};
 	opts.max_posts_per_board = parseInt(process.argv[3]||cfg.max_posts_per_board||250,10);
 	opts.min_posts_per_board = parseInt(process.argv[4]||cfg.min_posts_per_board||50,10);
@@ -43,7 +42,7 @@ require('../extend');
 		return out;
 	}
 	
-	await db.none(sql(__dirname+'/demosetup.sql'));
+	await db.none(sql(CWD+'/install/demosetup.sql'));
 	console.log('Cleaning up database...');
 	await db.none('VACUUM FULL ANALYZE;');
 	console.log('Done!');

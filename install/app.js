@@ -1,4 +1,7 @@
 "use strict";
+if (process.cwd().endsWith('install'))
+	process.chdir('..');
+const CWD = process.cwd();
 //*/
 
 const fs = require('fs');
@@ -18,10 +21,10 @@ var cfg = Config.cfg;
 const pgp = Config.pgp;
 const db = Config.db;
 const yml = Config.yml;
-const sql = (file) => pgp.QueryFile(file,{debug: true, minify: false});
 const yn = /^y(?:es)?/i;
 
 (async()=>{
+	const sql = (file) => pgp.QueryFile(path(file),{debug: true, minify: false});
 	// Parse options
 	var opt,CLO = {s:{},l:{}};
 	do {
@@ -83,40 +86,54 @@ const yn = /^y(?:es)?/i;
 		return false;
 	}
 	
-	function exists(path) {
+	function exists(_path) {
 		try {
-			fs.statSync(path);
+			fs.statSync(path(_path));
 			return true;
 		} catch (e) {
 			return false;
 		}
 	}
-	function mkdir(path){
-		if (exists(path)) return;
-		let i=-1, dirs = path.split('/');
+	function mkdir(_path){
+		if (exists(_path)) return;
+		let i=-1, dirs = _path.split('/');
 		while (++i < dirs.length) {
-			if (dirs[i] == '' || dirs[i] == '.' || dirs[i] == '..') {
+			if (dirs[i] == '' || dirs[i] == '.') {
 				dirs.splice(i,1);
 				--i; continue;
 			}
-			let p = './'+dirs.slice(0,i+1).join('/');
+			let p = CWD+'/'+dirs.slice(0,i+1).join('/');
 			try { fs.statSync(p); } 
 			catch (e) { fs.mkdirSync(p); }
 		}
 	}
+	function path(_path){
+		let i=-1, dirs = _path.split('/');
+		let absolute = dirs[0] == '';
+		while (++i < dirs.length) {
+			if (dirs[i] == '' || dirs[i] == '.') {
+				dirs.splice(i,1);
+				--i; continue;
+			}
+		}
+		if (absolute)
+			return CWD+'/'+dirs.slice(0,i+1).join('/');
+		else
+			return __dirname+'/'+dirs.slice(0,i+1).join('/');
+	}
 	
-	const dcfg = yml.read.sync(__dirname+'/default.yml');
+	const dcfg = yml.read.sync(path('/install/default.yml'));
+	  
+	if (!exists('/assets/_/media')) mkdir('/assets/_/media');
+	if (!exists('/cache/uploads')) mkdir('/cache/uploads');
+	if (!exists('/conf')) mkdir('/conf');
 	
-	if (!exists(__dirname+'/../assets/_/media')) mkdir(__dirname+'/../assets/_/media');
-	if (!exists(__dirname+'/../cache/uploads')) mkdir(__dirname+'/../cache/uploads');
-	if (!exists(__dirname+'/../conf')) mkdir(__dirname+'/../conf');
-	
-	if (exists(__dirname+'/../conf/config.yml')) cfg = yml.read.sync(__dirname+'/../conf/config.yml');
+	if (exists('/conf/config.yml')) cfg = yml.read.sync(path('/conf/config.yml'));
 	else {
 		console.log('Missing config. Creating file and generating new site secret value.');
-		cfg = yml.read.sync(__dirname+'/default.yml');
+		cfg = yml.read.sync(path('/install/default.yml'));
 		cfg.secret = Crypto.createHash('sha256').update(Math.random().toString()).digest('hex');
-		yml.write.sync(__dirname+'/../conf/config.yml',cfg);
+		yml.write.sync(path('/conf/config.yml'),cfg);
 	}
 	if ((opt = CLO.s.h || CLO.l.host) instanceof String) cfg.database.host = opt;  
 	if (parseInt(opt = CLO.s.p || CLO.l.port,10) instanceof Number) cfg.database.port = opt;  
@@ -161,19 +178,19 @@ const yn = /^y(?:es)?/i;
 			console.log('Database connection reconfigured as: '+ tdb.user+':'+tdb.password+'@'+tdb.host+':'+tdb.port+'/'+tdb.database);
 		} while (!yn.test(await prompt('Is this configuration correct? (y/n): ')));
 		cfg.database = tdb;
-		yml.write.sync(__dirname+'/../conf/config.yml',cfg);
+		yml.write.sync(path('/conf/config.yml'),cfg);
 	}
 	
 	if (!cfg.database) return pgp.end(),console.log('Unable to load database configuration. Please check the config file for errors. Exiting.');
 	
 	
-	if (!exists(__dirname+'/../conf/installed') || CLO.s.q || yn.test(await prompt('Do you want to configure the database? (y/n): '))) {
-		let versions = fs.readdirSync(__dirname+'/../install').filter((cur)=>{ 
+	if (!exists('/conf/installed') || CLO.s.q || yn.test(await prompt('Do you want to configure the database? (y/n): '))) {
+		let versions = fs.readdirSync(path('/install')).filter((cur)=>{ 
 			let c = cur.split('/'), ver = /update\.(\d+\.\d+\.\d+)\.sql$/.exec(c[c.length-1]);
 			if (ver !== null) console.log(VERSION.stale,ver[1],updatable(VERSION.stale,ver[1]));
 			return (ver !== null && updatable(VERSION.stale,ver[1])); 
 		});
-		if (exists(__dirname+'/../conf/installed') && versions.length) {
+		if (exists('/conf/installed') && versions.length) {
 			if (CLO.s.q || yn.test(await prompt('Updates are available. Would you like to update the site database? (y/n): '))) {
 				try {
 					await db.tx((self)=>{
@@ -188,8 +205,8 @@ const yn = /^y(?:es)?/i;
 			}
 			cfg.version = VERSION.fresh;
 		}
-		else if (!exists(__dirname+'/../conf/installed') || !CLO.s.q || yn.test(await prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
-			if (!CLO.s.q && !cfg.devmode && exists(__dirname+'/../conf/installed')) {
+		else if (!exists('/conf/installed') || !CLO.s.q || yn.test(await prompt('App is already installed. Do you want to factory reset the database? (y/n): '))) {
+			if (!CLO.s.q && !cfg.devmode && exists('/conf/installed')) {
 				console.log('These operations are destructive. Please enter the site secret from the config file to continue: ');
 				if (await prompt('Secret: ',/\w+/) != cfg.secret) return pgp.end(),console.log('Secret mismatch. Exiting.');
 				console.log('Secret matched. Proceeding.');
@@ -216,7 +233,7 @@ const yn = /^y(?:es)?/i;
 			console.log();
 			console.log('Wiping the database...');
 			try {
-				await db.none(sql(__dirname+'/wipe.sql'));
+				await db.none(sql('/install/wipe.sql'));
 				console.log('Success');
 			} catch(err) {
 				console.log(err);
@@ -229,8 +246,8 @@ const yn = /^y(?:es)?/i;
 			try {
 				await db.tx((self) => {
 					return self.batch([
-						self.none(sql(__dirname+'/tables.sql')),
-						self.none(sql(__dirname+'/functions.sql'))
+						self.none(sql('/install/tables.sql')),
+						self.none(sql('/install/functions.sql'))
 					]);
 				});
 				console.log('Success');
@@ -243,7 +260,7 @@ const yn = /^y(?:es)?/i;
 			
 			console.log('Database has been installed.');
 		}
-		yml.write.sync(__dirname+'/../conf/config.yml',cfg);
+		yml.write.sync(path('/conf/config.yml'),cfg);
 	}
 	
 	// ----   Move this functionality into the global settings editor  ----
@@ -275,6 +292,6 @@ const yn = /^y(?:es)?/i;
 	
 	pgp.end();
 	
-	fs.writeFileSync(__dirname+'/../conf/installed',VERSION.fresh);
+	fs.writeFileSync(path('/conf/installed'),VERSION.fresh);
 
 })().catch(err=>{console.log(err); pgp.end();});
