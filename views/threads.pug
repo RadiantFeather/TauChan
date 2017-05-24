@@ -6,7 +6,13 @@ block head
 	+script('thread.js')
 	
 block header
-	include partials/newPost
+	- if (page.type == 'history')
+		- if (page.param == 'index')
+			h2.frontandcenter Board History Index
+		- else 
+			h2.frontandcenter Board History for #{page.param.slice(0,12)}
+	- else 
+		include partials/newPost
 								
 block main
 	//- include ticker.pug
@@ -17,6 +23,8 @@ block main
 			h1 No posts have been made.
 		- else if (page.type == 'archive')
 			h1 There are no threads currently in the archive.
+		- else if (page.type == 'history')
+			h1 No posts could be found.
 		- else 
 			h1 No threads have been made.
 	- while (++i < data.length)                         
@@ -28,20 +36,20 @@ block main
 						a(href="/"+board.board+"/"+data[i].thread) HERE
 						| &nbsp;to view.
 				- if (!flatView)
-					- while (data[i+1] && data[i+1].post != data[i+1].thread && ++i) 
+					- while (data[i+1] && data[i+1].post != data[i+1].thread && ++i > -1) 
 						article.post.reply(id='_'+data[i].post)
 							+postContents(data[i])
-		- if (!!flatView)
-			- i-- 
-			- while (data[i+1] && data[i+1].post != data[i+1].thread && ++i) 
-				article.post.reply(id='_'+data[i].post)
-					+postContents(data[i])
+		- if (!!flatView && data[i])
+			article.post.reply(id='_'+data[i].post)
+				+postContents(data[i])
+					
+
 block nav
 	- if (page.type == 'thread')
 		span.quicklinks
-			a.index.brick(href="/"+board.board+"/") Index
-			a.catalog.brick(href="/"+board.board+"/catalog", target="_blank") Catalog
-			a.to.brick(href="#top") Top
+			a.brick(href="/"+board.board+"/") Index
+			a.brick(href="/"+board.board+"/catalog", target="_blank") Catalog
+			a.brick(href="#top") Top
 			a.update.brick(href="/"+board.board+"/"+data[0].thread+"#bottom") Update
 		span.stats
 			- if (data[0].featured)
@@ -58,25 +66,36 @@ block nav
 				span.is-nsfw NSFW
 			span.replies= data.length-1
 			span.images
-				= data.reduce((a,b)=>{return a+(b.media===null?0:b.media.length);},0)
+				= data.reduce((a,b)=>{return a+(b.media===null?0:b.media.length);},0) 
 			span.posters
-				= data.reduce((a,b)=>{if(a.indexOf(b.ip)==-1)a.push(b.ip);return a;},[]).length
-			span.page !{data[0].page}
+				= data.reduce((a,b)=>{if(~a.indexOf(b.ip))a.push(b.ip);return a;},[]).length 
+			span.page= data[0].page
 	- else if (page.type == 'index')
 		span.quicklinks
-			a.catalog.brick(href="/"+board.board+"/catalog") Catalog
-			a.archive.brick(href="/"+board.board+"/archive") Archive
+			a.brick(href="/"+board.board+"/catalog") Catalog
+			a.brick(href="/"+board.board+"/archive") Archive
 		if (data.length)
 			span.pages
 				- var i = 0
 				- while (++i <= data[0].pages)
-					span: a(href=(i!=curpage)?"/"+board.board+"/?page="+(i):false) !{i}
+					span: a(href=(i!=curpage)?"/"+board.board+"/?page="+(i):false)= i
 	- else if (page.type == 'archive')
 		span.quicklinks
-			a.index.brick(href="/"+board.board+"/") Index
-			a.catalog.brick(href="/"+board.board+"/catalog") Catalog
+			a.brick(href="/"+board.board+"/") Index
+			a.brick(href="/"+board.board+"/catalog") Catalog
 		if (data.length)
 			span.pages
 				- var i = 0
 				- while (++i <= data[0].pages)
-					span: a(href=(i!=curpage)?"/"+board.board+"/?page="+(i):false) !{i}
+					span: a(href=(i!=curpage)?"/"+board.board+"/archive?page="+(i):false)= i
+	- else if (page.type == 'history')
+		span.quicklinks
+			a.brick(href="/"+board.board+"/") Board Index
+			a.brick(href="/"+board.board+"/history") Board History
+		if (data.length)
+			span.pages
+				- var i = 0
+				- var hash = (page.param == 'index'?'':page.param)
+				span: a(href=curpage > 1?"/"+board.board+"/history/"+hash+"?page="+(curpage-1):false) Prev
+				span: a(href=data[0].hasnextpage?"/"+board.board+"/history/"+hash+"?page="+(curpage+1):false) Next
+					

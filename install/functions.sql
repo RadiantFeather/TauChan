@@ -1,29 +1,6 @@
 -------------------------------------------
--- Encrypt and validate passwords with md5 salt
+-- Compiles a user's roles and associated data into a JSON array
 --
-CREATE OR REPLACE FUNCTION hash_password() RETURNS TRIGGER AS $$
-BEGIN
-	NEW.passphrase := crypt(NEW.passphrase,gen_salt('md5'::TEXT));
-	RETURN NEW;
-END;$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER hash_password
-	BEFORE INSERT OR UPDATE OF passphrase ON users
-	FOR EACH ROW
-	EXECUTE PROCEDURE hash_password();
-	
--------------------------------------------
--- Convience function for getting a user value via login or existing token
---
-CREATE OR REPLACE FUNCTION fetch_user(_user VARCHAR(32), _pass VARCHAR(64)) RETURNS SETOF users AS $$
-BEGIN
-	IF (_pass IS NOT NULL) THEN
-		RETURN QUERY SELECT * FROM users WHERE username = _user AND (passphrase = crypt(_pass, passphrase));
-	ELSE
-		RETURN QUERY SELECT * FROM users WHERE token = _user;
-	END IF;
-END;$$ LANGUAGE plpgsql;
-
 CREATE OR REPLACE FUNCTION fetch_user_roles(_user INTEGER) RETURNS JSONB[] AS $$
 DECLARE rv JSONB[]; x RECORD;
 BEGIN
@@ -166,7 +143,7 @@ BEGIN
 	END IF;
 	
 	IF (NEW.thread != NEW.post) THEN
-		SELECT COUNT(1) INTO i FROM posts WHERE board = NEW.board AND thread = NEW.thread AND post <> thread AND capcode IS NULL;
+		SELECT COUNT(1) INTO i FROM posts WHERE board = NEW.board AND thread = NEW.thread AND post <> thread;
 		IF (NEW.capcode IS NULL AND i >= b.postlimit) THEN
 			RAISE check_violation USING	--Validate thread reply limit
 				MESSAGE = 'New post failed.',
@@ -196,30 +173,11 @@ BEGIN
 		UPDATE threads SET bumped = NEW.posted WHERE op = NEW.thread AND sage = FALSE;
 	END IF;
 	
-	IF (b.archivethreads IS TRUE) THEN
-		DELETE FROM posts p USING threads t --Delete threads that have expired past their archived lifespan
-		WHERE p.post = p.thread AND p.post = t.op 
-			AND t.archived IS NOT NULL AND NEW.posted - t.archived > b.archivedlifespan;
-		UPDATE threads SET archived = NEW.posted WHERE op IN ( --Archive threads that have fallen past the board thread limit
-			SELECT op FROM threads
-			WHERE board = NEW.board
-			ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
-			OFFSET b.threadlimit
-		);
-	ELSE 
-		DELETE FROM posts p USING threads t --Delete threads that have fallen past the board thread limit
-		WHERE p.post IN (
-			SELECT op FROM threads
-			WHERE board = NEW.board
-			ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
-			OFFSET b.threadlimit
-		);
-	END IF;
-	
 	SELECT COUNT(1) INTO i FROM posts WHERE board = NEW.board AND thread = NEW.thread AND post <> NEW.thread;
 	IF (i <= b.bumplimit) THEN
 		UPDATE boards SET bumped = NEW.posted WHERE board = NEW.board; --Update recent post bump for board
 	END IF;
+	
 	IF (NEW.media IS NOT NULL) THEN
 		FOR m IN SELECT * FROM jsonb_to_recordset(NEW.media) AS _(hash TEXT, board VARCHAR(32), thread INTEGER, post INTEGER, mediatype CHAR(3), nsfw BOOLEAN, src TEXT, thumb TEXT, meta JSON) LOOP
 			INSERT INTO media (hash,board,thread,post,mediatype,nsfw,src,thumb,meta) VALUES (m.hash,NEW.board,NEW.thread,NEW.post,m.mediatype,m.nsfw,m.src,m.thumb,m.meta);
@@ -228,6 +186,27 @@ BEGIN
 	IF (NEW.cites IS NOT NULL) THEN
 		INSERT INTO cites (board,thread,post,targets) VALUES (NEW.board, NEW.thread, NEW.post, NEW.cites);
 	END IF;
+	
+	IF (b.archivethreads IS TRUE) THEN
+		DELETE FROM posts p USING threads t --Delete threads that have expired past their archived lifespan
+		WHERE p.post = p.thread AND p.post = t.op 
+			AND t.archived IS NOT NULL AND NEW.posted - t.archived > b.archivedlifespan;
+		UPDATE threads SET archived = NEW.posted WHERE board = NEW.board AND archived IS NULL AND op IN ( --Archive threads that have fallen past the board thread limit
+			SELECT op FROM threads
+			WHERE board = NEW.board
+			ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
+			OFFSET b.threadlimit
+		);
+	ELSE 
+		DELETE FROM posts p --Delete threads that have fallen past the board thread limit
+		WHERE p.thread IN (
+			SELECT op FROM threads
+			WHERE board = NEW.board
+			ORDER BY pinned DESC, sticky DESC, anchor DESC, bumped DESC, op DESC
+			OFFSET b.threadlimit
+		);
+	END IF;
+	
 	RETURN NEW;
 -- EXCEPTION WHEN OTHERS THEN --Revert post sequence if inserts fail then reraise the exception.
 	-- PERFORM setval(concat_ws('_',NEW.board,'post','seq'),currval(concat_ws('_',NEW.board,'post','seq'))-1);

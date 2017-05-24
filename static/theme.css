@@ -7,7 +7,7 @@
 main {
 	border-color: #000;
 }
-.thread .post.reply {
+.post.reply {
 	background-color: #ededed;
 	border-color: #333;
 }

@@ -26,17 +26,16 @@ board:
   manage:
     reports: 
       view: 'can view all reports for the board'
-      escalate: 'can escalate a report from local to global'
-      delete: 'can delete any reports from the board'
+      delete: 'can delete any local reports from the board'
     pages: 'edit custom board pages'
     roles: 
       view: 'view board roles and authorized users'
       edit: 'edit board roles and authorized users'
       manage: 'add/remove a user to/from an existing role'
-    history: 'see the post history for the entire board'
     bans: 
       view: 'view a list of all active bans'
       remove: 'remove a ban on an IP'
+  history: 'see the post history for the entire board'
   logs: 
     info: 'view logs with INFO severity level (on by default)'
     notice: 'view logs with NOTICE and lower severity level'

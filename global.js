@@ -65,10 +65,8 @@ _.logout = async function(ctx,next){
 		});
 		if (ctx.session.user) delete ctx.session.user;
 		if (ctx.cookies.user) ctx.cookies.set('user',undefined,{httpOnly:true});
-		console.log('last: ',ctx.cookies.get('lastpage'), ' current: ',ctx.cookies.get('curpage'));
 		ctx.cookies.set('lastpage',ctx.params.board?'/'+ctx.params.board+'/':'/_/',{httpOnly:true});
 		let board = /^\/([a-zA-Z0-9_]+)\/.*/.exec(ctx.cookies.get('curpage'));
-		console.log(board);
 		ctx.redirect(board?'/'+board[1]+'/':'/');
 	} catch(err){
 		throw err.setloc('/_/logout');
@@ -124,11 +122,11 @@ _ = {};
 _.login = async function(ctx,next){
 	ctx.checkCSRF();
 	try {
-		await db.one(Config.sql.view.user,{
-			user:ctx.request.body.username,
-			pass:ctx.request.body.passphrase,
-			board:'_'
+		let data = await db.one(Config.sql.view.user_by_name,{
+			user:ctx.request.body.username
 		});
+		if (!Lib.compareData(ctx.request.body.passphrase+Config.cfg.secret, data.passphrase))
+			throw new Error("Invalid username or password.");
 		let token = Crypto
 			.createHash('sha512')
 			.update(ctx.request.body.username)
@@ -174,6 +172,7 @@ _.signup = async function(ctx,next){
 		.digest('hex');
 	try {
 		ctx.request.body.email = Lib.maskData(ctx.request.body.email);
+		ctx.request.body.passphrase = Lib.encryptData(ctx.request.body.passphrase+Config.cfg.secret);
 		await db.none(Config.sql.modify.new_user,{
 			user:ctx.request.body.username,
 			nick:ctx.request.body.screenname||ctx.request.body.username,
@@ -197,25 +196,30 @@ _.createBoard = async function(ctx,next){
 	ctx.checkCSRF();
 	let err;
 	ctx.request.body.board = ctx.request.body.board.replace(/(?:^\/|\/$)/g,'');
-	ctx.request.body.tags = ctx.request.body.tags.replace(/(?:^,|,$)/g,'');
+	if ('tags' in ctx.request.body)
+		ctx.request.body.tags = ctx.request.body.tags.split(',').map(x=>x.trim()).filter(x=>!!x);
 	if (!(/^[a-zA-Z0-9_]+$/.test(ctx.request.body.board)))
 		err = new Error('Board name is empty or contains invalid characters.');
 	else if (ctx.request.body.board.length > 32)
 		err = new Error('Board name is too long. Must be 32 characters or less.');
+	else if ('tags' in ctx.request.body && ctx.request.body.tags.length > 0 && !(/^[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+)*$/.test(ctx.request.body.tags.join(','))))
+		err = new Error('A tag with invalid characters was submitted. Must contain only alphanumeric or underscore characters.');
+	else if ('tags' in ctx.request.body && ctx.request.body.tags.length > 8)
+		err = new Error('Too many tags were submitted. Must have no more than 8 tags.');
 	else if (ctx.request.body.title.length == 0)
 		err = new Error('Board title is empty. Must provide a title for the board.');
-	else if (ctx.request.body.tags.replace(/,/g,'').length > 0 && !(/^[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+)*$/.test(ctx.request.body.tags)))
-		err = new Error('A tag with invalid characters was submitted.');
-	else if (ctx.request.body.tags.split(',').length > 8)
-		err = new Error('Too many tags were submitted. Must have no more than 8 tags.');
 	else if (ctx.request.body.title.length > 32)
 		err = new Error('Board title is too long. Must be 32 characters or less.');
 	else if (ctx.request.body.noname.length > 32)
 		err = new Error('Default anonymous name is too long. Must be 32 characters or less.');
 	else if (ctx.request.body.subtitle.length > 128)
 		err = new Error('Board subtitle is too long. Must be 128 characters or less.');
-	else if (ctx.request.body.ticker.length > 256)
-		err = new Error('Board information header is too long. Must be 256 characters or less.');
+	for (let item in ctx.request.body.tags){
+		if (item.length > 32){
+			err = new Error('One of the tags is too long. Cannot have tags longer than 32 characters.');
+			break;
+		}
+	}
 	
 	if (err) {
 		throw err.withrender('editBoard').setdata(ctx.request.body);
@@ -226,23 +230,15 @@ _.createBoard = async function(ctx,next){
 			t[item] = item in ctx.request.body && ctx.request.body[item].length? pgp.as.text(ctx.request.body[item]): 'NULL';
 		});
 		
-		['noname','archivedlifespan'].forEach((item)=>{
+		['noname'].forEach((item)=>{
 			t[item] = item in ctx.request.body && ctx.request.body[item].length? pgp.as.text(ctx.request.body[item]): 'DEFAULT';
 		});
 		
-		['mediauploadlimit','postlimit','medialimit','bumplimit','threadlimit','standardlimit',
-		'archivedlimit','cyclelimit','stickylimit','pinnedlimit','lockedlimit'].forEach((item)=>{
-			t[item] = item in ctx.request.body? pgp.as.number(parseInt(ctx.request.body[item],10)): 'DEFAULT';
-		});
-		
-		['listed','nsfw','perthreadunique','archivethreads','emailsubmit',
-		'publiclogs','publicbans','publicedits','loguser','postids'].forEach((item)=>{
+		['listed','nsfw'].forEach((item)=>{
 			t[item] = pgp.as.bool(!!ctx.request.body[item]);
 		});
 		
-		t.tags = pgp.as.json('tags' in ctx.request.body? ctx.request.body.tags.split(','): []);
-		t.ticker = pgp.as.text('ticker' in ctx.request.body? ctx.request.body.ticker: '');
-		if (t.ticker) t.tickermarkup = pgp.as.text(Config.lib.processTicker(t.ticker));
+		t.tags = pgp.as.json('tags' in ctx.request.body? ctx.request.body.tags: []);
 		
 		let i,k=[],v=[];
 		for (i in t){

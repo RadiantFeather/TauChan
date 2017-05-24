@@ -1,6 +1,6 @@
 view:
   boards: "
-    SELECT b.*, 
+    SELECT b.*, archivedlifespan::TEXT AS archivedlifespanstring, 
       (SELECT SETVAL(
         CONCAT_WS('_', b.board, 'post', 'seq'),
         NEXTVAL(CONCAT_WS('_', b.board, 'post', 'seq')),
@@ -96,11 +96,11 @@ view:
 
   board_index: '
     WITH board AS (SELECT pinnedlimit, stickylimit, cyclelimit, lockedlimit, standardlimit FROM boards WHERE board = ${board})
-    SELECT x.*, CEIL(COUNT(1) FILTER (WHERE x.post = x.thread) OVER () / 10.0) AS pages, 
-      COUNT(1) OVER (PARTITION BY x.thread) - 1 AS visible 
+    SELECT x.*, COUNT(1) OVER (PARTITION BY x.thread) - 1 AS visible 
     FROM (
       SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post DESC) AS m,
         COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
+        CEIL(COUNT(1) FILTER (WHERE p.post = p.thread) OVER () / 10.0) AS pages, 
         COUNT(1) OVER (PARTITION BY p.thread) - 1 AS total,
         p.*, t.pinned, t.sticky, t.anchor, t.cycle, t.locked, t.bumped, t.sage, t.nsfw, c.targets AS cites,
         cl.localstamp, cl.globalstamp, mask_ip(p.ip::CIDR,p.board) AS mask,
@@ -122,30 +122,42 @@ view:
   
   archive: '
     WITH board AS (SELECT archivedlimit, archivedlifespan FROM boards WHERE board = ${board})
-    SELECT x.*, CEIL(COUNT(1) FILTER (WHERE x.post = x.thread) OVER () / 10.0) AS pages
+    SELECT x.*
     FROM (
       SELECT ROW_NUMBER() OVER (PARTITION BY p.thread ORDER BY (p.post = t.op) DESC, p.post DESC) AS m,
         COUNT(1) FILTER (WHERE p.post = t.op) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS n,
-        p.*, t.archived, t.bumped, fetch_media(p.board,p.post) as media
+        CEIL(COUNT(1) FILTER (WHERE p.post = p.thread) OVER () / 10.0) AS pages,
+        p.*, t.archived, t.bumped, fetch_media(p.board,p.post) as media, mask_ip(p.ip::CIDR,p.board) AS mask
       FROM posts p, threads t, board b
-      WHERE p.board = ${board} AND p.thread = t.op AND t.archived < NOW() - b.archivedlifespan
+      WHERE p.board = ${board} AND p.board = t.board AND p.thread = t.op AND t.archived > NOW() - b.archivedlifespan
     ) x, board b
     WHERE (x.m <= b.archivedlimit + 1)
     AND x.n > (${page} - 1) * 10 AND x.n <= (${page} - 1) * 10 + 10
     ORDER BY x.archived DESC, x.bumped DESC, x.thread DESC, (x.post = x.thread) DESC, x.post ASC;
   '
 
-  recent_posts: '
-    SELECT * FROM posts
-    WHERE board = ${board} ORDER BY posted DESC
-    LIMIT ${limit} OFFSET ${limit} * ${page};
+  history: '
+    SELECT x.*,COUNT(*) OVER() > 50 AS hasnextpage 
+    FROM (
+      SELECT p.*, mask_ip(p.ip::CIDR,p.board) AS mask, fetch_media(p.board,p.post) AS media
+      FROM posts p
+      WHERE p.board = ${board}
+      ORDER BY p.posted DESC
+      LIMIT 51 OFFSET (${page} - 1) * 50
+    ) x
+    ORDER BY x.posted DESC
   '
   
-  ip_history: '
-    SELECT * FROM posts
-    WHERE board = ${board} AND ip = ${ip}
-    ORDER BY posted DESC
-    LIMIT ${limit} OFFSET ${page} * ${limit};
+  history_by_ip: '
+    SELECT x.*,COUNT(*) OVER() > 50 AS hasnextpage 
+    FROM (
+      SELECT p.*, mask_ip(p.ip::CIDR,p.board) AS mask, fetch_media(p.board,p.post) AS media
+      FROM posts p
+      WHERE p.board = ${board} AND hash = ${hash}
+      ORDER BY p.posted DESC
+      LIMIT 51 OFFSET (${page} - 1) * 50
+    ) x
+    ORDER BY x.posted DESC
   '
   
   is_banned: "
@@ -215,10 +227,16 @@ view:
     ORDER BY (page IN ('rules','RULES','Rules')) DESC, page ASC;
   "
   
-  user: '
+  user_by_token: '
     SELECT u.id,u.username,u.email,u.screenname,
       u.verified,u.global,fetch_user_roles(u.id) AS roles
-    FROM fetch_user(${user},${pass}) u;
+    FROM users u WHERE token = ${token};
+  '
+  
+  user_by_name: '
+    SELECT u.id,u.username,u.email,u.screenname,u.passphrase,
+      u.verified,u.global,fetch_user_roles(u.id) AS roles
+    FROM users u WHERE username = ${user};
   '
   
   user_roles: '
@@ -270,26 +288,25 @@ modify:
     ) RETURNING post,board,thread;
   '
   
-  vaccuum_thread: '
-    UPDATE posts SET archived = NOW()
-    WHERE thread IN (
-      WITH threadlimit AS (SELECT threadlimit FROM boards WHERE board = ${board})
+  vacuum_thread: '
+    UPDATE threads SET archived = NOW()
+    WHERE op IN (
       SELECT t.op FROM threads t
-      WHERE t.board = ${board}
-      ORDER BY t.sticky DESC, t.anchor DESC, t.bumped DESC, t.op DESC
-      OFFSET threadlimit
-    );
+      WHERE t.board = ${board} AND archived IS NULL
+      ORDER BY t.pinned DESC, t.sticky DESC, t.anchor DESC, t.bumped DESC, t.op DESC
+      OFFSET ${offset}
+    )
+    RETURNING op;
   '
   
-  vaccuum_archive: '
+  vacuum_archive: '
     DELETE FROM posts
     WHERE thread IN (
-      WITH archivedlimit AS (SELECT archivedlimit FROM boards WHERE board = ${board})
       SELECT t.op FROM threads t
       WHERE t.board = ${board} AND t.featured = FALSE
-        AND t.archived IS NOT NULL AND t.archived < NOW() - archivedlifespan
+        AND t.archived IS NOT NULL AND NOW() - t.archived > ${archivedlifespan}::INTERVAL
     )
-    RETURNING *;
+    RETURNING post;
   '
   
   user_token: '

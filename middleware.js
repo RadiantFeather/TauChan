@@ -82,9 +82,8 @@ _.loadUser = async function(ctx,next){
 		return next();
 	}
 	try {
-		let data = await db.one(Config.sql.view.user,{
-			user: ctx.cookies.get('user'),
-			pass: null
+		let data = await db.one(Config.sql.view.user_by_token,{
+			token: ctx.cookies.get('user')
 		});
 		ctx.session.user = {};
 		for (let key in data)

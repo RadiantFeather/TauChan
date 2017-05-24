@@ -67,7 +67,7 @@ _.index = async function(ctx,next) { 	// board index
 _.archive = async function(ctx,next) {	// archive view
 	let data = await db.any(Config.sql.view.archive, {
 		board: ctx.params.board,
-		page: parseInt(ctx.query.page||1,10),
+		page: parseInt(ctx.query.page||1,10)
 	});
 	let board = ctx.state.board;
 	ctx.state.META.keywords = '/'+board.board+'/';
@@ -82,9 +82,8 @@ _.thread = async function(ctx,next) {	// thread view
 		let data = await db.many(Config.sql.view.thread, {
 			board: ctx.params.board,
 			post: parseInt(ctx.params.page,10),
-			limit: ctx.query.preview ? parseInt(ctx.query.preview,10) : null,
+			limit: ctx.query.preview ? parseInt(ctx.query.preview,10) : null
 		});
-		data.forEach((x,i,a)=>{a[i].longhash = Config.lib.maskData(x.ip);});
 		ctx.state.META.keywords = '/'+ctx.state.board.board+'/';
 		ctx.state.META.desc = data[0].markdown.substring(128);
 		ctx.state.META.title = '/'+ctx.state.board.board+'/ - '+(data[0].subject || data[0].markdown.substring(0,24));
@@ -116,7 +115,7 @@ _.catalog = async function(ctx,next) {
 };
 
 _.spoilerMedia = async function(ctx,next) {
-	// if(!CSRF(ctx,next)) return;
+	ctx.checkCSRF();
 	// TODO
 	
 };
@@ -126,7 +125,7 @@ _.spoilerMedia.auth = function(ctx){
 };
 
 _.deleteMedia = async function(ctx,next) {
-	// if(!CSRF(ctx,next)) return;
+	ctx.checkCSRF();
 	// TODO
 	
 };
@@ -136,6 +135,7 @@ _.deleteMedia.auth = function(ctx){
 };
 
 _.ban = async function(ctx,next) {
+	ctx.checkCSRF();
 	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
 	return;
 	ctx.cookie.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
@@ -152,6 +152,7 @@ _.ban.auth = function(ctx) {
 };
 
 _.delete = async function(ctx,next) {
+	ctx.checkCSRF();
 	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
 	return;
 	let data = await db.one(Config.sql.view.post,{
@@ -166,6 +167,7 @@ _.delete.auth = function(ctx){
 };
 
 _.bnd = async function(ctx,next) {
+	ctx.checkCSRF();
 	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
 	return;
 	let data = await db.one(Config.sql.view.post,{
@@ -194,7 +196,30 @@ _.banned = async function(ctx,next) {
 };
 
 _.history = async function(ctx,next) {
-	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
+	if (ctx.params.action){
+		//get history of SPECIFIC ip hash
+		let data = await db.any(Config.sql.view.history_by_ip,{
+			board: ctx.params.board,
+			hash: ctx.params.action,
+			page: parseInt(ctx.query.page||1,10)
+		});
+		ctx.state.page = {type:'history',param:ctx.params.action};
+		ctx.state.flatView = true;
+		ctx.render('threads',{data,curpage:parseInt(ctx.query.page||1,10)});
+	} else {
+		//get history of entire board
+		let data = await db.any(Config.sql.view.history,{
+			board: ctx.params.board,
+			page: parseInt(ctx.query.page||1,10)
+		});
+		ctx.state.page = {type:'history',param:'index'};
+		ctx.state.flatView = true;
+		ctx.render('threads',{data,curpage:parseInt(ctx.query.page||1,10)});
+	}
+};
+_.history.auth = function(ctx) {
+	if (!ctx.state.user.auth('board.history'))
+		throw '';
 };
 
 _.logs = async function(ctx,next) {
@@ -207,6 +232,10 @@ _.report = async function(ctx,next) {
 
 _.reports = async function(ctx,next) {
 	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
+};
+_.reports.auth = function(ctx){
+	if (!ctx.state.user.auth('board.manage.reports'))
+		throw '';
 };
 
 _.pages = async function(ctx,next) { // custom board pages
@@ -516,14 +545,16 @@ _.deletePage.auth = function(ctx){
 _.settings = async function(ctx,next) {
 	ctx.checkCSRF();
 	let err;
-	ctx.request.body.tags = ctx.request.body.tags.replace(/(?:^,|,$)/g,'');
 	ctx.state.editmode = true;
-	if (ctx.request.body.title.length == 0)
+	ctx.request.body.tags = ctx.request.body.tags.replace(/(?:^,|,$)/g,'');
+	if ('tags' in ctx.request.body)
+		ctx.request.body.tags = ctx.request.body.tags.split(',').map(x=>x.trim()).filter(x=>!!x);
+	if ('tags' in ctx.request.body && ctx.request.body.tags.length > 0 && !(/^[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+)*$/.test(ctx.request.body.tags.join(','))))
+		err = new Error('A tag with invalid characters was submitted. Must contain only alphanumeric or underscore characters.');
+	else if ('tags' in ctx.request.body && ctx.request.body.tags.length > 8)
+		err = new Error('Too many tags were submitted. Must have no more than 8 tags.');
+	else if (ctx.request.body.title.length == 0)
 		err = new Error('Board title is empty. Must provide a title for the board.');
-	else if (ctx.request.body.tags.replace(/,/g,'').length > 0 && !(/^[a-zA-Z0-9_]+(?:,[a-zA-Z0-9_]+)*$/.test(ctx.request.body.tags)))
-		err = new Error('A tag with invalid characters was submitted.');
-	else if (ctx.request.body.tags.split(',').length > 8)
-		err = new Error('Too many tags were submitted. Boards can have no more than 8 tags.');
 	else if (ctx.request.body.title.length > 32)
 		err = new Error('Board title is too long. Must be 32 characters or less.');
 	else if (ctx.request.body.noname.length > 32)
@@ -532,6 +563,12 @@ _.settings = async function(ctx,next) {
 		err = new Error('Board subtitle is too long. Must be 128 characters or less.');
 	else if (ctx.request.body.ticker.length > 256)
 		err = new Error('Board information header is too long. Must be 256 characters or less.');
+	for (let item in ctx.request.body.tags){
+		if (item.length > 32){
+			err = new Error('One of the tags is too long. Cannot have tags longer than 32 characters.');
+			break;
+		}
+	}
 	
 	if (err) throw err.withrender('editBoard').setdata(ctx.request.body);
 	else {
@@ -557,7 +594,7 @@ _.settings = async function(ctx,next) {
 			});
 		
 		if (ctx.state.user.auth('board.settings.info'))
-			t.tags = pgp.as.json('tags' in ctx.request.body? ctx.request.body.tags.split(','): []);
+			t.tags = pgp.as.json('tags' in ctx.request.body? ctx.request.body.tags: []);
 		if (ctx.state.user.auth('board.settings.header')) {
 			t.ticker = pgp.as.text('ticker' in ctx.request.body? ctx.request.body.ticker: '');
 			if (t.ticker) t.tickermarkup = pgp.as.text(Config.lib.processTicker(t.ticker));

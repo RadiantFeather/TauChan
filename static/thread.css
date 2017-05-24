@@ -10,13 +10,14 @@ nav .pages span:not(:last-child):after { content: " | "; }
 .thread:not(:first-of-type) { 
 	border-top: solid 1px black; 
 	padding-top:5px;
+	margin-top:5px;
 }
 .thread .content +i {
 	display:block;
 	text-align:right;
 }
 
-.thread .post.reply {
+.post.reply {
 	border-width: 2px;
 	border-style: solid;
 	margin-top: 10px;

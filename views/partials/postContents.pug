@@ -61,19 +61,21 @@ mixin postContents(data)
 		- if (data.subject !== null)
 			span.subject= data.subject
 		- if (user.auth('board.ips.raw'))
-			a.ip.brick(href="/"+board.board+"/history/"+data.longhash)= data.ip
+			a.ip.brick(href="/"+board.board+"/history/"+data.hash)= data.ip
 		- else if (user.auth('board.ips.mask'))
-			a.ip.brick(href="/"+board.board+"/history/"+data.longhash)= data.mask
+			a.ip.brick(href="/"+board.board+"/history/"+data.hash)= data.mask
 		- else if (user.auth('board.ips.hash'))
-			a.ip.brick(href="/"+board.board+"/history/"+data.longhash)= data.longhash.substr(0,16)
+			a.ip.brick(href="/"+board.board+"/history/"+data.hash)= data.hash.substr(0,12)
 		+date_time('stamp', data.posted)
 		- if (board.postids)
 			span.postid= F_POSTID(data.ip,data.board,data.thread)
 		//- Move the onclick to a clientside script
-		a.quote(href=(page.type=='index'?"/"+board.board+"/"+data.thread+"#_"+data.post:"#_"+data.post), onclick="if('"+page.type+"'=='thread')return quotePost('"+data.post+"'),false;")= data.post
+		a.quote(href=(page.type=='index'||page.type=='archive'?"/"+board.board+"/"+data.thread+"#_"+data.post:"#_"+data.post), 
+			onclick="if('"+page.type+"'=='thread')return quotePost('"+data.post+"'),false;"
+		)= data.post
 		+actions(board.board,data.post,data.ip)
 		span.cited
-			- if (data.targets !== null)
+			- if (data.targets&&data.targets.length)
 				each t in data.targets 
 					cite: a(href="#_"+t.post) >>#{t.post}
 	div.media(class=(data.media === null ? 'none' : data.media.length > 1 ? 'many' : data.media.length == 1 ? 'one' : 'none'))
@@ -83,9 +85,9 @@ mixin postContents(data)
 	span.content!= data.markup
 	- if (data.banned !== null)
 		div.banned= data.banned
-	- if (board.publicedits && data.edited !== null)
+	- if (board.publicedits && data.edited)
 		+date_time('edited', data.edited)
-	- if (data.globalstamp !== null)
+	- if (data.globalstamp)
 		+date_time('clean global', data.globalstamp)
-	- else if (data.localstamp !== null)
+	- else if (data.localstamp)
 		+date_time('clean local', data.localstamp)

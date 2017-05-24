@@ -67,7 +67,7 @@ posts:
   - board: 'b'
     markdown: "__MEMES! \n@@CAN NOT GET ENOUGH MEMES!"
   - board: 'b'
-    markdown: "**I** drooled ****on my grillfriend's ice-cream. [spoiler]I __wonder [spoiler]if she noticed...[/spoiler]__[/spoiler]"
+    markdown: "**I** drooled ****on my grillfriend's ice-cream. [s]I __wonder [s]if she noticed...[/s]__[/s]"
   - board: 'a'
     markdown: "@!This thread belongs to __SquidGirl__. The squidvasion continues!"
   - board: 'a'
@@ -79,12 +79,12 @@ posts:
   - board: 'news'
     markdown: "Can't stump the trump."
   - board: 'pol'
-    markdown: "@@Hitler did __nothing__ wrong.\nHe just[spoiler][spoiler][spoiler][spoiler][/spoiler][/spoiler][/spoiler][/spoiler] wanted **perfection**."
+    markdown: "@@Hitler did __nothing__ wrong.\nHe just[s][s][s][s][/s][/s][/s][/s] wanted **perfection**."
   - board: 'pol'
-    markdown: "**__Putin@> is [spoiler]right[/spoiler] on the <@money**."
+    markdown: "**__Putin@> is [s]right[/s] on the <@money**."
   - board: 'pone'
     markdown: "==HEY __ANON__!\n==**@>WHAT'S@> UP<@?<@**____**=="
   - board: 'pone'
-    markdown: "**__``Claim your waifu before \n@@some other [spoiler]faggot[/spoiler] gets her!\n``**"
+    markdown: "**__``Claim your waifu before \n@@some other [s]faggot[/s] gets her!\n``**"
   - board: 'isis'
     markdown: "Two new recruits [code]to the DurkaDurka[/code] division."
