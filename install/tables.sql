@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS boards (
 	title VARCHAR(32) NOT NULL,
 	subtitle VARCHAR(128),
 	created TIMESTAMP DEFAULT NOW(),
+	modified TIMESTAMP NOT NULL DEFAULT NOW(),
 	bumped TIMESTAMP,
 	global BOOLEAN DEFAULT FALSE,
 	noname VARCHAR(32) DEFAULT 'Anonymous',
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS threads (
 	nsfw BOOLEAN DEFAULT FALSE, --Auto spoiler all images in the thread, ignored on NSFW boards
 	archived TIMESTAMP, --Marked as fallen off the board into archive state
 	featured BOOLEAN DEFAULT FALSE, --Marked as an immortal thread (can still be reported on)
+	modified TIMESTAMP NOT NULL DEFAULT NOW(),
 	PRIMARY KEY (board, op),
 	FOREIGN KEY (board, op) REFERENCES posts (board, post) 
 		ON DELETE CASCADE ON UPDATE CASCADE
@@ -135,6 +137,7 @@ CREATE TABLE IF NOT EXISTS pages (
 	title VARCHAR(32),
 	markdown VARCHAR(4096),
 	markup TEXT,
+	modified TIMESTAMP NOT NULL DEFAULT NOW(),
 	PRIMARY KEY (board, page)
 );
 
@@ -146,6 +149,7 @@ CREATE TABLE IF NOT EXISTS users (
 	email TEXT UNIQUE,
 	verified BOOLEAN NOT NULL DEFAULT FALSE,
 	global BOOLEAN NOT NULL DEFAULT FALSE,
+	modified TIMESTAMP NOT NULL DEFAULT NOW(),
 	token TEXT UNIQUE
 );
 
@@ -177,6 +181,7 @@ CREATE TABLE IF NOT EXISTS bans (
 	board VARCHAR(32) NOT NULL DEFAULT '_' REFERENCES boards (board) 
 		ON DELETE CASCADE ON UPDATE CASCADE,
 	created TIMESTAMP NOT NULL DEFAULT NOW(),
+	modified TIMESTAMP NOT NULL DEFAULT NOW(),
 	expires INTERVAL NOT NULL CHECK (expires >= '0'),
 	creator INTEGER NOT NULL DEFAULT 0 REFERENCES users (id) 
 		ON DELETE SET DEFAULT,

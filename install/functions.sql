@@ -136,11 +136,17 @@ BEGIN
 		AND a.approved IS NULL AND bb.created + bb.expires > NOW()
 	ORDER BY (bb.board = '_') DESC, ranged ASC, bb.created DESC
 	LIMIT 1;
-	IF (b IS NULL OR NOT EXISTS(b)) THEN
-		RAISE insufficient_privilege USING	--User has an active, unappealed ban
-			MESSAGE = CASE WHEN ranged THEN 'You are range banned.' ELSE 'You are banned.',
-			DETAIL = b.reason,
-			CONSTRAINT = 'user_is_banned';
+	IF (b IS NOT NULL) THEN
+		IF (b.ranged) THEN
+			RAISE insufficient_privilege USING	--User is in an active range ban without an approved appeal
+				MESSAGE = 'You are range banned.',
+				DETAIL = b.reason,
+				CONSTRAINT = 'user_is_range_banned';
+		ELSE
+			RAISE insufficient_privilege USING	--User has an active ban without an approved appeal
+				MESSAGE = 'You are banned.',
+				DETAIL = b.reason,
+				CONSTRAINT = 'user_is_banned';
 	END IF;
 	SELECT bumplimit,threadlimit,postlimit,noname,archivethreads,archivedlifespan INTO b FROM boards WHERE board = NEW.board;
 	SELECT NEXTVAL(CONCAT_WS('_',NEW.board,'post','seq')) INTO NEW.post;
@@ -243,19 +249,19 @@ BEGIN
 	SELECT hash INTO found_hash FROM media WHERE board = _board AND ((b.perthreadunique IS TRUE AND thread = _thread) OR b.perthreadunique IS FALSE) AND _hashes ? hash LIMIT 1;
 	SELECT COUNT(1) INTO i FROM media WHERE board = _board AND thread = _thread;
 	IF (jsonb_array_length(_hashes) > 0 AND i + jsonb_array_length(_hashes) > b.medialimit) THEN 
-		RAISE check_violation	--Validate thread image limit
-			USING MESSAGE = 'New post failed.',
+		RAISE check_violation USING 	--Validate thread image limit
+			MESSAGE = 'New post failed.',
 			DETAIL = 'Thread has reached the image limit.',
 			CONSTRAINT = 'thread_image_limit_reached';
 	ELSIF (jsonb_array_length(_hashes) > 0 AND found_hash) THEN	--Validate image uniqueness
-		RAISE unique_violation
-			USING MESSAGE = 'New post failed.',
+		RAISE unique_violation USING 
+			MESSAGE = 'New post failed.',
 			DETAIL = 'Duplicate image found.',
 			HINT = found_hash,
 			CONSTRAINT = 'duplicate_image_found';
 	ELSIF (jsonb_array_length(_hashes) > 0 AND jsonb_array_length(_hashes) > b.mediauploadlimit) THEN
-		RAISE check_violation
-			USING MESSAGE = 'Media upload failed.',
+		RAISE check_violation USING 
+			MESSAGE = 'Media upload failed.',
 			DETAIL = 'Uploaded image count exceeds allowed amount.',
 			CONSTRAINT = 'image_upload_limit_reached';
 	END IF;
@@ -284,7 +290,7 @@ BEGIN
 	IF (NEW.range IS NULL) THEN NEW.range := 32; END IF;
 	IF (NEW.creator IS NULL) THEN NEW.creator := 0; END IF;
 	SELECT * INTO p FROM posts WHERE board = NEW.board AND post = NEW.post LIMIT 1;
-	IF (p IS NULL OR NOT EXISTS(p)) THEN
+	IF (p IS NULL) THEN
 		RAISE case_not_found
 			USING MESSAGE = 'Ban and Delete failed.',
 			DETAIL = 'Post does not exist.',
@@ -348,3 +354,39 @@ BEGIN
 	) x WHERE x.op = _thread LIMIT 1;
 	RETURN r.page::SMALLINT;
 END;$$ LANGUAGE plpgsql;
+
+-------------------------------------------
+-- Function for autoupdating the last modified timestamp.
+--
+CREATE OR REPLACE FUNCTION update_modified() RETURNS TRIGGER AS $$
+BEGIN
+	NEW.modified = NOW();
+	RETURN NEW;
+END;$$ LANGUAGE plpgsql;
+
+-- Triggers
+CREATE TRIGGER modified_boards 
+	BEFORE UPDATE ON boards
+	FOR EACH ROW
+	EXECUTE PROCEDURE update_modified();
+	
+CREATE TRIGGER modified_threads 
+	BEFORE UPDATE ON threads
+	FOR EACH ROW
+	EXECUTE PROCEDURE update_modified();
+	
+CREATE TRIGGER modified_pages
+	BEFORE UPDATE ON pages
+	FOR EACH ROW
+	EXECUTE PROCEDURE update_modified();
+	
+CREATE TRIGGER modified_users 
+	BEFORE UPDATE ON users
+	FOR EACH ROW
+	EXECUTE PROCEDURE update_modified();
+	
+CREATE TRIGGER modified_bans 
+	BEFORE UPDATE ON bans
+	FOR EACH ROW
+	EXECUTE PROCEDURE update_modified();
+

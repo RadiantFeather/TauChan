@@ -150,6 +150,11 @@ var clientdepROOT = {
 	'socket.io.js':'/node_modules/socket.io-client/'
 };
 
+// LOAD APPLICATION LANGUAGE TEMPLATE INTO MEMEORY
+
+const lang = {};
+lang.template = noop(); // replace with call to template init function
+
 
 // BEGIN APP DECLARATION
 
