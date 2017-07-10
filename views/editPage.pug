@@ -5,27 +5,24 @@ block head
 
 block header
 	- if (editmode)
-		h1.frontandcenter Editing Custom Page
+		h1.frontandcenter= __('Editing Custom Page')
 	- else 
-		h1.frontandcenter Create a New Custom Page
+		h1.frontandcenter= __('Create a New Custom Page')
 	div
-		a(href='/'+board.board+'/pages/') Return to pages
+		a(href='/'+board.board+'/pages/')= __('Return to pages')
 
 block content
 	form#editPage(method="POST",enctype="application/x-www-form-urlencoded",action='/'+board.board+'/editPage/'+(data&&data.page&&editmode?data.page:''))
 		+CSRF
-		- if (err && (DEV || status != 500))
-			h4._error= err.message
-		- else if (err)
-			h4._error An unknown error occured. Page was unable to be created.
-		label Page Name:
+		+ERR(__('An unknown error occured.')+' '+__('Page was unable to be created.'))
+		label= __('Page Name')+':'
 			input(type="text",name="page",required=true,pattern="^[0-9]*[a-zA-Z_]+[0-9]*$",maxLength="16",value=(data&&data.page?data.page:''),disabled=editmode)
-		label Page Title:
+		label= __('Page Title')+':'
 			input(type="text",name="title",required=true,maxLength="32",value=(data&&data.title?data.title:''))
-		div Page Content:
+		div= __('Page Content')+':'
 		textarea(name="markdown",required=true,maxLength="4096",rows="15",cols="100")!= data&&data.markdown?data.markdown:''
 		div
-			input(type="submit",value="Preview Changes",formaction='/'+board.board+'/editPage/'+(data&&data.page&&editmode?data.page:'')+'?preview=1')
-			input(type="submit",value="Save Page")
+			input(type="submit",value=__("Preview Changes"),formaction='/'+board.board+'/editPage/'+(data&&data.page&&editmode?data.page:'')+'?preview=1')
+			input(type="submit",value=__("Save Page"))
 		- if (previewMarkup)
 			div#preview!= previewMarkup

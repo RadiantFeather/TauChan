@@ -2,10 +2,10 @@ extends layout
 
 block header
 	div
-		a(href="/_/") Return to Underboard
+		a(href="/_/")= __('Return to Underboard')
 	- if (!!editmode)
 		div
-			a(href='/'+board.board+'/') Return to board index
+			a(href='/'+board.board+'/')= __('Return to board index')
 
 block head
 	+style('editBoard.css')
@@ -13,89 +13,86 @@ block head
 block main
 	form#createBoard(method="POST",action="",enctype="application/x-www-form-urlencoded")
 		+CSRF
-		- if (err && (DEV || status != 500))
-			h4._error= err.message
-		- else if (err)
-			h4._error An unknown error occured. Board was unable to be saved.
+		+ERR(__('An unknown error occured.')+' '+__('Board was unable to be saved.'))
 		fieldset.category
-			legend Board Information
-			label Board:&nbsp;
+			legend= __('Board Information')
+			label= __('Board')+':&nbsp;'
 				input(name="board",type="text",maxLength="32",pattern="^\/?[a-zA-Z0-9_]+\/?$",placeholder="e.g. /b/",value=(data&&data.board?data.board:''),disabled=!!editmode)
-			label Title:&nbsp;
-				input(name="title",type="text",maxLength="64",placeholder="Title",value=(data&&data.title?data.title:''),disabled=!!info_auth)
-			label Subtitle (aka description):&nbsp;
+			label= __('Title')+':&nbsp;'
+				input(name="title",type="text",maxLength="64",placeholder=__("Title"),value=(data&&data.title?data.title:''),disabled=!!info_auth)
+			label = __('Subtitle (aka description)')+':&nbsp;'
 				input(name="subtitle",type="text",maxLength="128",value=(data&&data.subtitle?data.subtitle:''),disabled=!!info_auth)
-			label Default Anonymous Name:&nbsp;
-				input(name="noname",type="text",maxLength="32",placeholder="Anonymous",value=(data&&data.noname?data.noname:''),disabled=!!info_auth)
-			label Tags:&nbsp;
-				input(name="tags",type="text",pattern="^ *,? *[a-zA-Z0-9_]+ *(?:, *[a-zA-Z0-9_]+){0,8} *,? *$",placeholder="separate, tags, with, commas",value=(data&&data.tags?data.tags:''),disabled=!!info_auth)
+			label= __('Default Anonymous Name')+':&nbsp;'
+				input(name="noname",type="text",maxLength="32",placeholder=__("Anonymous"),value=(data&&data.noname?data.noname:''),disabled=!!info_auth)
+			label = __('Tags')+':&nbsp;'
+				input(name="tags",type="text",pattern="^ *,? *[a-zA-Z0-9_]+ *(?:, *[a-zA-Z0-9_]+){0,8} *,? *$",placeholder=__("separate, tags, with, commas"),value=(data&&data.tags?data.tags:''),disabled=!!info_auth)
 		- if (!!editmode)
 			fieldset.category
-				legend Board Limits
-				label Locked thread preview limit:&nbsp;
+				legend= __('Board Limits')
+				label= __('Locked thread preview limit')+':&nbsp;'
 					input(name="lockedlimit",type="number",min="0",max="10",value=(data&&data.lockedlimit?data.lockedlimit:0),disabled=!!limit_auth)
-				label Pinned thread preview limit:&nbsp;
+				label= __('Pinned thread preview limit')+':&nbsp;'
 					input(name="pinnedlimit",type="number",min="0",max="10",value=(data&&data.pinnedlimit?data.pinnedlimit:1),disabled=!!limit_auth)
-				label Sticky thread preview limit:&nbsp;
+				label= __('Sticky thread preview limit')+':&nbsp;'
 					input(name="stickylimit",type="number",min="0",max="10",value=(data&&data.stickylimit?data.stickylimit:2),disabled=!!limit_auth)
-				label Cycle thread preview limit:&nbsp;
+				label= __('Cycle thread preview limit')+':&nbsp;'
 					input(name="cyclelimit",type="number",min="0",max="10",value=(data&&data.cyclelimit?data.cyclelimit:3),disabled=!!limit_auth)
-				label Archived thread preview limit:&nbsp;
+				label= __('Archived thread preview limit')+':&nbsp;'
 					input(name="archivedlimit",type="number",min="0",max="10",value=(data&&data.archivedlimit?data.archivedlimit:3),disabled=!!limit_auth)
-				label Standard thread preview limit:&nbsp;
+				label= __('Standard thread preview limit')+':&nbsp;'
 					input(name="standardlimit",type="number",min="0",max="10",value=(data&&data.standardlimit?data.standardlimit:5),disabled=!!limit_auth)
-				label Active threads limit:&nbsp;
+				label= __('Active threads limit')+':&nbsp;'
 					input(name="threadlimit",type="number",min="10",max="150",value=(data&&data.threadlimit?data.threadlimit:50),disabled=!!limit_auth)
-				label Thread bump limit:&nbsp;
+				label= __('Thread bump limit')+':&nbsp;'
 					input(name="bumplimit",type="number",min="100",max="500",value=(data&&data.bumplimit?data.bumplimit:150),disabled=!!limit_auth)
-				label Media upload limit per thread:&nbsp;
+				label= __('Media upload limit per thread')+':&nbsp;'
 					input(name="medialimit",type="number",min="0",max="750",value=(data&&data.medialimit?data.medialimit:750),disabled=!!limit_auth)
-				label Thread post count limit:&nbsp;
+				label= __('Thread post count limit')+':&nbsp;'
 					input(name="postlimit",type="number",min="100",max="1000",value=(data&&data.postlimit?data.postlimit:300),disabled=!!limit_auth)
-				label Media upload limit per post:&nbsp;
+				label= __('Media upload limit per post')+':&nbsp;'
 					input(name="mediauploadlimit",type="number",min="0",max="4",value=(data&&data.mediauploadlimit?data.mediauploadlimit:1),disabled=!!limit_auth)
 				
 		fieldset.category
-			legend Flag Options
-			label Publicly Listed:&nbsp;
+			legend= __('Flag Options')
+			label= __('Publicly Listed')+':&nbsp;'
 				input(name="listed",type="checkbox",checked=(data?(data.listed?true:false):true),disabled=!!flag_auth)
-			label Mark board as implicitly NSFW:&nbsp;
+			label= __('Mark board as implicitly NSFW')+':&nbsp;'
 				input(name="nsfw",type="checkbox",checked=(data?(data.nsfw?true:false):true),disabled=!!flag_auth)
 			- if (!!editmode)
-				label Enable thread archiving:&nbsp;
+				label= __('Enable thread archiving')+':&nbsp;'
 					input(name="archivethreads",type="checkbox",checked=(data?(data.archvethreads?true:false):true),disabled=!!flag_auth)
-				label Prevent duplicate images per thread (defaut is the entire board):&nbsp;
+				label= __('Prevent duplicate images per thread (defaut is the entire board)')+':&nbsp;'
 					input(name="perthreadunique",type="checkbox",checked=(data?(data.perthreadunique?true:false):false),disabled=!!flag_auth)
-				label Enable the email field for posts:&nbsp;
+				label= __('Enable the email field for posts')+':&nbsp;'
 					input(name="emailsubmit",type="checkbox",checked=(data?(data.emailsubmit?true:false):true),disabled=!!flag_auth)
-				label Let bans be publically visible:&nbsp;
+				label= __('Let bans be publically visible')+':&nbsp;'
 					input(name="publicbans",type="checkbox",checked=(data?(data.publicbans?true:false):false),disabled=!!flag_auth)
-				label Let activity logs be publically visible:&nbsp;
+				label= __('Let activity logs be publically visible')+':&nbsp;'
 					input(name="publiclogs",type="checkbox",checked=(data?(data.publiclogs?true:false):true),disabled=!!flag_auth)
-				label Let post edit notices be publically visible:&nbsp;
+				label= __('Let post edit notices be publically visible')+':&nbsp;'
 					input(name="publicedits",type="checkbox",checked=(data?(data.publicedits?true:false):true),disabled=!!flag_auth)
-				label Enable thread IDs:&nbsp;
+				label= __('Enable thread IDs')+':&nbsp;'
 					input(name="postids",type="checkbox",checked=(data?(data.postids?true:false):true),disabled=!!flag_auth)
-				label Include usernames in the activity logs?:&nbsp;
+				label= __('Include usernames in the activity logs?')+':&nbsp;'
 					input(name="loguser",type="checkbox",checked=(data?(data.loguser?true:false):true),disabled=!!flag_auth)
 		- if (!!editmode)
 			fieldset.category
-				legend Additional Options
-				label Archived thread lifespan:&nbsp;
-					input(name="archivedlifespan",type="text",placeholder="3 days",value=(data&&data.archivedlifespan?data.archivedlifespan:''),disabled=!!lifespan_auth)
-				label Board Information Header:&nbsp;
+				legend= __('Additional Options')
+				label= __('Archived thread lifespan')+':&nbsp;'
+					input(name="archivedlifespan",type="text",placeholder=__("3 days"),value=(data&&data.archivedlifespan?data.archivedlifespan:''),disabled=!!lifespan_auth)
+				label= __('Board Information Header')+':&nbsp;'
 					input(name="ticker",type="text",maxLength="256",value=(data&&data.ticker?data.ticker:''),disabled=!!header_auth)
 		
-		input(type="submit",value=!!editmode?"Update Board":"Create Board")
+		input(type="submit",value=!!editmode?__("Update Board"):__("Create Board"))
 		
 block footer
 	if (!!editmode && user.roles[board.board].role == 'owner')
 		div.dangerzone
-			h2 DANGER ZONE
-			p Proceeding will delete this board. This action cannot be undone!
+			h2= __('DANGER ZONE')
+			p= __('Proceeding will delete this board. This action cannot be undone!')
 			form(method="POST",action='/_/deleteBoard/'+board.board,enctype="application/x-www-form-urlencoded")
 				+CSRF
-				p Type in the name of the board to confirm deletion of this board.
+				p= __('Type in the name of the board to confirm deletion of this board.')
 				input(type="text",name="verify",required,pattern="^"+board.board+"$")
-				input(type="submit",value="Destroy this board")
+				input(type="submit",value=__("Destroy this board"))
 		

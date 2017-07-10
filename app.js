@@ -86,7 +86,8 @@ const HTMLheaders = (ctx,next)=>{
 // Page request handlers
 const global = require('./global'),
 	boards = require('./boards'),
-	middle = require('./middleware');
+	middle = require('./middleware'),
+	api = require('./api');
 
 
 // Setting up Pug Template Renderer
@@ -104,8 +105,26 @@ const pug = new Pug({
 // Persistent locals
 pug.locals.CDN = Config.cdn;
 pug.locals.DEV = Config.env === 'development';
+pug.locals.__ = (str,...param)=>{ //il8n.translate; // placeholder template translation.
+	if (!param.length) return str;
+	if (param.length == 1) param = param[0];
+	if (typeof param == 'object') {
+		for (let i in param){
+			let f = '%'+i;
+			if (!!~str.indexOf(f))
+				str = str.splice(str.indexOf(f),f.length,param[i]);
+		}
+	} else {
+		let f = '%%';
+		if (!!~str.indexOf(f))
+			str = str.splice(str.indexOf(f),f.length,param);
+	}
+	return str;
+};
+pug.locals.F_RENDER = (str,locals)=>{ return pug.render(str,locals,{fromString:true});};
 pug.locals.F_POSTID = Config.lib.posterID;
 pug.locals.F_SPOILER = Config.lib.getSpoiler;
+pug.locals.F_DELETED = Config.lib.getDeleted;
 pug.locals.F_TOINTERVAL = Config.lib.toInterval;
 pug.locals.F_UTC = (timestamp,mode)=>{
 	if (mode == 1) return (new Date(timestamp)).toUTCString();
@@ -117,7 +136,8 @@ pug.locals.CLIENTDEPS = {
 	'vQuery.js':'',
 	'socket.io.js':'',
 	'common.css':'',
-	'icons.css':''
+	'iconfont.css':'',
+	'theme.css':''
 };
 // Dependencies are internal or external?
 for (let i in pug.locals.CLIENTDEPS){
@@ -155,7 +175,7 @@ app.context.checkCSRF = function(){
 	return res;
 };
 
-app.context.json = (obj)=>{
+app.context.json = function (obj){
 	this.type = 'text/json';
 	this.body = JSON.stringify(obj);
 };
@@ -225,7 +245,6 @@ app.use((ctx,next)=>{
 	ctx.state.NOW = Date.now();
 	ctx.state.META = {};
 	ctx.state.SITE = Config.cfg.site;
-	
 	return next();
 });
 
@@ -318,8 +337,40 @@ router.use((ctx,next)=>{
 	return next();
 });
 
-// API Endpoint?
-//router.use('/$',API.router());
+
+// ----------- Begin API declaration -------------
+
+router.get('/:board/:page.api',middle.rateLimit,middle.loadBoard, (ctx,next)=>{
+	if (!!api.board[ctx.params.page] && ctx.params.page != 'thread')
+		return api.board[ctx.params.page](ctx,next);
+	else if (!!api.board.thread && /^\d+$/.test(ctx.params.page)) 
+		return api.board.thread(ctx,next);
+	else if (!!api.board.pages) 
+		return api.board.pages(ctx,next); // Run as a custom board page
+	else
+		throw (new Error('Page not found')).setstatus(404).setloc('board page route');
+});
+router.get('/:board.api',middle.rateLimit,middle.loadBoard, (ctx,next)=>{
+	if (!!api.board.index) // api board index page
+		return api.board.index(ctx,next);
+	else
+		throw (new Error('Page not found')).setstatus(404).setloc('api page route');
+});
+router.get('/_/history.api',middle.rateLimit,middle.loadGlobal, (ctx,next)=>{
+	if (!!api.history) // api index of all recent modification changes
+		return api.history(ctx,next);
+	else
+		throw (new Error('Page not found')).setstatus(404).setloc('api page route');
+});
+router.get('/_/index.api',middle.rateLimit,middle.loadGlobal, (ctx,next)=>{
+	if (!!api.index) // api boards listing page
+		return api.index(ctx,next);
+	else
+		throw (new Error('Page not found')).setstatus(404).setloc('api page route');
+});
+
+// ------------ End API declaration --------------
+
 
 router.use('/_',middle.loadUser);
 router.use('/:board',middle.loadUser);
@@ -337,6 +388,7 @@ router.all('/_/:page/:action?',middle.loadGlobal, (ctx,next)=>{
 				global[ctx.method][ctx.params.page].auth(ctx);
 				return global[ctx.method][ctx.params.page](ctx,next);
 			} catch(err){
+				console.log(err);
 				ctx.throw(401,(typeof err=='string'?err:err.message)||'Unauthorized');
 			}
 		else return global[ctx.method][ctx.params.page](ctx,next);
@@ -354,6 +406,7 @@ router.all('/:board/:page/:action?',middle.loadBoard,(ctx,next)=>{
 				boards[ctx.method][ctx.params.page].auth(ctx);
 				return boards[ctx.method][ctx.params.page](ctx,next);
 			} catch(err){
+				console.log(err);
 				ctx.throw(401,(typeof err=='string'?err:err.message)||'Unauthorized');
 			}
 		else return boards[ctx.method][ctx.params.page](ctx,next);

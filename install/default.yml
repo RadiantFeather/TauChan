@@ -48,6 +48,9 @@ external_whitelist:
     - i.imgur.com
     - imgur.com
     - dummyimage.com
+    - i.ytimg.com
+    - img.youtube.com
+    - '*.dmcdn.net'
   embed:
     - www.youtube.com
     - youtube.com

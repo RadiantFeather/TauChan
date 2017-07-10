@@ -1,17 +1,14 @@
-mixin style(file)
-	link(rel="stylesheet", charset="utf-8", type="text/css", href='/_/'+file)
-mixin script(file)
-	script(type="application/javascript", charset="utf-8", src='/_/'+file, async=true, defer=true)
+include partials/globalMixins
+	
 mixin disallowIFRAME
-	script(nonce=INLINEHASH).
+	script(nonce=INLINEHASH+'0').
 		if (window.top != window.self || (frameElement in window && window.frameElement != null)) {
-			window.top.location.href = window.self.location.href;
+		//	window.top.location.href = window.self.location.href;
 		}
-mixin CSRF
-	input(type="hidden",name="_csrf",value=CSRF)
 
 doctype html
-html
+//- TODO Implement i8ln and replace with valid lang use
+html(lang="en")
 	head
 		title= META.title||SITE.name||""
 		meta(http-equiv="Content-Type", content="text/html; charset=UTF-8")
@@ -46,5 +43,5 @@ html
 			block nav
 		footer#bottom
 			block footer
-			p This page layout request was completed in #{NOW *-1 + Date.now()}ms
+			p= __('This page layout request was completed in: %%ms',NOW *-1 + Date.now())
 		input#globalCSRF(type="hidden",name="_csrf",value=CSRF,form="")

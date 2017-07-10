@@ -109,42 +109,20 @@ _.catalog = async function(ctx,next) {
 		board: ctx.params.board,
 		limit: ctx.state.board.threadlimit
 	});
-	console.log(data);
 	ctx.state.page = {type:'index',param:'catalog'};
 	ctx.render('catalog',{data});
 };
 
-_.spoilerMedia = async function(ctx,next) {
-	ctx.checkCSRF();
-	// TODO
-	
-};
-_.spoilerMedia.auth = function(ctx){
-	if(!ctx.state.user.auth('post.media.spoiler'))
-		throw '';
-};
-
-_.deleteMedia = async function(ctx,next) {
-	ctx.checkCSRF();
-	// TODO
-	
-};
-_.deleteMedia.auth = function(ctx){
-	if(!ctx.state.user.auth('post.media.delete'))
-		throw '';
-};
 
 _.ban = async function(ctx,next) {
 	ctx.checkCSRF();
-	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
-	return;
-	ctx.cookie.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
-	// if (!CSRF(ctx,next)) return;
-	ctx.render('bnd',{ // TODO
-		mode:'b',
+	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
+	let data = await db.one(Config.sql.view.post,{
 		board:ctx.params.board,
 		post:parseInt(ctx.params.action,10)
 	});
+	ctx.state.page = {type:'mod',param:'ban'};
+	ctx.render('bnd',{mode:'b',data});
 };
 _.ban.auth = function(ctx) {
 	if(!ctx.state.user.auth('post.ban'))
@@ -153,12 +131,12 @@ _.ban.auth = function(ctx) {
 
 _.delete = async function(ctx,next) {
 	ctx.checkCSRF();
-	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
-	return;
+	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let data = await db.one(Config.sql.view.post,{
 		board:ctx.params.board,
 		post:parseInt(ctx.params.action,10)
 	});
+	ctx.state.page = {type:'mod',param:'delete'};
 	ctx.render('bnd',{mode:'d',data});
 };
 _.delete.auth = function(ctx){
@@ -168,12 +146,12 @@ _.delete.auth = function(ctx){
 
 _.bnd = async function(ctx,next) {
 	ctx.checkCSRF();
-	ctx.body = 'Preset Page: '+ ctx.params.board +'/'+ ctx.params.page;
-	return;
+	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let data = await db.one(Config.sql.view.post,{
 		board:ctx.params.board,
 		post:parseInt(ctx.params.action,10)
 	});
+	ctx.state.page = {type:'mod',param:'bnd'};
 	ctx.render('bnd',{mode:'bd',data});
 };
 _.bnd.auth = function(ctx){
@@ -446,12 +424,121 @@ _.thread = async function(ctx,next) { // New reply to thread
 	}
 };
 
-// ---------- Manage bans ----------------
+// ---------- Manage post media ----------------
+
+_.spoilerMedia = async function(ctx,next) {
+	ctx.checkCSRF();
+	// TODO
+	let err;
+	if (!ctx.request.body.post)
+		err = new Error('No post number was provided.');
+	else if (!ctx.request.body.index)
+		err = new Error('No image index was provided.');
+	if (err) throw err;
+	try {
+		let data = await db.one(Config.sql.modify.nsfw_media,{
+			board: ctx.params.board,
+			post: parseInt(ctx.request.body.post,10),
+			index: parseInt(ctx.request.body.index,10)
+		});
+		Lib.genSpoiler(ctx.state.board,data.meta.dims);
+		ctx.redirect('/'+ctx.params.board+'/'+data.thread+'#_'+ctx.request.body.post);
+	} catch(e){
+		console.log(e);
+		throw new Error('That media has already been spoilered.');
+	}
+};
+_.spoilerMedia.auth = function(ctx){
+	if(!ctx.state.user.auth('post.media.spoiler') && ctx.state.user.ip != Lib.unmaskData(ctx.request.body.hash)[0])
+		throw '';
+};
+
+_.deleteMedia = async function(ctx,next) {
+	ctx.checkCSRF();
+	// TODO
+	let err;
+	if (!ctx.request.body.post)
+		err = new Error('No post number was provided.');
+	else if (!ctx.request.body.index)
+		err = new Error('No image index was provided.');
+	if (err) throw err;
+	try {
+		let data = await db.one(Config.sql.modify.delete_media,{
+			board: ctx.params.board,
+			post: parseInt(ctx.request.body.post,10),
+			index: parseInt(ctx.request.body.index,10)
+		});
+		if (Lib.exists(data.src)) fs.unlink(Lib.path(data.src),noop);
+		if (Lib.exists(data.thumb)) fs.unlink(Lib.path(data.thumb),noop);
+		ctx.redirect('/'+ctx.params.board+'/'+data.thread+'#_'+ctx.request.body.post);
+	} catch(e){
+		console.log(e);
+		throw new Error('That media has already been deleted.');
+	}
+};
+_.deleteMedia.auth = function(ctx){
+	if(!ctx.state.user.auth('post.media.delete') && ctx.state.user.ip != Lib.unmaskData(ctx.request.body.hash)[0])
+		throw '';
+};
+
+// ---------- Manage bans and delete ----------------
 
 _.ban = async function(ctx,next) {
 	ctx.checkCSRF();
+	let err;
+	if (!ctx.params.action)
+		err = new Error('No post number was provided.');
+	else if (!ctx.request.body.range || !~[8,12,14,16,24,32].indexOf(parseInt(ctx.request.body.range,10)))
+		err = new Error('Must provide valid range value.');
+	else if (!ctx.request.body.reason)
+		err = new Error('Must provide a reason for the ban.');
+	if (err) {
+		let data = await db.oneOrNone(Config.sql.view.post,{
+			board:ctx.params.board,
+			post:parseInt(ctx.params.action||0,10)
+		});
+		throw err.withrender('bnd').locals({data,mode:'b',form:ctx.request.body});
+	}
+	
+	ctx.request.body.range = ctx.request.body.range||32;
+	
+	console.log(ctx.request.body);
+	
 	try {
-		await db.none(Config.sql.modify.ban,{
+		await db.none(Config.sql.modify.new_ban,{
+			board: ctx.params.board,
+			post: parseInt(ctx.params.action,10),
+			user: parseInt(ctx.state.user.id,10),
+			reason: ctx.request.body.reason,
+			expires: ctx.request.body.expires||'3 days',
+			bantext: ctx.request.body.bantext||null,
+			range: parseInt(ctx.request.body.range,10)
+		});
+		ctx.redirect(ctx.cookies.get('curpage'));
+	} catch(err){
+		throw err.withlog('error');
+	}
+};
+_.ban.auth = handlers.GET.ban.auth;
+
+_.delete = async function(ctx,next) {
+	ctx.checkCSRF();
+	try {
+		await db.none(Config.sql.modify.delete_post,{
+			board: ctx.params.board,
+			post: ctx.params.action
+		});
+		ctx.redirect(ctx.cookies.get('curpage'));
+	} catch(err){
+		throw err.withlog('error');
+	}
+};
+_.delete.auth = handlers.GET.delete.auth;
+
+_.bnd = async function(ctx,next) {
+	ctx.checkCSRF();
+	try {
+		await db.none(Config.sql.modify.new_ban + Config.sql.modify.delete_post,{
 			board: ctx.params.board,
 			post: ctx.params.action,
 			user: ctx.state.user.id,
@@ -460,12 +547,12 @@ _.ban = async function(ctx,next) {
 			bantext: ctx.request.body.bantext,
 			range: ctx.request.body.range
 		});
-		ctx.redirect(ctx.cookies.get('lastpage'));
+		ctx.redirect(ctx.cookies.get('curpage'));
 	} catch(err){
 		throw err.withlog('error');
 	}
 };
-_.ban.auth = handlers.GET.ban.auth;
+_.bnd.auth = handlers.GET.bnd.auth;
 
 // ------------- Modify custom board pages -------------------
 
@@ -487,7 +574,7 @@ _.editPage = async function(ctx,next){
 		err = new Error("Page name conflicts with a reserved page. Please choose a different name.");
 		
 	if (ctx.params.action) ctx.request.body.page = ctx.params.action;
-	if (err) throw err.withrender('editPage').setdata(ctx.request.body);
+	if (err) throw err.withrender('editPage').locals({data:ctx.request.body});
 	
 	let markup = Lib.processMarkup(ctx.request.body.markdown);
 	if (ctx.query.preview){
@@ -570,7 +657,7 @@ _.settings = async function(ctx,next) {
 		}
 	}
 	
-	if (err) throw err.withrender('editBoard').setdata(ctx.request.body);
+	if (err) throw err.withrender('editBoard').locals({data:ctx.request.body});
 	else {
 		// finish
 		let t = {};
@@ -613,7 +700,7 @@ _.settings = async function(ctx,next) {
 			});
 			ctx.redirect('/'+ctx.params.board+'/');
 		} catch(err){
-			throw Lib.mkerr('editBoard',err).withrender('editBoard').setdata(ctx.request.body);
+			throw Lib.mkerr('editBoard',err).withrender('editBoard').locals({data:ctx.request.body});
 			// TODO: recache the board list and data?
 		}
 	}
@@ -648,11 +735,11 @@ _.editRole = async function(ctx,next){
 	}
 	if (err) {
 		ctx.state.flags = Config.flags;
-		throw err.setstatus(400).withrender('editRole').setdata({
+		throw err.setstatus(400).withrender('editRole').locals({data:{
 			role:ctx.params.role||ctx.request.body.role,
 			capcode:ctx.request.body.capcode,
 			flags:nflags
-		});
+		}});
 	}
 	else {
 		let t = {};
@@ -671,11 +758,11 @@ _.editRole = async function(ctx,next){
 			ctx.redirect('/'+t.board+'/roles/');
 		} catch(err){
 			ctx.state.flags = Config.flags;
-			throw Lib.mkerr('editRole',err).withrender('editRole').setdata({
+			throw Lib.mkerr('editRole',err).withrender('editRole').locals({data:{
 				role:ctx.params.action||ctx.request.body.role,
 				capcode:ctx.request.body.capcode,
 				flags:nflags
-			});
+			}});
 		}
 	}
 };

@@ -3,15 +3,15 @@ extends layout
 mixin overnav
 	nav
 		- if (curpage>2)
-			a.home(href="/?"+(nsfw!="NULL"?"nsfw="+nsfw:"")+(tags?"&tags="+tags:"")) First
+			a.home(href="/?"+(nsfw!="NULL"?"nsfw="+nsfw:"")+(tags?"&tags="+tags:""))= __('First')
 		- if (curpage>1)
-			a.prev(href="/?page="+(curpage-1)+(nsfw!="NULL"?"&nsfw="+nsfw:"")+(tags?"&tags="+tags:"")) Prev
+			a.prev(href="/?page="+(curpage-1)+(nsfw!="NULL"?"&nsfw="+nsfw:"")+(tags?"&tags="+tags:""))= __('Prev')
 		- if (curpage>2)
-			a.home(href="/") Home
+			a.home(href="/")= __('Home')
 		- if ((curpage-1)*50+data.length<totalboards)
-			a.next(href="/?page="+(curpage+1)+(nsfw!="NULL"?"&nsfw="+nsfw:"")+(tags?"&tags="+tags:"")) Next
+			a.next(href="/?page="+(curpage+1)+(nsfw!="NULL"?"&nsfw="+nsfw:"")+(tags?"&tags="+tags:""))= __('Next')
 		- if (totalboards > 0)
-			aside #{(curpage-1)*50+1}-#{(curpage-1)*50+data.length} of #{totalboards} matching boards found	
+			aside= __('%0-%1 of %2 matching boards found', (curpage-1)*50+1, (curpage-1)*50+data.length, totalboards)
 
 block head
 	+style('overboard.css')
@@ -20,61 +20,66 @@ block header
 	h1= SITE.name
 	
 block footer
-	h4 Footer Placeholder
+	div.h4 Footer Placeholder
 
 block main
 	div#tags
 		form#tagsearch(method="GET",action="")
-			input(type="text",name="tags",list="taglist",placeholder="search,+tags,-here",pattern="^ *[+-]?[a-zA-Z0-9_]+ *(?:, *[+-]?[a-zA-Z0-9_]+ *)*$",value=tags||'')
+			label
+				h2 Tag Search
+				input(type="text",name="tags",list="taglist",placeholder="search,+tags,-here",pattern="^ *[+-]?[a-zA-Z0-9_]+ *(?:, *[+-]?[a-zA-Z0-9_]+ *)*$",value=tags||'',autocomplete="off")
 			div 
-				label Either
+				label= __('Default')
 					input(type="radio",name="nsfw",value="NULL",checked=(nsfw==="NULL"))
-				label SFW
+				label(aria-label=__("Safe For Work")) SFW
 					input(type="radio",name="nsfw",value="FALSE",checked=(nsfw==="FALSE"))
-				label NSFW
+				label(aria-label=__('Not Safe For Work')) NSFW
 					input(type="radio",name="nsfw",value="TRUE",checked=(nsfw==="TRUE"))
-			input(type="submit",value="Search")
+			input(type="submit",value="Search", aria-label="Search Tags")
 			datalist#taglist
-				each t in taglist 
-					option(value=t.tag)
+				- var i = -1 
+				- while (++i < taglist.length)
+					option(value=taglist[i].tag)
 		fieldset#cloud
-			legend Popular Tags
-			- var i = -1
-			- var c = cloud.slice(0,taglimit)
-			- while (++i < c.length)
-				- if (i<1)
-					h2: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
-				- else if (i<c.length/3)
-					h3: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
-				- else if (i<c.length/2)
-					h4: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
-				- else 
-					h5: a(href="/?tags="+cloud[i].tag)= cloud[i].tag
+			legend: h3= __('Popular Tags')
+			ul
+				- var i = -1 
+				- while (++i < cloud.length)
+					li
+						- if (i<1)
+							a.h2(href="/?tags="+cloud[i].tag, aria-label=__("Board tags search %%",cloud[i].tag))= cloud[i].tag
+						- else if (i<cloud.length/3)
+							a.h3(href="/?tags="+cloud[i].tag, aria-label=__("Board tags search %%",cloud[i].tag))= cloud[i].tag
+						- else if (i<cloud.length/2)
+							a.h4(href="/?tags="+cloud[i].tag, aria-label=__("Board tags search %%",cloud[i].tag))= cloud[i].tag
+						- else 
+							a.h5(href="/?tags="+cloud[i].tag, aria-label=__("Board tags search %%",cloud[i].tag))= cloud[i].tag
 	div#boardlist
 		+overnav
 		- if (data.length)
 			table
-				tr
-					th Board
-					th Title
-					th Description
-					th NSFW
-					th Tags
-					th(title="Posts Per Hour") PPH
-					th(title="Active Users") AU
-					th(title="Post Count") PC
-				each item in data 
-					tr
-						td.board
-							a(href="/"+item.board+"/")= item.board
-						td.title= item.title
-						td.desc= item.subtitle
-						td.nsfw= (item.nsfw?"Yes":"No")
-						td.tags(title=item.tags)= item.tags
-						td.pph= item.posts_per_hour
-						td.au= item.active_users
-						td.pc= item.post_count
+				thead
+					th= __('Board')
+					th= __('Title')
+					th= __('Description')
+					th: a(title=__("Not Safe For Work"),aria-label=__("Not Safe For Work")) NSFW
+					th= __('Tags')
+					th: a(title=__("Posts Per Hour"),aria-label=__("Posts Per Hour")) PPH
+					th: a(title=__("Active Users"),aria-label=__("Active Users")) AU
+					th: a(title=__("Post Count"),aria-label=__("Post Count")) PC
+				tbody
+					each item in data 
+						tr
+							td.board
+								a(href="/"+item.board+"/",aria-label=item.title)= item.board
+							td.title= item.title
+							td.desc= item.subtitle
+							td.nsfw= __(item.nsfw?"Yes":"No")
+							td.tags(title=item.tags.join(', '))= item.tags.join(', ')
+							td.pph= item.posts_per_hour
+							td.au= item.active_users
+							td.pc= item.post_count
 		- else 
-			h1 NO BOARDS FOUND
+			h2.h1= __('NO BOARDS FOUND')
 		+overnav
 			

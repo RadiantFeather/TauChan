@@ -1,65 +1,40 @@
 include mediaItem
 
-append head
+mixin postContents_head
 	+style('post.css')
 
-mixin actions(board,post,ip)
-	details.postactions
-		summary
-		form(id="postactions_"+post, method="POST", target="_blank")
-			+CSRF
-			ul
-				li: button.aslink(formaction="/"+board+"/report/"+post) Report
-				- if (user.auth('post.delete')||user.ip == ip)
-					li: button.aslink(formaction="/"+board+"/delete/"+post) Delete
-				- if (user.auth('post.ban'))
-					li: button.aslink(formaction="/"+board+"/ban/"+post) Ban
-				- if (user.auth(['post.ban','post.delete']))
-					li: button.aslink(formaction="/"+board+"/bnd/"+post) B&D
-				
-mixin mactions(m)
-	- if (!m.nsfw && (user.auth('post.media.spoiler')||user.ip == m.ip))
-		div.spoilerimg.icon-cornerTL
-			a.icon-mute(title="spoiler",href="/"+m.board+"/spoilerMedia/"+m.post+"/"+m.sort)
-	- if (!m.deleted && (user.auth('post.media.delete')||user.ip == m.ip))
-		div.deleteimg.icon-cornerBR
-			a.icon-trashcan(title="delete",href="/"+m.board+"/deleteMedia/"+m.post+"/"+m.sort)
-		
+mixin postactions(board,post,ip,hash)
+	details.actions.postactions
+		form(id="postactions_"+post, method="GET", target="_blank")
+		summary: span Post Actions
+		ul
+			li: button.aslink(form="postactions_"+post,formaction="/"+board+"/report/"+post)= __('Report')
+			- if (user.auth('post.delete')||user.ip == ip)
+				li: button.aslink(form="postactions_"+post,formaction="/"+board+"/delete/"+post)= __('Delete')
+			- if (user.auth('post.ban'))
+				li: button.aslink(form="postactions_"+post,formaction="/"+board+"/ban/"+post)= __('Ban')
+			- if (user.auth(['post.ban','post.delete']))
+				li: button.aslink(form="postactions_"+post,formaction="/"+board+"/bnd/"+post)= __('B&D')
 
-mixin state(t)
-	span.is
-		- if (t.pinned)
-			span.pinned
-		- else if (t.sticky)
-			span.sticky
-		- if (t.locked)
-			span.locked
-		- else if (t.cycle)
-			span.cycle
-		- if (t.nsfw)
-			span.nsfw
-			
 mixin date_time(classes,val)
-	time(class=classes,
+	time(class=classes,tabindex="0",
 		datetime=F_UTC(val,0),
 		data-interval=F_TOINTERVAL(NOW - (new Date(val)).getTime()), 
 		data-time=F_UTC(val,1)
 	)= F_UTC(val,2)
 
-
-
-mixin postContents(data)
+mixin postContents(data,minimal)
 	header.info
 		- if (data.email !== null)
-			a.name(href="mailto:"+data.email): span.name= data.name||board.noname
+			a(href="mailto:"+data.email): span.name= data.name||(board.noname=='Anonymous'?__('Anonymous'):board.noname)
 		- else 
-			span.name= data.name||board.noname
+			span.name(tabindex="0")= data.name||(board.noname=='Anonymous'?__('Anonymous'):board.noname)
 		- if (data.trip !== null)
 			span.trip= data.trip
 		- if (data.capcode !== null)
 			span.capcode= data.capcode
 		- if (data.subject !== null)
-			span.subject= data.subject
+			span.subject(tabindex="0")= data.subject
 		- if (user.auth('board.ips.raw'))
 			a.ip.brick(href="/"+board.board+"/history/"+data.hash)= data.ip
 		- else if (user.auth('board.ips.mask'))
@@ -69,22 +44,20 @@ mixin postContents(data)
 		+date_time('stamp', data.posted)
 		- if (board.postids)
 			span.postid= F_POSTID(data.ip,data.board,data.thread)
-		//- Move the onclick to a clientside script
-		a.quote(href=(page.type=='index'||page.type=='archive'?"/"+board.board+"/"+data.thread+"#_"+data.post:"#_"+data.post), 
-			onclick="if('"+page.type+"'=='thread')return quotePost('"+data.post+"'),false;"
-		)= data.post
-		+actions(board.board,data.post,data.ip)
+		a.quote(href=(page.type=='index'||page.type=='archive'?"/"+board.board+"/"+data.thread+"#_"+data.post:"#_"+data.post))= data.post
+		- if (!minimal)
+			+postactions(board.board,data.post,data.ip,data.hash)
 		span.cited
-			- if (data.targets&&data.targets.length)
+			- if (data.targets&&data.targets.length&&!minimal)
 				each t in data.targets 
 					cite: a(href="#_"+t.post) >>#{t.post}
 	div.media(class=(data.media === null ? 'none' : data.media.length > 1 ? 'many' : data.media.length == 1 ? 'one' : 'none'))
 		- if (data.media !== null)
 			each m in data.media
-				+mediaItem(m,data.ip)
-	span.content!= data.markup
+				+mediaItem(m,data.ip,data.hash)
+	span.content(tabindex="0")!= data.markup
 	- if (data.banned !== null)
-		div.banned= data.banned
+		div.banned.brick(tabindex="0")= data.banned
 	- if (board.publicedits && data.edited)
 		+date_time('edited', data.edited)
 	- if (data.globalstamp)

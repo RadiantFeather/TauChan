@@ -1,23 +1,23 @@
 extends layout
 
 block header
-	h1 #{SITE.name} Moderation Page
-	h3 Welcome #{user.screenname}
-	a(href="/_/createBoard") Create a board
+	h1= __('%% Moderation Page',SITE.name)
+	h3= __('Welcome %%',user.screenname)
+	a(href="/_/createBoard")= __('Create a board')
 	
 block head
 	+style('underboard.css')
 
 block main
 	- if (data.length == 0)
-		h4 Create a board or get added to an existing one.
+		h4 = __('Create a board or get added to an existing one.')
 	- else 
 		table
 			tr
-				th Board
-				th Role
-				th Capcode
-				th Actions
+				th= __('Board')
+				th= __('Role')
+				th= __('Capcode')
+				th = __('Actions')
 			each item in data 
 				tr
 					td
@@ -26,18 +26,18 @@ block main
 					td ###{item.capcode}
 					td
 						- if (user.auth('board.logs',item.board))
-							a.action(href="/"+item.board+"/logs") Logs
+							a.action(href="/"+item.board+"/logs")= __('Logs')
 						- if (user.auth('board.manage.reports',item.board))
-							a.action(href="/"+item.board+"/reports") Reports
+							a.action(href="/"+item.board+"/reports")= __('Reports')
 						- if (user.auth('board.manage.history',item.board))
-							a.action(href="/"+item.board+"/history") Recent Posts
+							a.action(href="/"+item.board+"/history")= __('Recent Posts')
 						- if (user.auth('board.manage.bans',item.board))
-							a.action(href="/"+item.board+"/bans") Bans
+							a.action(href="/"+item.board+"/bans")= __('Bans')
 						- if (user.auth('board.manage.pages',item.board))
-							a.action(href="/"+item.board+"/pages") Custom Pages
+							a.action(href="/"+item.board+"/pages")= __('Custom Pages')
 						- if (user.auth('board.settings',item.board))
-							a.action(href="/"+item.board+"/settings") Settings
+							a.action(href="/"+item.board+"/settings")= __('Settings')
 						- if (user.auth('board.manage.roles',item.board))
-							a.action(href="/"+item.board+"/roles") Roles
+							a.action(href="/"+item.board+"/roles")= __('Roles')
 			
 	

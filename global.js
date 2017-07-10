@@ -125,7 +125,7 @@ _.login = async function(ctx,next){
 		let data = await db.one(Config.sql.view.user_by_name,{
 			user:ctx.request.body.username
 		});
-		if (!Lib.compareData(ctx.request.body.passphrase+Config.cfg.secret, data.passphrase))
+		if (!Lib.compareData(ctx.request.body.passphrase, data.passphrase))
 			throw new Error("Invalid username or password.");
 		let token = Crypto
 			.createHash('sha512')
@@ -149,7 +149,7 @@ _.login = async function(ctx,next){
 	} catch(err){
 		if (err.message=="No data returned from the query.")
 			err.message = "Invalid username or password.";
-		throw err.withrender('login').setdata(ctx.request.body);
+		throw err.withrender('login').locals({data:ctx.request.body});
 	}
 };
 
@@ -163,7 +163,7 @@ _.signup = async function(ctx,next){
 	if (!ctx.request.body.username)
 		err = new Error('Username is REQUIRED.');
 		
-	if (err) return next(err.withrender('signup').setdata(ctx.request.body));
+	if (err) return next(err.withrender('signup').locals({data:ctx.request.body}));
 	let token = Crypto
 		.createHash('sha1')
 		.update(ctx.request.body.username)
@@ -172,7 +172,7 @@ _.signup = async function(ctx,next){
 		.digest('hex');
 	try {
 		ctx.request.body.email = Lib.maskData(ctx.request.body.email);
-		ctx.request.body.passphrase = Lib.encryptData(ctx.request.body.passphrase+Config.cfg.secret);
+		ctx.request.body.passphrase = Lib.encryptData(ctx.request.body.passphrase);
 		await db.none(Config.sql.modify.new_user,{
 			user:ctx.request.body.username,
 			nick:ctx.request.body.screenname||ctx.request.body.username,
@@ -187,7 +187,7 @@ _.signup = async function(ctx,next){
 		ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true,expires:0});
 		ctx.redirect('/_/login');
 	} catch(err){
-		throw Lib.mkerr('signup',err).withrender('signup').setdata(ctx.request.body);
+		throw Lib.mkerr('signup',err).withrender('signup').locals({data:ctx.request.body});
 	}
 };
 
@@ -222,7 +222,7 @@ _.createBoard = async function(ctx,next){
 	}
 	
 	if (err) {
-		throw err.withrender('editBoard').setdata(ctx.request.body);
+		throw err.withrender('editBoard').locals({data:ctx.request.body});
 	} else {
 		// finish
 		let t = {};
@@ -255,7 +255,7 @@ _.createBoard = async function(ctx,next){
 			ctx.session.user = null; // Force recache of user data
 			ctx.redirect('/'+ctx.request.body.board+'/');
 		} catch(err){
-			throw Lib.mkerr('editBoard',err).withrender('editBoard').setdata(ctx.request.body);
+			throw Lib.mkerr('editBoard',err).withrender('editBoard').locals({data:ctx.request.body});
 			// TODO: recache the board list and data?
 		}
 	}
@@ -308,31 +308,36 @@ handlers.pages = async function(ctx,next){
 		throw err.setstatus(404).setloc('global page serve');
 	}
 };
-
+var reall=/^ *\+[a-zA-Z0-9_]+ *$/,reany=/^ *[a-zA-Z0-9_]+ *$/,renone=/^ *\-[a-zA-Z0-9_]+ *$/;
 handlers.index = async function(ctx,next){
 	let t = (ctx.query.tags||'').split(','),
 		nsfw = ['NULL','TRUE','FALSE'].contains(ctx.query.nsfw)? ctx.query.nsfw:'NULL',
-		all=[],any=[],none=[],
-		reall=/^ *\+[a-zA-Z0-9_]+ *$/,reany=/^ *[a-zA-Z0-9_]+ *$/,renone=/^ *\-[a-zA-Z0-9_]+ *$/;
+		all=[],any=[],none=[];
 	if (t.length&&t[0]!==''){
 		t.forEach((b)=>{if(reall.test(b))all.push(b.trim().slice(1));});
 		t.forEach((b)=>{if(renone.test(b))none.push(b.trim().slice(1));});
 		t.forEach((b)=>{if(reany.test(b))any.push(b.trim());});
 	}
 	let tags = await tagCloud();
-	// redis cache check/fetch with alternate tags filter?
-	let data = await db.any(Config.sql.view.overboard, {
-		page: parseInt(ctx.query.page||1,10),
-		all: all.length?'tags ?& '+pgp.as.array(all)+'::TEXT[]':'TRUE',
-		any: any.length?'tags ?| '+pgp.as.array(any)+'::TEXT[]':'TRUE',
-		none: none.length?'NOT tags ?| '+pgp.as.array(none)+'::TEXT[]':'TRUE',
-		nsfw: {'TRUE':'FALSE','FALSE':'TRUE','NULL':'NULL'}[nsfw]
-	});
+	let cached = true;
+	let data = [];
+	if (!all.length&&!any.length&&!none.length){
+		// redis cache fetch for board listing without tag filters (default view)
+		cached = false;
+	}
+	if (!cached)
+		data = await db.any(Config.sql.view.overboard, {
+			page: parseInt(ctx.query.page||1,10),
+			all: all.length?'tags ?& '+pgp.as.array(all)+'::TEXT[]':'TRUE',
+			any: any.length?'tags ?| '+pgp.as.array(any)+'::TEXT[]':'TRUE',
+			none: none.length?'NOT tags ?| '+pgp.as.array(none)+'::TEXT[]':'TRUE',
+			nsfw: {'TRUE':'FALSE','FALSE':'TRUE','NULL':'NULL'}[nsfw]
+		});
 	ctx.state.page = {type:'index',param:'index'};
 	ctx.render('overboard',{
 		data, nsfw,
 		tags: ctx.query.tags,
-		taglist: tags.slice(0,25), // only suggest up to the 25 most used tags
+		taglist: tags.slice(0,100), // only suggest up to the 100 most used tags
 		curpage: parseInt(ctx.query.page||1,10),
 		totalboards: data&&data.length?parseInt(data[0].total,10):0,
 		cloud: tags.slice(0,Config.cfg.values.tag_cloud_count||25) //array of {tag:string,count:integer}

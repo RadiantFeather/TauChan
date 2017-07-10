@@ -3,16 +3,13 @@ extends layout
 block main
 	form(id="login",method="POST",action="/_/login",enctype="application/x-www-form-urlencoded")
 		+CSRF
-		- if (err && (DEV || status != 500))
-			h4._error= err.message
-		- else if (err)
-			h4._error The username or passphrase provided was incorrect.
-		label Username
-			input(name="username",type="text",placeholder="Username",value=(data&&data.username?data.username:''))
-		label Passphrase
-			input(name="passphrase",type="password",placeholder="Passphrase")
-		label Remember Me
+		+ERR(__('The username or passphrase provided was incorrect.'))
+		label= __('Username')
+			input(name="username",type="text",placeholder=__("Username"),value=(data&&data.username?data.username:''))
+		label= __('Passphrase')
+			input(name="passphrase",type="password",placeholder=__("Passphrase"))
+		label= __('Remember Me')
 			input(name="rememberme",type="checkbox",checked=false)
-		input(type="submit",value="Login")
+		input(type="submit",value=__("Login"))
 		div
-			a(href="/_/signup") Signup
+			a(href="/_/signup")= __('Signup')

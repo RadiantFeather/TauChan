@@ -1,5 +1,6 @@
-
-.postactions >ul{
+.post .media .item.open .close,
+.postactions ul,
+.mediaactions ul{
 	border-color: black;
 	background-color: #f5f5f5;
 }
@@ -10,6 +11,10 @@ main {
 .post.reply {
 	background-color: #ededed;
 	border-color: #333;
+}
+
+.post .banned {
+	color:#d80000;
 }
 
 .laction {

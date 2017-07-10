@@ -1,79 +1,81 @@
 extends layout
 
+include partials/postContents
+include partials/newPost
+//- include partials/ticker
+
 block head
 	+style('thread.css')
 	+style('theme.css')
 	+script('thread.js')
+	+postContents_head
+	+newPost_head
 	
 block header
 	- if (page.type == 'history')
 		- if (page.param == 'index')
-			h2.frontandcenter Board History Index
+			h2.frontandcenter= __('Board History Index')
 		- else 
-			h2.frontandcenter Board History for #{page.param.slice(0,12)}
+			h2.frontandcenter= __('Board History for %%',page.param.slice(0,12))
 	- else 
-		include partials/newPost
+		+newPost
 								
 block main
-	//- include ticker.pug
-	include partials/postContents
 	- var i = -1
 	- if (data.length == 0)
 		- if (page.type == 'thread')
-			h1 No posts have been made.
+			h1= __('No posts have been made.')
 		- else if (page.type == 'archive')
-			h1 There are no threads currently in the archive.
+			h1= __('There are no threads currently in the archive.')
 		- else if (page.type == 'history')
-			h1 No posts could be found.
+			h1= __('No posts could be found.')
 		- else 
-			h1 No threads have been made.
-	- while (++i < data.length)                         
+			h1= __('No threads have been made.')
+	- while (++i < data.length) 
 		- if (data[i].post == data[i].thread)
-			article.thread.post.op(id='_'+data[i].post)
+			article.thread.post.op(id='_'+data[i].post,class={isyou:data[i].ip==user.ip})
 				+postContents(data[i])
 				- if (page.type == 'index' && data[i].total - data[i].visible > 0)
-					i There are #{data[i].total - data[i].visible} hidden posts. Click&nbsp;
-						a(href="/"+board.board+"/"+data[i].thread) HERE
-						| &nbsp;to view.
+					i!= __('There are %0 hidden posts. Click %1 to view.',data[i].total-data[i].visible,F_RENDER('a(href="/"+board.board+"/"+data[i].thread)= __("HERE")',{board,data,i,__}))
 				- if (!flatView)
 					- while (data[i+1] && data[i+1].post != data[i+1].thread && ++i > -1) 
-						article.post.reply(id='_'+data[i].post)
+						article.post.reply(id='_'+data[i].post,class={isyou:data[i].ip==user.ip})
 							+postContents(data[i])
-		- if (!!flatView && data[i])
-			article.post.reply(id='_'+data[i].post)
+		- else if (!!flatView && data[i])
+			article.post.reply(id='_'+data[i].post,class={isyou:data[i].ip==user.ip})
 				+postContents(data[i])
 					
 
 block nav
 	- if (page.type == 'thread')
 		span.quicklinks
-			a.brick(href="/"+board.board+"/") Index
-			a.brick(href="/"+board.board+"/catalog", target="_blank") Catalog
-			a.brick(href="#top") Top
-			a.update.brick(href="/"+board.board+"/"+data[0].thread+"#bottom") Update
+			a.brick(href="/"+board.board+"/")= __('Index')
+			a.brick(href="/"+board.board+"/catalog", target="_blank")= __('Catalog')
+			a.brick(href="#top")= __('Top')
+			a.update.brick(href="/"+board.board+"/"+data[0].thread+"#bottom")= __('Update')
 		span.stats
 			- if (data[0].featured)
-				span.is-featured Featured
+				span.icon-featured(title=__("Featured"))
 			- if (data[0].pinned)
-				span.is-pinned Pinned
+				span.icon-pin(title=__("Pinned"))
 			- else if (data[0].sticky)
-				span.is-sticky Sticky
+				span.icon-sticky(title=__("Sticky"))
 			- if (data[0].locked)
-				span.is-locked Locked
+				span.icon-lock(title=__("Locked"))
 			- else if (data[0].cycle)
-				span.is-cycle Cycle
+				span.icon-loading2(title=__("Cycle"))
 			- if (data[0].nsfw)
-				span.is-nsfw NSFW
-			span.replies= data.length-1
-			span.images
+				span.icon-spoiler(title=__("NSFW"))
+			span.replies(title=__("Reply Count"))= data.length-1
+			span.images(title=__("Image Count"))
 				= data.reduce((a,b)=>{return a+(b.media===null?0:b.media.length);},0) 
-			span.posters
+			span.posters(title=__("Unique Posters Count"))
 				= data.reduce((a,b)=>{if(~a.indexOf(b.ip))a.push(b.ip);return a;},[]).length 
-			span.page= data[0].page
+			span.page(title=__("Current Page"))= data[0].page
 	- else if (page.type == 'index')
 		span.quicklinks
-			a.brick(href="/"+board.board+"/catalog") Catalog
-			a.brick(href="/"+board.board+"/archive") Archive
+			a.brick(href="/"+board.board+"/catalog")= __('Catalog')
+			a.brick(href="/"+board.board+"/archive")= __('Archive')
 		if (data.length)
 			span.pages
 				- var i = 0
@@ -81,8 +83,8 @@ block nav
 					span: a(href=(i!=curpage)?"/"+board.board+"/?page="+(i):false)= i
 	- else if (page.type == 'archive')
 		span.quicklinks
-			a.brick(href="/"+board.board+"/") Index
-			a.brick(href="/"+board.board+"/catalog") Catalog
+			a.brick(href="/"+board.board+"/")= __('Index')
+			a.brick(href="/"+board.board+"/catalog")= __('Catalog')
 		if (data.length)
 			span.pages
 				- var i = 0
@@ -90,12 +92,13 @@ block nav
 					span: a(href=(i!=curpage)?"/"+board.board+"/archive?page="+(i):false)= i
 	- else if (page.type == 'history')
 		span.quicklinks
-			a.brick(href="/"+board.board+"/") Board Index
-			a.brick(href="/"+board.board+"/history") Board History
+			a.brick(href="/"+board.board+"/")= __('Board Index')
+			- if (page.param != 'index')
+				a.brick(href="/"+board.board+"/history")= __('Board History')
 		if (data.length)
 			span.pages
 				- var i = 0
 				- var hash = (page.param == 'index'?'':page.param)
-				span: a(href=curpage > 1?"/"+board.board+"/history/"+hash+"?page="+(curpage-1):false) Prev
-				span: a(href=data[0].hasnextpage?"/"+board.board+"/history/"+hash+"?page="+(curpage+1):false) Next
+				span: a(href=curpage > 1?"/"+board.board+"/history/"+hash+"?page="+(curpage-1):false)= __('Prev')
+				span: a(href=data[0].hasnextpage?"/"+board.board+"/history/"+hash+"?page="+(curpage+1):false)= __('Next')
 					

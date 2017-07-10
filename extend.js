@@ -66,7 +66,7 @@ Error.prototype.withlog = function(level){
 Error.prototype.withrender = function(view){
 	if (typeof view !== 'string') throw 'Error view render must be a string.';
 	if (!this.status) this.setstatus(409);
-	this.setdata = function(data){this.data = data; delete this.setdata; return this;};
+	this.locals = function(data){this.data = data; delete this.locals; return this;};
 	this.render = view;
 	return this;
 };

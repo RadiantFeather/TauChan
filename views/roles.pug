@@ -5,21 +5,21 @@ block head
 	
 block header
 	h2.frontandcenter
-		a.brick(href='/'+board.board+'/editRole/') New Role
+		a.brick(href='/'+board.board+'/editRole/')= __('New Role')
 	
 block main
 	div.roles
 		each role in data 
 			fieldset.role
 				legend 
-					span #{role.role} ## #{role.capcode} 
+					span= role.role+' ## '+role.capcode 
 					- if (role.role != 'owner' && manageroles && role.role != user.roles[board.board].role)
-						a.brick(href='/'+board.board+'/editRole/'+role.role) - Edit Role
+						a.brick(href='/'+board.board+'/editRole/'+role.role) - #{__('Edit Role')}
 				- if (manageusers)
 					form(method="POST",action='/'+board.board+'/addToRole/'+role.role, enctype="application/x-www-form-urlencoded")
 						+CSRF
 						input(type="text",name="username",pattern="^[a-zA-Z0-9_]*$")
-						input(type="submit",value="Add User")
+						input(type="submit",value=__("Add User"))
 				each u in role.users 
 					- if (u.id != null) 
 						div.user #{u.screenname} [#{u.username}]
@@ -27,6 +27,6 @@ block main
 								form(method="POST",action='/'+board.board+'/removeFromRole/'+role.role, enctype="application/x-www-form-urlencoded")
 									+CSRF
 									input(type="hidden",name="username",value=u.username)
-									input(type="submit",value="Remove")
+									input(type="submit",value=_("Remove"))
 					
 			

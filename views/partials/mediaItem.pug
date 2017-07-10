@@ -1,40 +1,76 @@
-mixin mediaItem(m,ip)
-	figure.item(class={[m.mediatype]:true,'deleted':!!m.deleted,'nsfw':!!m.nsfw})
+mixin mactions(m,ip,hash)
+	- if (!m.deleted && (user.auth('post.media')||user.ip==ip))
+		details.actions.mediaactions
+			form(id=m.post+"_mediaactions_"+m.sort, method="POST", enctype="application/x-www-form-urlencoded", hidden=true)
+				+CSRF
+				input(type="hidden", name="post", value=m.post)
+				input(type="hidden", name="index", value=m.sort)
+				input(type="hidden", name="hash", value=hash)
+			summary: span Media Actions
+			ul
+				- if (!m.nsfw && (user.auth('post.media.spoiler')||user.ip == ip))
+					li: button.aslink(form=m.post+"_mediaactions_"+m.sort,formaction="/"+m.board+"/spoilerMedia/")= __('Spoiler')
+				- if (!m.deleted && (user.auth('post.media.delete')||user.ip == ip))
+					li: button.aslink(form=m.post+"_mediaactions_"+m.sort,formaction="/"+m.board+"/deleteMedia/")= __('Delete')
+
+mixin mediaItem(m,ip,hash)
+	figure.item(class={['media-'+m.mediatype]:true,'deleted':!!m.deleted,'nsfw':!!m.nsfw})
 		- if (m.mediatype == 'img') //- Raw image
 			figcaption.meta
-				a.url.brick(href=CDN+m.src,target="_blank",title=m.meta.title +"\n"+ (m.meta.all||[]).join(' - '))= m.meta.title
+				- if (m.deleted)
+					a.brick(title=__("Deleted"))= __('Deleted')
+				- else 
+					+mactions(m,ip,hash)
+					a.url.brick(href=CDN+m.src,target="_blank",title=m.meta.title +"\n"+ (m.meta.info||[]).join(' - '))= m.meta.title
 			- if (m.deleted)
-				img.deleted(src=CDN+board.deletedimg,alt="Deleted")
+				img.deleted(src=F_DELETED(board,m.meta.dims),alt=__("Deleted"))
 			- else 
 				div.filewrap
 					a.file(href=CDN+m.src,target="_blank")
 						- if (m.nsfw)
-							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
-						img.thumb(src=CDN+m.thumb,alt="Thumbnail")
-						img.full(data-src=CDN+m.src,alt="Original")
-					+mactions(m)
+							img.spoiler(src=F_SPOILER(board,m.meta.dims), alt=__("Spoiler"))
+						img.thumb(src=CDN+m.thumb,alt=__("Thumbnail"))
+						img.full(data-src=CDN+m.src,alt=__("Original"))
 		
 		- else if (m.mediatype == 'you') //- Youtube
 			figcaption.meta
-				a.url.brick(href=m.href, target="_blank")= m.meta.title
-				- if (m.meta.duration)
-					span.duration= m.meta.duration
+				- if (m.deleted)
+					a.brick(title=__("Deleted"))= __('Deleted')
+				- else 
+					+mactions(m,ip,hash)
+					a.url.brick(href=m.meta.href, target="_blank", title=m.meta.title +"\n"+ (m.meta.info||[]).join(' - '))= m.meta.title
 			- if (m.deleted)
-				img.deleted(src=CDN+board.deletedimg, alt="Deleted")
+				img.deleted(src=F_DELETED(board,m.meta.dims), alt=__("Deleted"))
 			- else 
 				div.filewrap
-					a.file(href=m.href, target="_blank")
+					a.file(href=m.meta.href, target="_blank")
 						- if (m.nsfw)
-							img.nsfw(src=F_SPOILER(board,m.meta.dims), alt="Spoiler")
-						img.thumb(src=m.thumb, alt="Thumbnail")
-						iframe.full(data-src=m.src, alt="Original")
-					+mactions(m)
-
+							img.spoiler(src=F_SPOILER(board,m.meta.dims), alt=__("Spoiler"))
+						img.thumb(src=m.thumb, alt=__("Thumbnail"))
+						iframe.full(data-src=m.src, alt=__("Original"))
+						span.close.icon-close(title=__("Close Embed"))
+		
+		- else if (m.mediatype == 'dly') //- Dailymotion
+			figcaption.meta
+				- if (m.deleted)
+					a.brick(title=__("Deleted"))= __('Deleted')
+				- else 
+					+mactions(m,ip,hash)
+					a.url.brick(hrefm.meta.href, target="_blank", title=m.meta.title +"\n"+ (m.meta.info||[]).join(' - '))= m.meta.title
+			- if (m.deleted)
+				img.deleted(src=F_DELETED(board,m.meta.dims), alt=__("Deleted"))
+			- else 
+				div.filewrap
+					a.file(href=m.meta.href, target="_blank")
+						- if (m.nsfw)
+							img.spoiler(src=F_SPOILER(board,m.meta.dims), alt=__("Spoiler"))
+						img.thumb(src=m.thumb, alt=__("Thumbnail"))
+						iframe.full(data-src=m.src, alt=__("Original"))
+						span.close.icon-close(title=__("Close Embed"))
+		
 		//- - else if (m.mediatype == 'vid') //- Raw video
 		
 		//- - else if (m.mediatype == 'aud') //- Raw audio
-		
-		//- - else if (m.mediatype == 'dly') //- Dailymotion
 		
 		//- - else if (m.mediatype == 'snd') //- Soundcloud
 		
@@ -43,8 +79,6 @@ mixin mediaItem(m,ip)
 		//- - else if (m.mediatype == 'liv') //- Livestream
 		
 		//- - else if (m.mediatype == 'twi') //- Twitch
-		
-		//- - else if (m.mediatype == 'box') //- Hitbox
 		
 		//- - else if (m.mediatype == 'ust') //- Ustream
 		

@@ -1,0 +1,14 @@
+mixin style(file)
+	link(rel="stylesheet", charset="utf-8", type="text/css", href='/_/'+file)
+
+mixin script(file)
+	script(type="application/javascript", charset="utf-8", src='/_/'+file, async=true, defer=true)
+
+mixin CSRF
+	input(type="hidden",name="_csrf",value=CSRF)
+
+mixin ERR(default_message)
+	- if (err && (DEV || status != 500))
+		h4._error= err.message
+	- else if (err)
+		h4._error= default_message

@@ -1,68 +1,75 @@
-append head
+mixin newPost_head
 	+style('newPost.css')
 
-- if (page.type == 'archived_thread' && !user.auth('board.reply.archive'))
-	h1 Thread is archived.
-	h3 Replies are disabled.
-- else 
-	input.toggle#showPostForm(type="checkbox", hidden=true)
-	label.click.hide(for="showPostForm")
-		- if (page.type=='index')
-			h1.brick New Thread
-		- else if (page.type == 'thread')
-			h1.brick New Reply
-	form#newpost(method="POST", enctype="multipart/form-data", action=(page.type!='thread'&&page.param!='archived_thread'?"/"+board.board:""))
-		+CSRF
-		table
-			tr: td Name
-				td: input(name="name", type="text", tabindex="0", placeholder=board.noname)
-			- if (board.emailsubmit)
-				tr: td Email
-					td: input(name="email", type="text", tabindex="0", placeholder="or sage")
-			tr: td Subject
-				td
-					input(name="subject", tabindex="0", type="text")
-					input(type="submit", tabindex="2", value=(page.type=='index'?"New Thread":page.type=='thread'?"New Reply":"New Post"))
-			tr: td Comment
-				td: textarea(name="markdown", tabindex="0", placeholder="Write your dank memes here.", required)
-			- if (board.mediauploadlimit > 0)
-				tr: td Media
-					td
-						div.upload
-							- var i = -1
-							- while (++i < board.mediauploadlimit)
-								input.toggle.showsource(name="include"+i, tabindex="1", type="checkbox", id="showsource"+i)
-								label.hide(for="showsource"+i) Add Source
-								div
-									input(id="spoiler"+i,type="checkbox", tabindex="1", name="spoiler_media"+i)
-									label(for="spoiler"+i) NSFW
-									input.toggle.source(name="is_external"+i, tabindex="1", type="checkbox",id="source"+i)
-									label.brick(for="source"+i) Source
-									input(type="text", name="out_media"+i, tabindex="1", accept="image/*,video/*,audio/*", placeholder="External Media")
-									input.switch(type="file", name="in_media"+i, accept="image/*,video/*,audio/*", placeholder="External Media")
-								
+mixin newPost
+	- if (page.type == 'archived_thread' && !user.auth('board.reply.archive'))
+		h1= __('Thread is archived.')
+		h3= __('Replies are disabled.')
+	- else 
+		input.toggle#showPostForm(type="checkbox", hidden=true)
+		label.click.hide(for="showPostForm", tabindex="1")
 			- if (page.type=='index')
-				tr: td Thread Options 
-					td: div.options
-						- if (board.nsfw == false)
-							input#_nsfw(type="checkbox", name="nsfw")
-							label(for="_nsfw") NSFW
-						- if (user.auth('thread.sage'))
-							input#_sage(type="checkbox", name="sage")
-							label(for="_sage") Autosage
-						- if (user.auth('thread.pinned'))
-							input#_pinned(type="checkbox", name="pinned")
-							label(for="_pinned") Pin
-						- if (user.auth('thread.sticky'))
-							input#_sticky(type="checkbox", name="sticky")
-							label(for="_sticky") Sticky
-						- if (user.auth('thread.cycle'))
-							input#_cycle(type="checkbox", name="cycle")
-							label(for="_cycle") Cycle
-						- if (user.auth('thread.anchor'))
-							input#_anchor(type="checkbox", name="anchor")
-							label(for="_anchor") Anchor
-						- if (user.auth('thread.locked'))
-							input#_locked(type="checkbox", name="locked")
-							label(for="_locked") Lock
-							
+				h1.brick= __('Create New Thread')
+			- else if (page.type == 'thread')
+				h1.brick= __('Open Reply')
+		form#newpost(method="POST", enctype="multipart/form-data", action=(page.type!='thread'&&page.param!='archived_thread'?"/"+board.board:""))
+			+CSRF
+			table
+				tr
+					td: label(for="_name", tabindex="-1")= __('Name')
+					td: input#_name(name="name", type="text", tabindex="2", placeholder=__(board.noname))
+				- if (board.emailsubmit)
+					tr
+						td: label(for="_email", tabindex="-1")= __('Email')
+						td: input#_email(name="email", type="text", tabindex="2", placeholder=__("or sage"))
+				tr
+					td: label(for="_subject", tabindex="-1")= __('Subject')
+					td
+						input#_subject(name="subject", tabindex="2", type="text")
+						input(type="submit", tabindex="5", value=(page.type=='index'?__("Submit New Thread"):page.type=='thread'?__("Submit New Reply"):__("Submit New Post")))
+				tr
+					td: label(for="_comment", tabindex="-1")= __('Comment')
+					td: textarea#_comment(name="markdown", tabindex="2", placeholder=__("Write your dank memes here."), required)
+				- if (board.mediauploadlimit > 0)
+					tr
+						td= __('Media')
+						td
+							div.upload
+								- var i = -1
+								- while (++i < board.mediauploadlimit)
+									input.toggle.showsource(name="include"+i, type="checkbox", id="showsource"+i, tabindex="-1")
+									label.hide(for="showsource"+i, tabindex="3")= __('Add Media Source')
+									div
+										input(id="spoiler"+i,type="checkbox", name="spoiler_media"+i, tabindex="-1")
+										label(for="spoiler"+i, tabindex="3")= __('NSFW')
+										input.toggle.source(name="is_external"+i, tabindex="-1", type="checkbox",id="source"+i)
+										label.brick(for="source"+i, tabindex="3")= __('Source')
+										input(type="text", name="out_media"+i, tabindex="3", placeholder=__("External Media"), title=__("Link External Media"))
+										input.switch(type="file", name="in_media"+i, tabindex="3", accept="image/*,video/*,audio/*", title=__("Upload Media"))
+									
+				- if (page.type=='index')
+					tr
+						td= __('Thread Options') 
+						td: div.options
+							- if (board.nsfw == false)
+								input#_nsfw(type="checkbox", name="nsfw", tabindex="-1")
+								label(for="_nsfw", tabindex="4")= __('NSFW')
+							- if (user.auth('thread.sage'))
+								input#_sage(type="checkbox", name="sage", tabindex="-1")
+								label(for="_sage", tabindex="4")= __('Autosage')
+							- if (user.auth('thread.pinned'))
+								input#_pinned(type="checkbox", name="pinned", tabindex="-1")
+								label(for="_pinned", tabindex="4")= __('Pin')
+							- if (user.auth('thread.sticky'))
+								input#_sticky(type="checkbox", name="sticky", tabindex="-1")
+								label(for="_sticky", tabindex="4")= __('Sticky')
+							- if (user.auth('thread.cycle'))
+								input#_cycle(type="checkbox", name="cycle", tabindex="-1")
+								label(for="_cycle", tabindex="4")= __('Cycle')
+							- if (user.auth('thread.anchor'))
+								input#_anchor(type="checkbox", name="anchor", tabindex="-1")
+								label(for="_anchor", tabindex="4")= __('Anchor')
+							- if (user.auth('thread.locked'))
+								input#_locked(type="checkbox", name="locked", tabindex="-1")
+								label(for="_locked", tabindex="4")= __('Lock')
+								

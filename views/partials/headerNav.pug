@@ -1,11 +1,11 @@
 nav#globalNav
-	a(href="/") Overboard
+	a(href="/")= __('Overboard')
 	| &nbsp;
-	a(href="/_") Underboard
+	a(href="/_")= __('Underboard')
 	- if (user && user.reg)
 		| &nbsp;
-		a(href="/_/logout") Logout
+		a(href="/_/logout")= __('Logout')
 - if (user && user.reg)
-	h1 Hello #{user.screenname||'Anonymous (logged in)'}
+	div.h1= __('Hello %%',user.screenname||__('Anonymous (logged in)'))
 - else 
-	h1 Hello Anonymous
+	div.h1= __('Hello Anonymous')

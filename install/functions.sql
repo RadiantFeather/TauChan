@@ -127,8 +127,23 @@ CREATE OR REPLACE FUNCTION post() RETURNS TRIGGER AS $$
 DECLARE b RECORD; m RECORD; n RECORD; h JSONB; i BIGINT;
 BEGIN
 	SET TIME ZONE 'UTC';
-	SELECT NEXTVAL(CONCAT_WS('_',NEW.board,'post','seq')) INTO NEW.post;
+	-- ban check
+	SELECT bb.reason,(bb.ip >> a.ip) AS ranged INTO b 
+	FROM bans bb LEFT OUTER JOIN appeals a 
+		ON (bb.board = a.board AND bb.ip >>= a.ip) 
+	WHERE (bb.board = NEW.board OR a.board = '_') 
+		AND (a.ip = NEW.ip OR bb.ip = NEW.ip) 
+		AND a.approved IS NULL AND bb.created + bb.expires > NOW()
+	ORDER BY (bb.board = '_') DESC, ranged ASC, bb.created DESC
+	LIMIT 1;
+	IF (b IS NULL OR NOT EXISTS(b)) THEN
+		RAISE insufficient_privilege USING	--User has an active, unappealed ban
+			MESSAGE = CASE WHEN ranged THEN 'You are range banned.' ELSE 'You are banned.',
+			DETAIL = b.reason,
+			CONSTRAINT = 'user_is_banned';
+	END IF;
 	SELECT bumplimit,threadlimit,postlimit,noname,archivethreads,archivedlifespan INTO b FROM boards WHERE board = NEW.board;
+	SELECT NEXTVAL(CONCAT_WS('_',NEW.board,'post','seq')) INTO NEW.post;
 	IF (NEW.thread IS NULL) THEN NEW.thread := NEW.post; END IF;
 	IF (NEW.name = '') THEN NEW.name := NULL; END IF;
 	IF (NEW.email = 'sage') THEN NEW.sage := TRUE; END IF;
@@ -250,8 +265,8 @@ END;$$ LANGUAGE plpgsql;
 -- Function for handling a ban user request.
 --
 CREATE OR REPLACE VIEW ban AS
-	SELECT b.board, b.creator, b.reason, b.expires, _.notice, _.range, _.post
-	FROM bans b, (VALUES (0,NULL::VARCHAR(128),0)) AS _(post,notice,range);
+	SELECT b.board, b.creator, b.reason, b.expires, _.bantext, _.range, _.post
+	FROM bans b, (VALUES (0,NULL::VARCHAR(128),0)) AS _(post,bantext,range);
 	
 CREATE OR REPLACE FUNCTION ban() RETURNS TRIGGER AS $$
 DECLARE
@@ -260,7 +275,7 @@ DECLARE
 	f SMALLINT := 1;
 	g BOOLEAN;
 	-- Might there be a better regex for URL hunting? (this is borrowed from infinity for the time being)
-	r TEXT := '\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:".,<>?«»“”‘’]))';
+	r TEXT := '\b((?:https?://|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:".,<>?«»“”‘’]))';
 BEGIN
 	SET TIME ZONE 'UTC';
 	IF (NEW.board IS NULL OR NEW.post IS NULL) THEN
@@ -268,14 +283,14 @@ BEGIN
 	END IF;
 	IF (NEW.range IS NULL) THEN NEW.range := 32; END IF;
 	IF (NEW.creator IS NULL) THEN NEW.creator := 0; END IF;
-	IF (NOT EXISTS(SELECT * INTO p FROM posts WHERE board = NEW.board AND post = NEW.post LIMIT 1)) THEN
+	SELECT * INTO p FROM posts WHERE board = NEW.board AND post = NEW.post LIMIT 1;
+	IF (p IS NULL OR NOT EXISTS(p)) THEN
 		RAISE case_not_found
 			USING MESSAGE = 'Ban and Delete failed.',
 			DETAIL = 'Post does not exist.',
 			CONSTRAINT = 'post_not_found';
 	END IF;
-	SELECT global INTO g FROM boards WHERE board = NEW.board;
-	IF (g) THEN
+	IF (EXISTS(SELECT 1 FROM boards WHERE board = NEW.board AND global = TRUE LIMIT 1)) THEN
 		IF (NEW.expires IS NULL OR NEW.expires > '1 year'::INTERVAL) THEN NEW.expires := '1 year'::INTERVAL; END IF;
 	ELSE 
 		IF (NEW.expires IS NULL OR NEW.expires > '3 months'::INTERVAL) THEN NEW.expires := '3 months'::INTERVAL; END IF;
@@ -290,10 +305,10 @@ BEGIN
 	IF (NEW.expires <> '0') THEN -- Set mask length if not a warning
 		ip := set_masklen(p.ip,NEW.range*f);
 	ELSE ip := p.ip; END IF;
-	INSERT INTO bans(ip,board,expires,author,reason,post)
+	INSERT INTO bans(ip,board,expires,creator,reason,post)
 		VALUES (ip,NEW.board,NEW.expires,NEW.creator,NEW.reason,to_json(p));
-	IF (NEW.expires <> '0' AND NEW.notice IS NOT NULL) THEN
-		UPDATE posts SET bantext = NEW.notice WHERE board = NEW.board AND post = NEW.post;
+	IF (NEW.bantext IS NOT NULL) THEN -- Update ban notice for post if not a warning
+		UPDATE posts SET banned = NEW.bantext WHERE board = NEW.board AND post = NEW.post;
 	END IF;
 	RETURN NEW;
 END;$$ LANGUAGE plpgsql;

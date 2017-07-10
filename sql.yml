@@ -53,7 +53,9 @@ view:
   "
   
   post: "
-    SELECT * FROM posts p
+    SELECT *, fetch_media(p.board,p.post) AS media,
+        mask_ip(p.ip::CIDR,p.board) AS mask, cl.localstamp, cl.globalstamp
+    FROM posts p LEFT OUTER JOIN clean cl USING (board,post)
     WHERE board = ${board} AND post = ${post} LIMIT 1;
   "
   
@@ -91,7 +93,7 @@ view:
       ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC
       LIMIT ${limit}
     ) t
-    ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC;
+    ORDER BY t.pinned DESC, t.sticky DESC, t.bumped DESC, t.op DESC;
   '
 
   board_index: '
@@ -195,7 +197,7 @@ view:
   '
   
   reports: '
-    SELECT r.post, r.created, r.reason, to_json(p) AS content,
+    SELECT r.post, r.created, r.reason, to_json(p.*) AS content,
     FROM posts p, reports r
     WHERE p.board = ${board} AND p.board = r.board AND p.post = r.post
       AND r.dismissed IS FALSE
@@ -259,6 +261,12 @@ view:
   
   role: '
     SELECT * FROM roles WHERE board = ${board} AND role = ${role};
+  '
+  
+  thread_list: '
+    SELECT op, fetch_page(${board},op) AS page
+    FROM threads WHERE board = ${board}
+    ORDER BY bumped DESC;
   '
   
 modify:
@@ -379,3 +387,40 @@ modify:
   delete_page: "
     DELETE FROM pages WHERE board = ${board} AND page = ${page};
   "
+  
+  nsfw_media: '
+    UPDATE media SET nsfw = TRUE
+    WHERE board = ${board} AND post = ${post} AND sort = ${index} AND nsfw = FALSE
+    RETURNING meta,mediatype,thread;
+  '
+  
+  delete_media: '
+    UPDATE media SET deleted = TRUE, hash = NULL
+    WHERE board = ${board} AND post = ${post} AND sort = ${index} AND deleted = FALSE
+    RETURNING src,thumb,meta,mediatype,thread;
+  '
+  
+  new_ban: '
+    INSERT INTO ban (board,creator,reason,expires,bantext,range,post)
+      VALUES (${board},${user},${reason},${expires},${bantext},${range},${post});
+  '
+  
+  old_ban: '
+    UPDATE bans SET seen = TRUE WHERE board = ${board} AND ip = ${ip};
+  '
+  
+  delete_ban: '
+    DELETE FROM bans WHERE board = ${board} AND ip = ${ip};
+  '
+  
+  new_appeal: '
+    
+  '
+  
+  old_appeal: '
+    
+  '
+  
+  delete_appeal: '
+    
+  '

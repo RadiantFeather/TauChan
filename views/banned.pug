@@ -1,8 +1,8 @@
 extends layout
 
-block content
+block main
 	- if (!data.length)
-		h1 You are not banned
+		h1= __('You are not banned')
 	- else
 		- var i = -1
 		- while (++i < data.length)

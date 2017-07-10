@@ -1,3 +1,7 @@
+.post {
+	padding-bottom: 5px; 
+	overflow: auto; 
+}
 
 .post .postid:before{
 	content:"ID: ";
@@ -5,152 +9,147 @@
 .post .quote:before{
 	content:"#";
 }
-.post .info >*:not(:empty),
-.post .media .meta >*:not(:empty) {
-	margin-right:8px;
+.post .info >*:not(:empty) {
+	margin-right: 8px;
+}
+.post .info { 
+	margin-bottom: 6px; 
 }
 
-.post 
-{ padding-bottom:5px; overflow:auto; }
-.post .info
-{ margin-bottom: 6px; }
-.post .info .postactions 
-{ margin-right:0; }
+.post .banned {
+	font-size:125%;
+	margin-top:10px;
+}
+
+.post .actions summary span {
+	display:none;
+}
+
+.post.reply {
+	border-width: 2px;
+	border-style: solid;
+	margin-top: 10px;
+	padding: 5px;
+	max-width:80%;
+	width: -webkit-max-content;
+	width: -moz-max-content;
+	width: -ms-max-content;
+	width: -o-max-content;
+	width: max-content;
+}
 
 .post .clean.global:before { content:"Acceptable on this board: ("; }
 .post .clean.local:before { content:"Globally acceptable: ("; }
 .post .clean.global:after,
 .post .clean.local:after { content:")"; }
 
-/* defining post actions dropdown menu */
-.post .postactions{
-	position:relative;
-	display:inline-block;
+/* defining actions dropdown menus */
+.post .postactions,
+.post .mediaactions{
+	display: inline-block;
+	margin-right: 0;
 }
-.post .postactions ul{
-	list-style:none;
-	position:absolute;
-	top: -12px;
-	left: 75%;
+.post .postactions ul,
+.post .mediaactions ul {
+	list-style: none;
+	position: absolute;
 	border-style: solid;
 	border-width: 2px;
-	padding:8px;
-	z-index:2;
-	text-align:center;
+	padding: 8px;
+	z-index: 2;
+	text-align: center;
 	line-height: 22px;
-	display:none;
+	display: none;
+	margin: 0;
 }
-.post .postactions:hover ul {
-	display:block;
+.post .postactions[open] ul,
+.post .mediaactions[open] ul {
+	display: inline-block;
 }
-.post .postactions ul >li{
-	white-space:nowrap;
+.post .postactions ul >li,
+.post .mediaactions ul >li{
+	white-space: nowrap;
 }
 
 /* defining post media wrappers */
 .post .media
-{ float:left; }
+{ float: left; }
 
 .post .media .item { 
-	display:inline-block!important;
+	display:inline-block;
+	position:relative;
 	text-align:center;
 	margin-top:0; 
+	margin-bottom:0;
 	width: -webkit-min-content;
 	width: -moz-min-content;
 	width: -ms-min-content;
 	width: -o-min-content;
 	width: min-content;
-	vertical-align: top;
 	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
 }
-.post .media:not(.open) .item {
-	max-width: 150px;
-}
+.post .media:not(.open) .item { width: 200px; }
+.post .media .item .meta { overflow: hidden; text-overflow: ellipsis; }
+
 .post .media .file .thumb,
-.post .media .file .nsfw { 
-	height:auto; 
-	max-width: 150px; 
+.post .media .file .spoiler { 
+	height: auto; 
+	max-width: 200px; 
 	margin: 0 auto; 
 }
+.post .media .file 
+{ cursor: default; }
 
-/* defining image viewing control (thumb, spoiler and full view) */
-.post .media .nsfw +.thumb, 
-.post .media .full,
-.post .media.open .thumb, 
-.post .media.open .nsfw
-{ display:none; }
-.post .media .nsfw,
-.post .media .thumb,
-.post .media.open .full
-{ display:block; }
-.post .media .item:hover .file .nsfw 
-{ display:none; }
-.post .media .item:hover .file .nsfw +.thumb 
-{ display:block; }
-
-/* defining the image action buttons */
-.post .media .filewrap {
-	position:relative;
-}
-.post .media .filewrap .spoilerimg,
-.post .media .filewrap .deleteimg {
-	transition:0.5s;
-	position: absolute;
-	font-size:50px;
-	opacity:0.0;
-}
-@media (max-width:1000px) {
-	.post .media .filewrap .spoilerimg,
-	.post .media .filewrap .deleteimg {
-		font-size: calc(5vw + 10px);
-	}
+/* iframe specific resizing management */
+.post .media .item.open iframe.full {
+	min-height: 300px;
+	height: 50vh;
+	min-width: calc(300px*16/9);
+	width: calc(50vh*16/9);
 }
 
-.post .media .filewrap .spoilerimg {
+.post .media .item:not(.open) .close {
+	display:none;
+}
+
+.post .media .item.open .close {
+	display:inline-block;
 	top:0;
 	left:0;
-}
-.post .media .filewrap .deleteimg {
-	bottom:0;
-	right:0;
-}
-.post .media .filewrap .spoilerimg >a,
-.post .media .filewrap .deleteimg >a {
 	position:absolute;
-	font-size:0.4em;
+	padding:1px;
+	border-style: solid;
+	border-width: 2px;
 }
-.post .media .filewrap .spoilerimg >a {
-	bottom:1em;
-	left:0.5em;
-	color:white;
-}
-.post .media .filewrap .deleteimg >a {
-	top:1.5em;
-	right:0.3em;
-	color:red;
-}
-.post .media .filewrap:hover .spoilerimg,
-.post .media .filewrap:hover .deleteimg {
-	opacity:0.5;
-}
-.post .media .filewrap:hover .spoilerimg >a,
-.post .media .filewrap:hover .deleteimg >a {
-	opacity:1.0;
-}
+
+/* defining image visibility control (thumb, spoiler and full view) */
+.post .media .item.nsfw .thumb, 
+.post .media .item .full,
+.post .media .item.open .thumb, 
+.post .media .item.open .spoiler,
+.post .media .item:not(.open):hover .spoiler,
+.post .media .item.open .thumb
+{ display: none; }
+.post .media .item:not(.open) .spoiler,
+.post .media .item:not(.open):not(.nsfw) .thumb,
+.post .media .item:not(.open):hover .thumb,
+.post .media .item.open .full
+{ display: block; }
 
 /* defining layouts for various image counts */
 .post .media.one { 
-	display:inline-block;
-	position:relative;
-	margin-top: 5px;
-	top:-5px;
-	margin-bottom:5px;
+	display: inline-block;
+	position: relative;
+	top: -5px;
 }
-.post .media.many, .post .media.open { 
-	display:block;
-	margin-bottom:10px;
+.post .media.many.open, .post .media.one.open { 
+	display: block;
+}
+.post .media.many:not(.open) {
+	display:flex;
+}
+.post .media.many, .post .media.one.open { 
+	margin-bottom: 10px;
 	width: 100%;
 }
-.post .media.none { display:none; }
+.post .media.none { display: none; }

@@ -9,4 +9,4 @@ block content
 	h3= err.message
 	- if (err.stack !== undefined && DEV)
 		pre: code !{err.stack}
-	a(href=err.back) Return
+	a(href=err.back)= __('Return')

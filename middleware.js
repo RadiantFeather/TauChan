@@ -18,6 +18,7 @@ const db = Config.db;
 const pgp = Config.pgp;
 const _ = {};
 	
+// TODO take into consideration how to incorperate CDN options
 function loadBoardAssets(board,data,paths){
 	let i = -1;
 	while(++i < paths.length) {
@@ -54,7 +55,7 @@ _.loadBoard = async function(ctx,next){
 			{key:'spoilerimg',path:'spoiler.png'}
 			,{key:'missingimg',path:'missing.png'}
 			,{key:'deletedimg',path:'deleted.png'}
-			,{key:'processingimg',path:'processing.png'}
+			// ,{key:'processingimg',path:'processing.png'}
 			// ,{key:'videothumb',path:'video.png'}
 			// ,{key:'audiothumb',path:'audio.png'}
 			// ,{key:'banners',path:'banners'}
@@ -103,6 +104,11 @@ _.loadGlobal = async function(ctx,next){
 	return next();
 };
 
+_.rateLimit = async function(ctx,next){
+	return next();
+	
+};
+
 _.handleErrors = async function(ctx,next){
 	try {
 		await next();
@@ -125,7 +131,7 @@ _.handleErrors = async function(ctx,next){
 			if (err.status) ctx.status = err.status;
 			if (ctx.status == 401) err.back = '/';
 			else err.back = ctx.cookies.get('lastpage');
-			ctx.render(err.render||'error',{status:ctx.status||500,err:err,data:err.data||null});
+			ctx.render(err.render||'error',Object.assign({status:ctx.status||500,err:err},err.data));
 			// remove any leftover files that need to be removed.
 			let tf = ctx.state.trackfiles;
 			if (tf && tf.length) {

@@ -7,15 +7,15 @@ block header
 	- if (page.type == 'custom')
 		h1.frontandcenter= data.title
 		div
-			a.brick(href='/'+board.board+'/pages') Go to pages listing
+			a.brick(href='/'+board.board+'/pages')= __('Go to pages listing')
 			- if (managepages) 
-				a.brick(href='/'+board.board+'/editPage/'+data.page) Edit this Page
+				a.brick(href='/'+board.board+'/editPage/'+data.page)= __('Edit this Page')
 	- else 
 		h2.frontandcenter
 			- if (managepages)
-				a.brick(href='/'+board.board+'/editPage/') New Page
+				a.brick(href='/'+board.board+'/editPage/')= __('New Page')
 			- else 
-				| Custom Board Pages
+				= __('Custom Board Pages')
 
 block content
 	- if (page.type == 'custom')
@@ -30,13 +30,13 @@ block content
 							a(href='/'+board.board+'/'+page.page) /#{board.board}/#{page.page}
 							- if (managepages)
 								|&nbsp;-&nbsp;
-								a.brick(href='/'+board.board+'/editPage/'+page.page) Edit Page
+								a.brick(href='/'+board.board+'/editPage/'+page.page)= __('Edit Page')
 						h1= page.title
 						- if (managepages)
-							div._error Type the name of the role to confirm deletion.
+							div._error= __('Type the name of the role to confirm deletion.')
 							form.contentcollapse(method="POST",action='/'+board.board+'/deletePage/'+page.page,enctype="application/x-www-form-urlencoded")
 								+CSRF
 								input(type="text",name="verify",placeholder=page.page)
-								input(type="submit",value="Delete Page")
+								input(type="submit",value=__("Delete Page"))
 			- else 
-				h1.frontandcenter No custom pages have been created for this board.
+				h1.frontandcenter= __('No custom pages have been created for this board.')

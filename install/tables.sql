@@ -113,6 +113,31 @@ CREATE TABLE IF NOT EXISTS media (
 );
 CREATE INDEX media_hash ON media (hash);
 
+CREATE TABLE IF NOT EXISTS clean (
+	board VARCHAR(32) NOT NULL REFERENCES boards (board) 
+		ON DELETE CASCADE ON UPDATE CASCADE,
+	post INTEGER NOT NULL,
+	local INTEGER DEFAULT 0 REFERENCES users (id) 
+		ON DELETE SET DEFAULT,
+	localstamp TIMESTAMP,
+	global INTEGER DEFAULT 0 REFERENCES users (id) 
+		ON DELETE SET DEFAULT,
+	globalstamp TIMESTAMP,
+	PRIMARY KEY (board,post),
+	FOREIGN KEY (board,post) REFERENCES posts (board,post) 
+		ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS pages (
+	board VARCHAR(32) NOT NULL REFERENCES boards (board) 
+		ON DELETE CASCADE ON UPDATE CASCADE,
+	page VARCHAR(16) NOT NULL,
+	title VARCHAR(32),
+	markdown VARCHAR(4096),
+	markup TEXT,
+	PRIMARY KEY (board, page)
+);
+
 CREATE TABLE IF NOT EXISTS users (
 	id SERIAL PRIMARY KEY,
 	username VARCHAR(32) UNIQUE,
@@ -178,18 +203,19 @@ CREATE TABLE IF NOT EXISTS appeals (
 );
 CREATE INDEX ON appeals USING GIST (ip inet_ops);
 /*
-SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged
-	FROM bans b, appeals a
-	WHERE (a.board = ? OR a.board = '_') AND b.board = a.board
-		AND a.ip = ? AND b.ip >>= a.ip
-		AND a.approved IS NOT NULL;
+SELECT b.created,b.expires,b.reason,b.post,(b.ip >> a.ip) AS ranged 
+	FROM bans b LEFT OUTER JOIN appeals a 
+		ON (b.board = a.board AND b.ip >>= a.ip) 
+	WHERE (b.board = ${board} OR a.board = '_') 
+		AND (a.ip = ${ip} OR b.ip = ${ip}) 
+		AND a.approved IS NULL;
 	--Ban Check (unverified) CALLWITH (board.id, user.ip)
 
-SELECT b.ip,b.board,b.created,b.reason,b.post,a.created AS appealed,a.approved
+SELECT b.ip,b.board,b.created,b.reason,b.post,a.created AS appealed,a.approved,
 	(b.created + b.expires - NOW()) AS expires,(b.ip >> a.ip) AS ranged
 	FROM bans b, appeals a
-	WHERE (a.board = ? OR a.board = '_') AND b.board = a.board 
-		AND a.ip = ? AND b.ip >>= a.ip
+	WHERE (a.board = ${board} OR a.board = '_') AND b.board = a.board 
+		AND a.ip = ${ip} AND b.ip >>= a.ip
 	ORDER BY (b.board = '_'), b.board ASC;
 	--Ban View (unverified) CALLWITH (board.id, user.ip)
 */
@@ -209,12 +235,13 @@ CREATE INDEX report_ips ON reports USING GIST (ip inet_ops);
 /*
 SELECT r.post, r.created, r.reason, to_json(p) AS content,
 	FROM posts p, reports r
-	WHERE p.board = ? AND p.board = r.board AND p.post = r.post
+	WHERE p.board = ${board} AND p.board = r.board AND p.post = r.post
 		AND r.dismissed IS NULL
 	ORDER BY r.post ASC, r.created ASC;
 	--Reports View (unverified) CALLWITH (board.id)
 */
 
+/* MOVE TO EXCLUSIVELY FILE LOGS? */
 CREATE TABLE IF NOT EXISTS logs (
 	board VARCHAR(32) NOT NULL DEFAULT '_' REFERENCES boards (board) 
 		ON DELETE CASCADE ON UPDATE CASCADE,
@@ -245,30 +272,5 @@ CREATE TABLE IF NOT EXISTS news (
 	title VARCHAR(64),
 	markdown VARCHAR(4096),
 	markup TEXT
-);
-
-CREATE TABLE IF NOT EXISTS clean (
-	board VARCHAR(32) NOT NULL REFERENCES boards (board) 
-		ON DELETE CASCADE ON UPDATE CASCADE,
-	post INTEGER NOT NULL,
-	local INTEGER DEFAULT 0 REFERENCES users (id) 
-		ON DELETE SET DEFAULT,
-	localstamp TIMESTAMP,
-	global INTEGER DEFAULT 0 REFERENCES users (id) 
-		ON DELETE SET DEFAULT,
-	globalstamp TIMESTAMP,
-	PRIMARY KEY (board,post),
-	FOREIGN KEY (board,post) REFERENCES posts (board,post) 
-		ON DELETE CASCADE ON UPDATE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS pages (
-	board VARCHAR(32) NOT NULL REFERENCES boards (board) 
-		ON DELETE CASCADE ON UPDATE CASCADE,
-	page VARCHAR(16) NOT NULL,
-	title VARCHAR(32),
-	markdown VARCHAR(4096),
-	markup TEXT,
-	PRIMARY KEY (board, page)
 );
 

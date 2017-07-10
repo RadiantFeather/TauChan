@@ -35,18 +35,18 @@ while(++i<load.length){
 		for (e in _loaded) if (_loaded[e]===null) return;
 		e = new Event('init');
 		e.loaded = loaded;
-		document.dispatchEvent(e);
+		window.dispatchEvent(e);
 		window.PAGE.loaded = loaded;
 		window.PAGE.init = true;
 	};
 	s.onerror = ()=>{
 		let e;
 		_loaded[v] = false;
-		console.log('Script failed to load: '+v)
+		console.error('Script failed to load: '+v);
 		for (e in _loaded) if (_loaded[e]===null) return;
 		e = new Event('init');
 		e.loaded = loaded;
-		document.dispatchEvent(e);
+		window.dispatchEvent(e);
 		window.PAGE.loaded = loaded;
 		window.PAGE.init = true;
 	};

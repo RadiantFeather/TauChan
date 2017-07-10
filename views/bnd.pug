@@ -1,0 +1,43 @@
+extends layout
+
+include partials/postContents
+
+block head
+    +style('bnd.css')
+    +postContents_head
+
+block main
+    div.post.reply(id='_'+data.post,class={isyou:data.ip==user.ip})
+        +postContents(data,true)
+        
+    form#bandelete(method="POST",enctype="application/x-www-form-urlencoded")
+        +CSRF
+        +ERR(__('Unknown error occured. Unable to implement ban.'))
+        
+        - if (mode == 'b' || mode == 'bd')
+            label= __('Select an IP range')
+                select(name="range")
+                    option(selected=(!form||form.range=='32'),value='32') /32 (#{__('Single IP')})
+                    option(selected=(form&&form.range=='24'),value='24') /24
+                    option(selected=(form&&form.range=='16'),value='16') /16 (#{__('Default range')})
+                    option(selected=(form&&form.range=='14'),value='14') /14
+                    option(selected=(form&&form.range=='12'),value='12') /12 (#{__('Heavy range/Spam')})
+                    option(selected=(form&&form.range=='8'),value='8') /8 (#{__('Last resort')})
+            label= __('Expires after:')
+                input(type="text",name="expires",placeholder= __("Default: 3 days"),value=(form&&form.expires?form.expires:false))
+            - if (mode != 'bd')
+                label= __('Ban Message')
+                    input(type="text",name="bantext",placeholder= __("Leave empty for a quiet ban"),value=(form&&form.bantext?form.bantext:false))
+            label= __('Reason for Ban')
+                input(type="text",name="reason",maxLength="128",value=(form&&form.reason?form.reason:false))
+                
+        - if (mode == 'd' || mode == 'bd')
+            label= __('Confirm deletion by entering the number of the above post:')
+                input(type="text",name="verify",placeholder=data.post,required,pattern='^'+data.post+'$')
+        
+        - if (mode == 'b')
+            input(type="submit",formaction='/'+board.board+'/ban/'+data.post,value= __("Submit Ban"))
+        - else if (mode == 'd')
+            input(type="submit",formaction='/'+board.board+'/delete/'+data.post,value= __("Delete Post"))
+        - else if (mode == 'bd')
+            input(type="submit",formaction='/'+board.board+'/bnd/'+data.post,value= __("Submit Ban and Delete Post"))

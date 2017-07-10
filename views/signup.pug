@@ -3,20 +3,17 @@ extends layout
 block main
 	form(id="signup",method="POST",action="/_/signup",enctype="application/x-www-form-urlencoded")
 		+CSRF
-		- if (err && (DEV || status != 500))
-			h4._error= err.message
-		- else if (err)
-			h4._error Error occured with submission. Try again.
-		label Username
-			input(name="username",type="text",placeholder="Username",value=(data&&data.username?data.username:''), required)
-		label Screen Name
-			input(name="screenname",type="text",placeholder="Screen Name",value=(data&&data.screenname?data.screenname:''))
-		label Email
+		+ERR(__('Error occured with submission. Try again.'))
+		label= __('Username')
+			input(name="username",type="text",placeholder=__("Username"),value=(data&&data.username?data.username:''), required)
+		label= __('Screen Name')
+			input(name="screenname",type="text",placeholder=__("Screen Name"),value=(data&&data.screenname?data.screenname:''))
+		label= __('Email')
 			input(name="email",type="email",placeholder="email@domain.tld",value=(data&&data.email?data.email:''))
-		label Passphrase
-			input(name="passphrase",type="password",placeholder="Passphrase", required)
-		label Verify
-			input(name="validate",type="password",placeholder="Confirm Passphrase", required)
-		label Remember Me
+		label= __('Passphrase')
+			input(name="passphrase",type="password",placeholder=__("Passphrase"), required)
+		label= __('Verify')
+			input(name="validate",type="password",placeholder=__("Confirm Passphrase"), required)
+		label= __('Remember Me')
 			input(name="rememberme",type="checkbox",checked=false)
-		input(type="submit",value="Signup")
+		input(type="submit",value=__("Signup"))

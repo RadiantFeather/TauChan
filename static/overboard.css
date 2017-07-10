@@ -6,11 +6,17 @@ main { display:flex; }
 	width:200px;
 	font-size:125%;
 }
+#cloud ul { list-style: none; padding:0; }
+#cloud ul li { display:inline; }
 
 #cloud >*:not(legend) {
 	display:inline-block;
 	margin:0;
 	margin-right:6px;
+}
+
+#cloud legend h3 {
+	margin:0;
 }
 
 #boardlist nav {
@@ -25,4 +31,8 @@ main { display:flex; }
 #boardlist nav aside {
 	display:inline-block;
 	float:right;
+}
+
+#boardlist .tags {
+	white-space:nowrap;
 }

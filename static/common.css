@@ -1,3 +1,63 @@
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers *
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body {
+	line-height: 1;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+/* END RESET */
+
+/* pseudo heading styles */
+.h1, .h2, .h3, .h4, .h5, .h6 { font-weight:bold; }
+.h1 {font-size: 2.0em;}
+.h2 {font-size: 1.6em;}
+.h3 {font-size: 1.3em;}
+.h4 {font-size: 1.2em;}
+.h5 {font-size: 1.0em;}
+.h6 {font-size: 0.8em;}
+
 ._error {color:#e91e63;}
 ._warning {color:#ffeb3b;}
 ._notice {color: #03a9f4;}
@@ -10,6 +70,9 @@ input.toggle:not(:checked) +label +*:not(.flip),
 input.toggle:checked +label +*:not(.flip) +.switch,
 input.toggle:not(:checked) +label +.flip +.switch {
 	display:none;
+}
+label[for]:focus{
+	border-bottom: 1px solid gray;
 }
 
 main {
@@ -25,7 +88,7 @@ main {
 
 details { margin-right:0!important; }
 
-figure { margin:15px; }
+figure { margin-left:15px; margin-right:15px; }
 
 pre { margin: 0; padding:0; }
 
@@ -47,7 +110,7 @@ nav:empty{
 
 .click,.clickable{cursor:pointer;}
 
-a[target="_blank"] {cursor:alias;}
+html:not(.js) a[target="_blank"] {cursor:alias;}
 
 .frontandcenter {
     font-weight:bold;
@@ -55,6 +118,6 @@ a[target="_blank"] {cursor:alias;}
     text-align:center;
 }
 
-.contentcollapse {
+.contentcollapse,.inlineblock {
 	display:inline-block;
 }

@@ -6,25 +6,12 @@ console._ = function (data,level){
 	return data;
 };
 Function.prototype.clone = function(propless) {
-  eval('var func = '+ this.toString());
-  for (var key in this)
+	let func;
+	eval('func = '+ this.toString());
+	for (let key in this)
 		if(!propless && this.hasOwnProperty(key))
 			func[key] = this[key];
-  return func;
-};
-Object.prototype.keys = function(){
-	var out = [];
-	for (var key in this) 
-		if (this.hasOwnProperty(key))
-			out.push(key);
-	return out;
-};
-Object.prototype.vals = function(){
-	var out = [];
-	for (var key in this) 
-		if (this.hasOwnProperty(key))
-			out.push(this[key]);
-	return out;
+	return func;
 };
 Object.prototype.cut = function(key){ 
 	if(this.hasOwnProperty(key)){
@@ -86,28 +73,28 @@ HTMLCollection.prototype.each = Array.prototype.each = NodeList.prototype.each =
 		func.bind(bindeach?this[i]:_this)(this[i], i, this);
 };
 HTMLCollection.prototype.filter = Array.prototype.filter = NodeList.prototype.filter = function(func,_this){
-	var i = -1, bindeach = (_this === undefined); 
+	var i = -1, bindeach = (_this === undefined), out = []; 
 	while(++i < this.length)
-		if(func.bind(_bindeach?this[i]:_this)(this[i], i, this) === true) 
+		if(func.bind(bindeach?this[i]:_this)(this[i], i, this) === true) 
 			out.push(this[i]);
 	return out;
 };
 HTMLCollection.prototype.all = Array.prototype.all = NodeList.prototype.all = function(func,_this){
 	var i = -1, bindeach = (_this === undefined); 
 	while(++i < this.length)
-		if(func.bind(_bindeach?this[i]:_this)(this[i], i, this) === false) 
+		if(func.bind(bindeach?this[i]:_this)(this[i], i, this) === false) 
 			return false;
 	return true;
 }; 
 HTMLCollection.prototype.any = Array.prototype.any = NodeList.prototype.any = function(func,_this){
 	var i = -1, bindeach = (_this === undefined); 
 	while(++i < this.length)
-		if (func.bind(_bindeach?this[i]:_this)(this[i], i, this) === true) 
+		if (func.bind(bindeach?this[i]:_this)(this[i], i, this) === true) 
 			return true;
 	return false;
 };
 Array.prototype.random = function(){
-	return this[parseInt(Math.random(0,this.length))];
+	return this[parseInt(Math.random(0,this.length),10)];
 };
 Array.prototype.lcut = function(val, occurance){
 	if (typeof occurance !== 'number' || occurance < 1) occurance = 1;
@@ -147,7 +134,7 @@ Array.prototype.ltrim = function(vals){
 					if (this === item) this.splice(i,1);
 					else b = true;
 				});
-			else b = true
+			else b = true;
 		if (b) break;
 	}
 	return this;
@@ -164,47 +151,47 @@ Array.prototype.rtrim = function(vals){
 					if (this === item) this.splice(i,1);
 					else b = true;
 				});
-			else b = true
+			else b = true;
 		if (b) break;
 	}
 	return this;
 };
 Array.prototype.trim = function(vals){ return this.rtrim(vals).ltrim(vals); };
-Array.prototype.merge = function(){
+Array.prototype.merge = function(...args){
 	var i = -1;
-	while(++i < arguments.length) {
-		if (arguments[i] instanceof Array)
-			arguments[i].forEach((data)=>{ this.push(data); },this);
-		else this.push(arguments[i]);
+	while(++i < args.length) {
+		if (args[i] instanceof Array)
+			args[i].forEach((data)=>{ this.push(data); },this);
+		else this.push(args[i]);
 	}
 	return this;
 };
 (()=>{
 	function eventMatch(a,b){
 		for (var key in b)
-			if(b.hasOwnProperty(key))
-				if(	!a.hasOwnProperty(key) || 
-					(a[key].hasOwnProperty('_func') && a[key]._func !== b[key]._func) || 
+			if (b.hasOwnProperty(key))
+				if (!a.hasOwnProperty(key) || 
+					(typeof a[key] == 'function' && a[key].hasOwnProperty('_func') && a[key]._func !== b[key]._func) || 
 					(a[key] !== b[key])
 				) return false;
 		return true;
 	}
-	function parseArgs(args){
+	function parseArgs(...args){
 		var o = {};
 		// event, selector, data, function, capture, namespace
 		o.e = o.s = o.d = o.f = o.c = o.n = undefined;
 		if (args.length > 5) args.splice(0,5); // only use the first 5 arguments.
 		switch (args.length){
 			case 5: 
-				switch(typeof arge[4]){
+				switch(typeof args[4]){
 					case 'boolean': o.c = args[3]; break;
-					default: throw 'Invalid 5th argument: ('+ (typeof args[4]) +') '+args[4].toString();
+					default: throw new Error('Invalid 5th argument: ('+ (typeof args[4]) +') '+args[4].toString());
 				}
 			case 4:
 				switch(typeof args[3]){
 					case !(o.c===undefined)||'boolean': o.c = args[2]; break;
 					case 'function': o.f = args[2]; break;
-					default: throw 'Invalid 4th argument: ('+ (typeof args[3]) +') '+args[3].toString();
+					default: throw new Error('Invalid 4th argument: ('+ (typeof args[3]) +') '+args[3].toString());
 				}
 			case 3:
 				switch(typeof args[2]){
@@ -216,7 +203,7 @@ Array.prototype.merge = function(){
 				switch(typeof args[1]){
 					case !(o.c===undefined)||'boolean': o.c = args[1]; break;
 					case !(o.f===undefined)||'function': o.f = args[1]; break;
-					case 'string': o.s = args[1].replace(/ *, */g,',').replace(/  +/g,' ').trim(); break;
+					case 'string': o.s = args[1].replace(/ *, */g,',').replace(/ {2,}/g,' ').trim(); break;
 					default: o.d = args[1];
 				}
 			case 1:
@@ -240,7 +227,8 @@ Array.prototype.merge = function(){
 								o.n = args[0].substring(i+1) || undefined;
 							} else o.e = args[0];
 						}
-					default: throw 'Invalid 1st argument: ('+ (typeof args[0]) +') '+args[0].toString();
+						break;
+					default: throw new Error('Invalid 1st argument: ('+ (typeof args[0]) +') '+args[0].toString());
 				}
 		}
 		return o;
@@ -249,7 +237,7 @@ Array.prototype.merge = function(){
 		if (this._eventFunctions === undefined) this._eventFunctions = [];
 		if (typeof arg.e === 'object') {
 			arg.e.each(function(e, i){
-				listeners.bind(this)({e:e,n:arg.n[i],s:arg.s,f:arg.f,c:arg.c,d:arg.d},remove);
+				listeners.bind(this)({e,n:arg.n[i],s:arg.s,f:arg.f,c:arg.c,d:arg.d},remove);
 			},this);
 		} else if (remove){
 			arg.filter(()=>{ if (this === undefined) return false; });
@@ -265,28 +253,28 @@ Array.prototype.merge = function(){
 				this._eventFunctions.splice(i,1);
 			},this);
 		} else {
-			if (!arg.e) throw 'Event type must be provided.';
-			if (!arg.f) throw 'Event handler must be provided.';
+			if (!arg.e) throw new Error('Event type must be provided.');
+			if (!arg.f) throw new Error('Event handler must be provided.');
 			if (arg.s === undefined) arg.s = '';
 			if (arg.c === undefined) arg.c = false;
-			if (arg.s) try{ this.querySelectorAll(arg.s); }catch(e){ throw '"'+arg.s+'" is not a valid selector.'; }	// Make sure selector is valid
+			if (arg.s) try{ this.querySelectorAll(arg.s); }catch(e){ throw new Error('"'+arg.s+'" is not a valid selector.'); }	// Make sure selector is valid
 			if (!this._eventFunctions.any(()=>{if (eventMatch(this,arg)) return true;})){
-				this.addEventListener(arg.e,arg.f.bind(this,arg),arg.c);
+				this.addEventListener(arg.e,arg.f,arg.c);
 				this._eventFunctions.push(arg);
 			}
 		}
 	}
-	Element.prototype.one = function(/* 'event[.namespace][, event[.namespace]]...', ['selector',] [data,] function, [useCapture] */){
-		var arg = parseArgs(arguments);
-		if (!arg.e || !arg.f) throw 'An event type and handler must be provided.';
+	Element.prototype.one = function(...args /* 'event[.namespace][, event[.namespace]]...', ['selector',] [data,] function, [useCapture] */){
+		let arg = parseArgs(...args);
+		if (!arg.e || !arg.f) throw new Error('An event type and handler must be provided.');
 		if (arg.s === undefined) arg.s = '';
 		if (arg.c === undefined) arg.c = false;
 		if (arg.s) this.querySelectorAll(arg.s);	// Make sure selector is valid
-		var func = function(data,e){
+		let func = function func(data,e){
 			if (e.namespace && e.namespace != data.n) return; // Only execute if namespaces match
-			var nodes,target = e.target;
+			let nodes,target = e.target;
 			if (data.s && this.children.length > 0 && (nodes = this.querySelectorAll(data.s)).length > 0){
-				while (!target in nodes || target != this)
+				while (!(target in nodes) || target != this)
 					target = target.parentNode;
 			}
 			else target = this;
@@ -295,60 +283,62 @@ Array.prototype.merge = function(){
 			data.f._func.apply(target,[].merge(e,e.cut('toApply')));
 			listeners.bind(this)(data,true);
 		};
+		func = func.bind(this,arg);
 		func._func = arg.f;
 		arg.f = func;
 		listeners.bind(this)(arg);
 		return this;
 	};
-	Element.prototype.on = function(/* 'event[.namespace][, event[.namespace]]...', ['selector',] [data,] function, [useCapture] */){
-		var arg = parseArgs(arguments);
-		if (!arg.e || !arg.f) throw 'An event type and handler must be provided.';
+	Element.prototype.on = function(...args /* 'event[.namespace][, event[.namespace]]...', ['selector',] [data,] function, [useCapture] */){
+		var arg = parseArgs(...args);
+		if (!arg.e || !arg.f) throw new Error('An event type and handler must be provided.');
 		if (arg.s) this.querySelectorAll(arg.s);	// Make sure selector is valid
 		var func = function(data,e){
 			if (e.namespace && e.namespace != data.n) return;	// Only execute if namespaces match
 			var nodes,target = e.target;
 			if (data.s && this.children.length > 0 && (nodes = this.querySelectorAll(data.s)).length > 0)
-				while (!target in nodes || target != this) 
+				while (!(target in nodes) || target != this) 
 					target = target.parentNode;
 			else target = this;
 			e.namespace = data.n;
 			e.data = data.d;
 			data.f._func.apply(target,[].merge(e,e.cut('toApply')));
 		};
+		func = func.bind(this,arg);
 		func._func = arg.f;
 		arg.f = func;
-		listeners.bind(this)(arg); 
+		listeners.bind(this)(arg);
 		return this; 
 	};
-	Element.prototype.off = function(/* ['[event][.namespace][,[event][.namespace]]...',] ['selector',] [function,] [useCapture] */){
-		var arg = parseArgs(arguments);
+	Element.prototype.off = function(...args /* ['[event][.namespace][,[event][.namespace]]...',] ['selector',] [function,] [useCapture] */){
+		var arg = parseArgs(...args);
 		if (arg.f) arg.f._func = arg.f;
 		listeners.bind(this)(arg,true);
 		return this;
 	};
-	Element.prototype.trigger = function(e, data){
-		var n,ex = {};
-		if (typeof data === 'object' && !data instanceof Array) {
-			if ('bubbles' in data) ex.bubbles = data.cut('bubbles');
-			if ('cancelable' in data) ex.cancelable = data.cut('cancelable');
-		};
-		if(typeof e === 'string') {
-			var i;
-			if ((i = args[0].indexOf('.')) != -1){	// Extract namespace if given
-				e = args[0].substring(0,i);
-				n = args[0].substring(i+1) || undefined;
-			} else e = args[0];
+	Element.prototype.trigger = function(e, data, ex={}){
+		let n;
+		if (typeof data === 'object' && !Array.isArray(data)) {
+			ex = data;
+			data = null;
+		}
+		if (typeof e === 'string') {
+			let i;
+			if ((i = e.indexOf('.')) != -1){	// Extract namespace if given
+				e = e.substring(0,i);
+				n = e.substring(i+1) || undefined;
+			}
 			e = new Event(e, ex); 
 		}
-		if(!(e instanceof Event)) throw 'Trigger must be a string or Event() instance.';
+		if(!(e instanceof Event)) throw new Error('Trigger must be a string or Event() instance.');
 		e.namespace = n;
 		e.toApply = data; 
 		this.dispatchEvent(e);
 		return this;
 	};
-	HTMLCollection.prototype.one = NodeList.prototype.one = function(){ var i = -1; while(++i < this.length) this[i].one.apply(this[i],arguments); return this; };
-	HTMLCollection.prototype.on = NodeList.prototype.on = function(){ var i = -1; while(++i < this.length) this[i].on.apply(this[i],arguments); return this; };
-	HTMLCollection.prototype.off = NodeList.prototype.off = function(){ var i = -1; while(++i < this.length) this[i].off.apply(this[i],arguments); return this; };
+	HTMLCollection.prototype.one = NodeList.prototype.one = function(...args){ var i = -1; while(++i < this.length) this[i].one(...args); return this; };
+	HTMLCollection.prototype.on = NodeList.prototype.on = function(...args){ var i = -1; while(++i < this.length) this[i].on(...args); return this; };
+	HTMLCollection.prototype.off = NodeList.prototype.off = function(...args){ var i = -1; while(++i < this.length) this[i].off(...args); return this; };
 	HTMLCollection.prototype.trigger = NodeList.prototype.trigger = function(e,data,ex){ var i = -1; while(++i < this.length) if(this[i].nodeType != 3) this[i].trigger(e,data,ex); return this; };
 })();
 Element.prototype.val = function(val,index){ if (typeof val === undefined) return this.value; this.value = (typeof val === 'function')?val.bind(this)(index,this.value):val; return this; };
@@ -364,7 +354,7 @@ Element.prototype.before = function(node){
 	if (node instanceof Node) {
 		if (this.parentNode)
 			this.insertAdjacentElement('beforeBegin', node);
-		else throw 'Cannot put a Node before an element with no containing parentNode.';
+		else throw new Error('Cannot put a Node before an element with no containing parentNode.');
 	} else {
 		if (typeof node === 'string' && node.substring(0,1) == '<') this.insertAdjacentHTML('beforeBegin', node);
 		else this.insertAdjacentText('beforeBegin', node.toString());
@@ -396,7 +386,7 @@ Element.prototype.after = function(node){
 	if (node instanceof Node) {
 		if (this.parentNode)
 			this.insertAdjacentElement('afterEnd', node);
-		else throw 'Cannot put a Node after an element with no containing parentNode.';
+		else throw new Error('Cannot put a Node after an element with no containing parentNode.');
 	} else {
 		if (typeof node === 'string' && node.substring(0,1) == '<') this.insertAdjacentHTML('afterEnd', node);
 		else this.insertAdjacentText('afterEnd', node.toString());
@@ -435,105 +425,99 @@ var vQuery = window.vQuery = function(arg){
 	else return document.querySelectorAll(arg);								// Dom element selection (default funtionality)
 };
 window.vQuery;
-vQuery.merge = function() {
-    var obj = {}, i = 0, j = arguments.length;
-    for(; i < j; i++) 
-		if(typeof arguments[i] === 'object') 
-			for(var key in arguments[i]) 
-				if(arguments[i].hasOwnProperty(key)) 
-					obj[key] = arguments[i][key];
-    return obj;
-};
 (()=>{
-var ajaxRequest = function(options){
-	this.xhr = new XMLHttpRequest();
-	this.options = options;
-	if (typeof this.options.context !== 'object') this.options.context = this.xhr;
-	if (options.dataType) this.xhr.responseType = options.dataType;
-	this.has = { loaded:false,failed:false,completed:false,canceled:false };
-	this.callbacks = { done:[],fail:[],always:[],cancel:[] };
-	this.xhr.open(options.method, options.url, options.async);
-	this.xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
-	// if (typeof options.upload === 'function') this.xhr.addEventListener('upload', options.upload.bind(options.context), false);
-	if (typeof options.progress === 'function') this.xhr.addEventListener('progress', options.progress.bind(options.context), false);
-	var self = this, filtered = false;
-	this.xhr.addEventListener('error', ()=>{
-		if (typeof self.options.error === 'function') self.options.error.bind(self.options.context)(self.xhr.status,self.xhr.statusText);
-		while(self.callbacks.fail.length > 0) self.callbacks.fail.shift().bind(self.xhr)(self.xhr.status, self.xhr.statusText);
-		self.has.failed = true;
-	}, false);
-	this.xhr.addEventListener('abort', ()=>{
-		if (typeof self.options.cancel === 'function') self.options.cancel.bind(self.options.context)(self.xhr, self.options);
-		while(self.callbacks.cancel.length > 0) self.callbacks.cancel.shift().bind(self.options.context)(self.xhr, self.options);
-		self.has.canceled = true;
-	}, false);
-	this.xhr.addEventListener('load', ()=>{
-		if (!filtered) {
-			if (typeof options.dataFilter === 'function' && self.xhr.response) filtered = options.dataFilter.bind(self.xhr)(self.xhr.response);
-			else if (typeof options.dataFilter === 'string' && self.xhr.response) {
-				try{
-					if (options.dataFilter == 'json') filtered = JSON.parse(self.xhr.response);
-					else if (options.dataFilter == 'html' || options.dataFilter == 'xml')
-						filtered = (new DOMParser()).parseFromString(self.xhr.response, 'text/'+options.dataFilter);
-				} catch (e) {
-					console.warn('Error occured while attempted to parse ajax response as '+options.dataFilter+' during load event. Proceeding with original response.');
+class Ajax {
+	constructor (options){
+		this.xhr = new XMLHttpRequest();
+		this.options = options;
+		if (typeof this.options.context !== 'object') this.options.context = this.xhr;
+		if (options.dataType) this.xhr.responseType = options.dataType;
+		this.has = { loaded:false,failed:false,completed:false,canceled:false };
+		this.callbacks = { done:[],fail:[],always:[],cancel:[] };
+		this.xhr.open(options.method, options.url, options.async);
+		this.xhr.setRequestHeader('X-Requested-With','XMLHttpRequest');
+		// if (typeof options.upload === 'function') this.xhr.addEventListener('upload', options.upload.bind(options.context), false);
+		if (typeof options.progress === 'function') this.xhr.addEventListener('progress', options.progress.bind(options.context), false);
+		if (options.promise == true)
+		var self = this, filtered = false;
+		this.xhr.addEventListener('error', ()=>{
+			if (typeof self.options.error === 'function') self.options.error.bind(self.options.context)(self.xhr.status,self.xhr.statusText);
+			while(self.callbacks.fail.length > 0) self.callbacks.fail.shift().bind(self.xhr)(self.xhr.status, self.xhr.statusText);
+			self.has.failed = true;
+		}, false);
+		this.xhr.addEventListener('abort', ()=>{
+			if (typeof self.options.cancel === 'function') self.options.cancel.bind(self.options.context)(self.xhr, self.options);
+			while(self.callbacks.cancel.length > 0) self.callbacks.cancel.shift().bind(self.options.context)(self.xhr, self.options);
+			self.has.canceled = true;
+		}, false);
+		this.xhr.addEventListener('load', ()=>{
+			if (!filtered) {
+				if (typeof options.dataFilter === 'function' && self.xhr.response) filtered = options.dataFilter.bind(self.xhr)(self.xhr.response);
+				else if (typeof options.dataFilter === 'string' && self.xhr.response) {
+					try{
+						if (options.dataFilter == 'json') filtered = JSON.parse(self.xhr.response);
+						else if (options.dataFilter == 'html' || options.dataFilter == 'xml')
+							filtered = (new DOMParser()).parseFromString(self.xhr.response, 'text/'+options.dataFilter);
+					} catch (e) {
+						console.warn('Error occured while attempted to parse ajax response as '+options.dataFilter+' during load event. Proceeding with original response.');
+					}
 				}
 			}
-		}
-		if (typeof options.success === 'function') 
-			self.options.success.bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
-		while(self.callbacks.done.length > 0) 
-			self.callbacks.done.shift().bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
-		self.has.loaded = true;
-	}, false);
-	this.xhr.addEventListener('loadend', ()=>{
-		if (!filtered) {
-			if (typeof options.dataFilter === 'function' && self.xhr.response) filtered = options.dataFilter.bind(self.xhr)(self.xhr.response);
-			else if (typeof options.dataFilter === 'string' && self.xhr.response) {
-				try{
-					if (options.dataFilter == 'html' || options.dataFilter == 'xml')
-						filtered = (new DOMParser()).parseFromString(self.xhr.response, 'text/'+options.dataFilter);
-					else if (options.dataFilter == 'json') filtered = JSON.parse(self.xhr.response);
-				} catch (e) {
-					console.warn('Error occured while attempted to parse ajax response as '+options.dataFilter+' during loadend event. Proceeding with original response.');
+			if (typeof options.success === 'function') 
+				self.options.success.bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
+			while(self.callbacks.done.length > 0) 
+				self.callbacks.done.shift().bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
+			self.has.loaded = true;
+		}, false);
+		this.xhr.addEventListener('loadend', ()=>{
+			if (!filtered) {
+				if (typeof options.dataFilter === 'function' && self.xhr.response) filtered = options.dataFilter.bind(self.xhr)(self.xhr.response);
+				else if (typeof options.dataFilter === 'string' && self.xhr.response) {
+					try{
+						if (options.dataFilter == 'html' || options.dataFilter == 'xml')
+							filtered = (new DOMParser()).parseFromString(self.xhr.response, 'text/'+options.dataFilter);
+						else if (options.dataFilter == 'json') filtered = JSON.parse(self.xhr.response);
+					} catch (e) {
+						console.warn('Error occured while attempted to parse ajax response as '+options.dataFilter+' during loadend event. Proceeding with original response.');
+					}
 				}
 			}
-		}
-		while(self.callbacks.always.length > 0) 
-			self.callbacks.always.shift().bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
-		self.has.completed = true;
-		if (typeof options.complete	=== 'function') 
-			self.options.complete.bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
-	});
-	if (typeof this.options.beforeSend === 'function') 
-		if(this.options.beforeSend.bind(this.options.context)(this.xhr, this.options) !== false) 
-			options.manual ? this.xhr.send = this.xhr.send.bind(this.xhr,this.options.data) : this.xhr.send(this.options.data);
-		else console.warn('Ajax send canceled due to the beforeSend function returning false.');
-	else options.manual ? this.xhr.send = this.xhr.send.bind(this.xhr,this.options.data) : this.xhr.send(this.options.data);
-};
-ajaxRequest.prototype.done = function(func){ 
-	if (this.has.loaded) func.bind(this.options.context)(this.xhr, this.xhr.statusText, this.xhr.response);
-	else this.callbacks.done.push(func);
-	return this;
-};
-ajaxRequest.prototype.fail = function(func){ 
-	if (this.has.failed) func.bind(this.options.context)(this.xhr, this.xhr.statusText, this.xhr.status);
-	else this.callbacks.fail.push(func);
-	return this;
-};
-ajaxRequest.prototype.always = function(func){ 
-	if (this.has.completed) func.bind(this.options.context)(this.xhr, this.xhr.statusText, this.xhr.response||this.xhr.status);
-	else this.callbacks.always.push(func);
-	return this;
-};
-ajaxRequest.prototype.cancel = function(func){ 
-	if (this.has.canceled) func.bind(this.options.context)(this.xhr, this.options);
-	else this.callbacks.cancel.push(func);
-	return this;
-};
-ajaxRequest.prototype.abort = function(){ return this.xhr.abort(); };
+			while(self.callbacks.always.length > 0) 
+				self.callbacks.always.shift().bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
+			self.has.completed = true;
+			if (typeof options.complete	=== 'function') 
+				self.options.complete.bind(self.options.context)(self.xhr, filtered||self.xhr.response||self.xhr.status, self.xhr.statusText);
+		});
+		if (typeof this.options.beforeSend === 'function') 
+			if(this.options.beforeSend.bind(this.options.context)(this.xhr, this.options) !== false) 
+				options.manual ? this.xhr.send = this.xhr.send.bind(this.xhr,this.options.data) : this.xhr.send(this.options.data);
+			else console.warn('Ajax send canceled due to the beforeSend function returning false.');
+		else options.manual ? this.xhr.send = this.xhr.send.bind(this.xhr,this.options.data) : this.xhr.send(this.options.data);
+	}
+	done (func){ 
+		if (this.has.loaded) func.bind(this.options.context)(this.xhr, this.xhr.statusText, this.xhr.response);
+		else this.callbacks.done.push(func);
+		return this;
+	}
+	fail (func){ 
+		if (this.has.failed) func.bind(this.options.context)(this.xhr, this.xhr.statusText, this.xhr.status);
+		else this.callbacks.fail.push(func);
+		return this;
+	}
+	always (func){ 
+		if (this.has.completed) func.bind(this.options.context)(this.xhr, this.xhr.statusText, this.xhr.response||this.xhr.status);
+		else this.callbacks.always.push(func);
+		return this;
+	}
+	cancel (func){ 
+		if (this.has.canceled) func.bind(this.options.context)(this.xhr, this.options);
+		else this.callbacks.cancel.push(func);
+		return this;
+	}
+	aabort() { return this.xhr.abort(); }
+}
 vQuery.ajax = function(options) {
-	var defaults = {
+	let defaults = {
 		method:'get',
 		url:false,
 		type:'',
@@ -551,13 +535,30 @@ vQuery.ajax = function(options) {
 		success:false,
 		cancel:false,
 		complete:false,
-		manual:false
+		manual:false,
+		promise:false
 	};
-	return new ajaxRequest(this.merge(defaults,options));
+	if (options.cut('promise')){
+		defaults.manual = true;
+		let ajax = new Ajax(Object.assign(defaults,options));
+		let p = new Promise((res,rej)=>{
+			ajax.done(function (xhr,statusText,response){
+				res.bind(xhr)(response);
+			});
+			ajax.fail(function (xhr,statusText,status){
+				let e = new Error(statusText);
+				e.status = status;
+				rej.bind(xhr)(e);
+			});
+			ajax.xhr.send();
+		});
+		p.ajax = ajax;
+		return p;
+	} else return new Ajax(Object.assign(defaults,options));
 };
 })();
 vQuery.get = function(url, data, success, dataType) {
-	var options;
+	let options;
 	if (typeof url === 'object') options = url;
 	else {
 		options = {};
@@ -570,7 +571,7 @@ vQuery.get = function(url, data, success, dataType) {
 	return this.ajax(this.merge(options,{method:'get'}));
 };
 vQuery.post = function(url, data, success, dataType) {
-	var options;
+	let options;
 	if (typeof url === 'object') options = url;
 	else {
 		options = {};
@@ -587,7 +588,7 @@ vQuery.trigger = function(e,data){ return document.trigger(e,data); };
 Event.prototype.triggerOn = function(nodes){
 	if (typeof nodes === 'string') nodes = document.querySelectorAll(nodes);
 	if (nodes instanceof HTMLCollection || nodes instanceof NodeList) {
-		var i = -1;
+		let i = -1;
 		while(++i < nodes.length)
 			if(nodes[i].dispatchEvent)
 				nodes[i].dispatchEvent(this);
@@ -595,12 +596,13 @@ Event.prototype.triggerOn = function(nodes){
 		nodes.dispatchEvent(this);
 };
 
-vQuery.verifyES2015 = function(){
+vQuery.verifyES = function(){
 	try {
 		let b,c,d; // let assignment
 		const a = ([a,b]=[2,1],...c)=>{c.push(a+b); return c;}; // const assignment with default function values and rest assignment
 		[b,c=7,...d] = [1,undefined,3,4]; // destructure with default values and rest assignment
 		a(3,undefined,5,4);
+		let f = async function(){ return await Promise.resolve(true);}; // Async/Await definition
 		return true;
 	} catch(e) {
 		return false;
