@@ -1,4 +1,4 @@
-version: 0.0.3
+version: 0.0.4
 port: 8080
 devmode: true
 secret: this_will_be_generated_when_you_run_the_app_installation
@@ -38,10 +38,12 @@ custom_tripcodes:
   '##demosecuretrip': '4ctual_$ecur3_tr!p'
 root_whitelist:
   - favicon.ico
+  - sitemap.xml
+  - robots.txt
 external_sources:
-  'socket.io.js': 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/socket.io.min.js'
+  socket.io.js: 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.8/socket.io.min.js'
 external_whitelist:
-  style: 
+  style: null
   script:
     - cdnjs.cloudflare.com
   raw:
@@ -62,11 +64,11 @@ external_media:
   imgur: '^https?:\/\/(?:i\.)?imgur\.com\/[^/.]+\.(?:jpg|png|gif)+'
   dummyimage: '^https?:\/\/dummyimage\.com'
   youtube:
-      - '^https?:\/\/(?:www\.)?youtube\.com'
-      - '^https?:\/\/youtu\.be'
+    - '^https?:\/\/(?:www\.)?youtube\.com'
+    - '^https?:\/\/youtu\.be'
   dailymotion:
-      - '^https?:\/\/(?:www\.)?dailymotion\.com\/video\/[a-zA-Z0-9]+'
-      - '^https?:\/\/dai.ly\/[a-zA-Z0-9]+'
+    - '^https?:\/\/(?:www\.)?dailymotion\.com\/video\/[a-zA-Z0-9]+'
+    - '^https?:\/\/dai.ly\/[a-zA-Z0-9]+'
 markdown:
   hyperlink: '&'
   ignore:
@@ -75,18 +77,23 @@ markdown:
     string: '@&'
     open: '@>'
     close: '<@'
+  table:
+    open: '{_'
+    close: '_}'
+    option: '!'
+    item: '|'
+    class:
+      - custom
   list:
-    - key: '-'
-      ordered: false
-    - key: '+'
-      ordered: true
-      class: 'number'
-    - key: '='
-      ordered: true
-      class: 'bigalpha'
-    - key: '*'
-      ordered: true
-      class: 'smallalpha'
+    open: '{-'
+    close: '-}'
+    item: '- '
+    class:
+      - bullet
+      - number
+      - alpha
+      - roman
+      - custom
   custom:
     # - key: 'string' # this is the key that the parser looks for (required)
     #   exclusiveline: true # this denotes that the markdown requires to encase a single line of text

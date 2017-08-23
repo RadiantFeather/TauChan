@@ -39,3 +39,4 @@ node_modules
 conf
 assets
 cache
+package-lock.json

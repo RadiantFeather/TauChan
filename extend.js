@@ -5,17 +5,17 @@ const fs = require('fs');
 const path = require('path');
 const gm = require('gm');
 /*/
-import fs from 'fs';
-import path from 'path';
-import gm from 'gm';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as gm from 'gm';
 //*/
 
-console._ = (arg)=>{
-	console.log(arg);
-	return arg;
+console._ = (...args)=>{
+	console.log(...args);
+	return args.length>1?args:args[0];
 };
-String.prototype.splice = function(i,c,a){
-	return this.slice(0,i)+(a||'')+this.slice(i+c);
+String.prototype.splice = function(from,length,insert=''){
+	return this.slice(0,from)+insert+this.slice(from+length);
 };
 String.prototype.toCamelCase = function(delimiter){
     return this.split("_").reduce((a,b)=>{return a+(delimiter||"")+b.slice(0,1).toUpperCase()+b.slice(1).toLowerCase();},"");
@@ -23,13 +23,13 @@ String.prototype.toCamelCase = function(delimiter){
 String.prototype.toLowerCamelCase = function(delimiter){
     return this.split("_").reduce((a,b)=>{return a+(delimiter||"")+(a.length?b.slice(0,1).toUpperCase():b.slice(0,1).toLowerCase())+b.slice(1).toLowerCase();},"");
 };
-Object.merge = function() {
-    var obj = {}, i = 0, j = arguments.length;
+Object.merge = function(...args) {
+    var obj = {}, i = 0, j = args.length;
     for(; i < j; i++) 
-		if(typeof arguments[i] === 'object') 
-			for(let key in arguments[i]) 
-				if(arguments[i].hasOwnProperty(key)) 
-					obj[key] = arguments[i][key];
+		if(typeof args[i] === 'object') 
+			for(let key in args[i]) 
+				if(args[i].hasOwnProperty(key)) 
+					obj[key] = args[i][key];
     return obj;
 };
 Object.forEach = function(o,fn){
@@ -50,7 +50,7 @@ Array.prototype.rpush = function(a){ this.push(a); return this; };
 Array.prototype.rpop = function(a){ this.pop(); return this; };
 Array.prototype.rshift = function(a){ this.shift(a); return this; };
 Array.prototype.runshift = function(a){ this.unshift(); return this; };
-Array.prototype.contains = Array.prototype.contains|| function(a){ return ~this.indexOf(a); };
+Array.prototype.contains = Array.prototype.contains|| function(a){ return !!~this.indexOf(a); };
 Error.prototype.setloc = function(str){ this.loc = str; return this; };
 Error.prototype.setmsg = function(str){ this.message = str; return this; };
 Error.prototype.setstatus = function(status){
@@ -160,7 +160,7 @@ function getPromise (cbindex, f, ...args) {
         cbindex = cbindex < args.length?cbindex:args.length;
     }
     if (args.length > f.length) throw new Error('Given function "'+(f.name||'anonymous')+'" expected a max of '+f.length+' arguments. Number of arguments given: '+args.length);
-    if (typeof f != 'function') throw new Error('makePromise must have a function to call.');
+    if (typeof f != 'function') throw new Error('getPromise must have a function to call.');
     
     return new Promise((resolve,reject)=>{
         args.splice(cbindex, 0, (err, ...response)=>{

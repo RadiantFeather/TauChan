@@ -194,11 +194,12 @@ const yn = /^y(?:es)?/i;
 			if (CLO.s.q || yn.test(await prompt('Updates are available. Would you like to update the site database? (y/n): '))) {
 				try {
 					await db.tx((self)=>{
-						return self.batch(versions.map((cur)=>{return self.none(sql(__dirname+'/'+cur));}));
+						return self.batch(versions.map((cur)=>{return self.none(sql('/install/'+cur));}));
 					});
 					console.log('Success');
 				} catch(e){
 					pgp.end();
+					console.log(e);
 					console.log('Database update failed. Exiting.');
 					return;
 				}

@@ -10,11 +10,13 @@ doctype html
 //- TODO Implement i8ln and replace with valid lang use
 html(lang="en")
 	head
-		title= META.title||SITE.name||""
 		meta(http-equiv="Content-Type", content="text/html; charset=UTF-8")
-		meta(rel="description", content=META.desc||SITE.desc||"")
-		meta(rel="keywords", content=(SITE.keywords||[]).concat(META.keywords||[]).join(','))
-		meta(name="robots",content="index,nofollow,noarchive")
+		title= META.title||SITE.name||""
+		meta(name="application-name", content='Tauchan Imageboard')
+		meta(name="description", content=META.desc||SITE.desc||"")
+		meta(name="keywords", content=(SITE.keywords||[]).concat(META.keywords||[]).join(','))
+		meta(name="robots", content="index,nofollow,noarchive,nocache,noimageindex")
+		meta(name="referrer", content="no-referrer-when-downgrade")
 		meta(name="PAGE", 
 			data-board=board?board.board:'_', 
 			data-type=page&&page.type?page.type:'', 
@@ -24,7 +26,7 @@ html(lang="en")
 			+disallowIFRAME
 		- if (CLIENTDEPS)
 			each dep in CLIENTDEPS 
-				- if (dep.substr(dep.length-4,4)=='.css')
+				- if (dep.endsWith('.css'))
 					link.dependency(rel="stylesheet", charset="utf-8", type="text/css", href=dep)
 				- else 
 					script.dependency(type="application/javascript", charset="utf-8", data-src=dep)
@@ -36,7 +38,7 @@ html(lang="en")
 			block header
 		nav
 			block nav
-		main#top(role="main")
+		main#top
 			block main
 				block content
 		nav
@@ -45,3 +47,4 @@ html(lang="en")
 			block footer
 			p= __('This page layout request was completed in: %%ms',NOW *-1 + Date.now())
 		input#globalCSRF(type="hidden",name="_csrf",value=CSRF,form="")
+		input#nonce(type="hidden",value=INLINEHASH,disabled=true)

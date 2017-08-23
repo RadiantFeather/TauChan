@@ -63,4 +63,4 @@ handlers.index = async function(ctx,next){ // list of public boards
 
 module.exports = handlers;
 
-// export router as default;
+// export default handlers;

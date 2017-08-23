@@ -10,7 +10,7 @@ const Crypto = require('crypto');
 const Config = require('./config');
 const Lib = require('./lib');
 /*/
-import {FS as fs} from 'fs';
+import * as fs from 'fs';
 import Multer from 'koa-multer';
 import Request from 'request';
 import PRequest from 'promisified-request';
@@ -20,6 +20,7 @@ import Crypto from 'crypto';
 import Config from './config';
 import Lib from './lib';
 //*/
+
 const request = PRequest.create(Request.defaults({}));
 const db = Config.db;
 const pgp = Config.pgp;
@@ -31,7 +32,7 @@ var _ = {};
 const roleRegex = /^[^!@#$%^&*()_+~`={}|[\]\/\\?"'<>,.:;-]+$/;
 const pageRegex = /^[0-9]*[a-zA-Z_]+[0-9]*$/;
 	
-const processPostFiles = Multer({
+const _processPostFiles = Multer({
 		storage: Multer.diskStorage({
 			destination: (ctx, file, cb) => {
 				Config.lib.mkdir('./cache/uploads');
@@ -46,6 +47,11 @@ const processPostFiles = Multer({
 			fileSize: Config.cfg.values.max_upload_size_in_kb*1024
 		}
 	}).any();
+	
+const processPostFiles = async(ctx,next)=>{
+	await _processPostFiles(ctx,next);
+	if (ctx.req.files && !ctx.request.files) ctx.request.files = ctx.req.files;
+};
 
 /*
  *	GET request handlers
@@ -98,6 +104,7 @@ _.thread = async function(ctx,next) {	// thread view
 			});
 			ctx.redirect('/'+post.board+'/'+post.thread+'#_'+post.post);
 		}catch(e){
+			ctx.skipRedirect();
 			// Post doesn't exist at all
 			throw e.setloc('thread view');
 		}
@@ -115,8 +122,8 @@ _.catalog = async function(ctx,next) {
 
 
 _.ban = async function(ctx,next) {
+	ctx.skipRedirect();
 	ctx.checkCSRF();
-	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let data = await db.one(Config.sql.view.post,{
 		board:ctx.params.board,
 		post:parseInt(ctx.params.action,10)
@@ -130,8 +137,8 @@ _.ban.auth = function(ctx) {
 };
 
 _.delete = async function(ctx,next) {
+	ctx.skipRedirect();
 	ctx.checkCSRF();
-	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let data = await db.one(Config.sql.view.post,{
 		board:ctx.params.board,
 		post:parseInt(ctx.params.action,10)
@@ -145,8 +152,8 @@ _.delete.auth = function(ctx){
 };
 
 _.bnd = async function(ctx,next) {
+	ctx.skipRedirect();
 	ctx.checkCSRF();
-	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
 	let data = await db.one(Config.sql.view.post,{
 		board:ctx.params.board,
 		post:parseInt(ctx.params.action,10)
@@ -237,6 +244,7 @@ _.pages = async function(ctx,next) { // custom board pages
 };
 
 _.editPage = async function(ctx,next){
+	ctx.skipRedirect();
 	if (ctx.params.action){
 		let data = await db.one(Config.sql.view.page,{
 			board: ctx.params.board,
@@ -299,6 +307,7 @@ _.roles.auth = function(ctx){
 };
 
 _.editRole = async function(ctx,next){
+	ctx.skipRedirect();
 	if (ctx.params.action){
 		let data = await db.one(Config.sql.view.role,{
 			board: ctx.params.board,
@@ -306,11 +315,14 @@ _.editRole = async function(ctx,next){
 		});
 		ctx.state.page = {type:'manage',param:'editrole'};
 		ctx.state.flags = Config.flags;
+		ctx.state.capcodes = Config.cfg.capcodes;
 		ctx.state.editmode = true;
 		ctx.render('editRole',{data});
 	} else {
 		ctx.state.page = {type:'manage',param:'newrole'};
 		ctx.state.flags = Config.flags;
+		ctx.state.capcodes = Config.cfg.capcodes;
+		console.log(Config.capcodes);
 		ctx.render('editRole');
 	}
 };
@@ -499,9 +511,7 @@ _.ban = async function(ctx,next) {
 		});
 		throw err.withrender('bnd').locals({data,mode:'b',form:ctx.request.body});
 	}
-	
 	ctx.request.body.range = ctx.request.body.range||32;
-	
 	console.log(ctx.request.body);
 	
 	try {
@@ -514,12 +524,16 @@ _.ban = async function(ctx,next) {
 			bantext: ctx.request.body.bantext||null,
 			range: parseInt(ctx.request.body.range,10)
 		});
-		ctx.redirect(ctx.cookies.get('curpage'));
+		ctx.redirect();
 	} catch(err){
 		throw err.withlog('error');
 	}
 };
 _.ban.auth = handlers.GET.ban.auth;
+
+_.deleteBan = async function(ctx,next) {
+	ctx.checkCSRF();
+};
 
 _.delete = async function(ctx,next) {
 	ctx.checkCSRF();
@@ -528,7 +542,7 @@ _.delete = async function(ctx,next) {
 			board: ctx.params.board,
 			post: ctx.params.action
 		});
-		ctx.redirect(ctx.cookies.get('curpage'));
+		ctx.redirect();
 	} catch(err){
 		throw err.withlog('error');
 	}
@@ -547,7 +561,7 @@ _.bnd = async function(ctx,next) {
 			bantext: ctx.request.body.bantext,
 			range: ctx.request.body.range
 		});
-		ctx.redirect(ctx.cookies.get('curpage'));
+		ctx.redirect();
 	} catch(err){
 		throw err.withlog('error');
 	}
@@ -735,6 +749,7 @@ _.editRole = async function(ctx,next){
 	}
 	if (err) {
 		ctx.state.flags = Config.flags;
+		ctx.state.capcodes = Config.cfg.capcodes;
 		throw err.setstatus(400).withrender('editRole').locals({data:{
 			role:ctx.params.role||ctx.request.body.role,
 			capcode:ctx.request.body.capcode,
@@ -758,6 +773,7 @@ _.editRole = async function(ctx,next){
 			ctx.redirect('/'+t.board+'/roles/');
 		} catch(err){
 			ctx.state.flags = Config.flags;
+			ctx.state.capcodes = Config.cfg.capcodes;
 			throw Lib.mkerr('editRole',err).withrender('editRole').locals({data:{
 				role:ctx.params.action||ctx.request.body.role,
 				capcode:ctx.request.body.capcode,
@@ -850,4 +866,4 @@ handlers.POST = _;
 
 
 module.exports = handlers;
-// export {handlers as default};
+// export default handlers;

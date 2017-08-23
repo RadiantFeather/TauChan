@@ -46,7 +46,8 @@ const configs = {
 		this.errors = yml.read.sync(cwd+'/errors.yml');
     }
 };
-
+//*/
 module.exports = configs;
-// export {configs as Config};
-// export {configs as default};
+/*/
+export default configs;
+//*/

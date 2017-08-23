@@ -10,14 +10,14 @@ block head
 
 block main
 	- if (data.length == 0)
-		h4 = __('Create a board or get added to an existing one.')
+		h4= __('Create a board or get added to an existing one.')
 	- else 
 		table
 			tr
 				th= __('Board')
 				th= __('Role')
 				th= __('Capcode')
-				th = __('Actions')
+				th= __('Actions')
 			each item in data 
 				tr
 					td

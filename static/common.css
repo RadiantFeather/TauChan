@@ -121,3 +121,15 @@ html:not(.js) a[target="_blank"] {cursor:alias;}
 .contentcollapse,.inlineblock {
 	display:inline-block;
 }
+
+/* Element defined as hidden when CSS is disabled */
+.unhide[hidden],
+.unhide[hidden].inline-block { display:inline-block; }
+.unhide[hidden].block { display:block; }
+.unhide[hidden].inline { display:inline; }
+
+/* Common list type definitions */
+ul.list-bullet { list-style-type: disc; }
+ul.list-roman { list-style-type: upper-roman; }
+ul.list-number { list-style-type: decimal; }
+ul.list-alpha { list-style-type: lower-alpha; }

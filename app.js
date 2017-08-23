@@ -1,6 +1,6 @@
 "use strict";
 const fs = require('fs');
-// import {FS as fs} from 'fs';
+//import * as fs from 'fs';
 const noop = ()=>{};
 const _exists = function(path){
 	try {
@@ -19,7 +19,6 @@ require('./extend');
 // imports
 const Koa = require('koa');
 const Session = require('koa-session2');
-//const Convert = require('koa-convert');
 const CSRF = require('koa-csrf');
 const Pug = require('koa-pug');
 const Redis = require('koa-redis');
@@ -33,12 +32,11 @@ const Config = require('./config');
 const Lib = require('./lib');
 Config.lib = Lib;
 
-/*/ 
+/*/
 
 // imports for when the feature is supported in node.
 import Koa from 'koa';
 import Session from 'koa-session2';
-//import Convert from 'koa-convert';
 import CSRF from 'koa-csrf';
 import Pug from 'koa-pug';
 import Redis from 'koa-redis';
@@ -74,21 +72,28 @@ const HTMLheaders = (ctx,next)=>{
 	ctx.set('Content-Type', 'text/html; charset=utf-8');
 	// ctx.set('Expect-CT', 'enforce; max-age=60;');
 	ctx.set('Referrer-Policy', 'strict-origin');
+	ctx.set('Frame-Options', 'SAMEORIGIN');
+	ctx.set('X-Frame-Options', 'SAMEORIGIN');
 	ctx.set('X-Xss-Protection', '1; mode=block');
 	ctx.set('X-Content-Type-Options', 'nosniff');
-	ctx.set('X-Frame-Options', 'SAMEORIGIN');
-	// ctx.set('Strict-Transport-Security', 'max-age=631138519');
+	ctx.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	// ctx.set('Public-Key-Pins', 'pin-sha256="INSERTSTRINGHERE"; max-age=1000; includeSubdomains;');
 	if (next) return next();
 };
 
-
+/*/
 // Page request handlers
 const global = require('./global'),
 	boards = require('./boards'),
 	middle = require('./middleware'),
 	api = require('./api');
-
+/*/
+// Page request handlers
+import global from './global';
+import boards from './boards';
+import middle from './middleware';
+import api from './api';
+//*/
 
 // Setting up Pug Template Renderer
 const pug = new Pug({
@@ -99,8 +104,7 @@ const pug = new Pug({
   compileDebug: Config.env === 'development',
   locals: {},
   //basedir: 'path/for/pug/extends',
-  helperPath: [
-  ]
+  helperPath: []
 });
 // Persistent locals
 pug.locals.CDN = Config.cdn;
@@ -151,9 +155,9 @@ var clientdepROOT = {
 };
 
 // LOAD APPLICATION LANGUAGE TEMPLATE INTO MEMEORY
-
-const lang = {};
-lang.template = noop(); // replace with call to template init function
+// TODO implement il8next.com functionality
+// const lang = {};
+// lang.template = noop(); // replace with call to template init function
 
 
 // BEGIN APP DECLARATION
@@ -183,6 +187,20 @@ app.context.checkCSRF = function(){
 app.context.json = function (obj){
 	this.type = 'text/json';
 	this.body = JSON.stringify(obj);
+};
+
+// Universal redirect management
+app.context.skipRedirect = function(){
+	this.cookies.set('curpage',this.cookies.get('lastpage'),{httpOnly:true});
+};
+app.context._redirect = app.context.redirect;
+app.context.redirect = function(route){
+	if (route == undefined) {
+		route = this.cookies.get('curpage');
+		if (!route) route = this.cookies.get('lastpage');
+		if (!route) route = this.path.startsWith('/_')?'/_':'/';
+	}
+	return this._redirect(route);
 };
 
 app.keys = [Config.cfg.secret,'reeeenormiesgetoutofmycode'];
@@ -263,7 +281,7 @@ const router = new Router();
 
 // Global custom pages if HTML or optional whitelisted files in server root
 router.get('/:file.:ext',(ctx,next)=>{ 
-	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
+	ctx.skipRedirect();
 	let options = {
 		root: Config.cwd
 	};
@@ -283,7 +301,7 @@ router.get('/:file.:ext',(ctx,next)=>{
 if (!Config.cdn || Config.cdn == 'localhost') { 
 // Static file serve for things like CSS and JS
 router.get('/_/:file.:ext',(ctx,next)=>{
-	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
+	ctx.skipRedirect();
 	let f = ctx.params.file+'.'+ctx.params.ext, d = clientdepROOT,
 		options = {
 			root: Config.cwd +'/static/'
@@ -296,7 +314,7 @@ router.get('/_/:file.:ext',(ctx,next)=>{
 });
 // Board specific media serve
 router.get('/:board/media/:file',(ctx,next)=>{
-	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
+	ctx.skipRedirect();
 	let options = {
 		root: Config.cwd +'/assets/'+ ctx.params.board +'/media/',
 	};

@@ -393,6 +393,82 @@ Element.prototype.after = function(node){
 	}
 	return this;
 };
+Element.prototype.prev = function(s) { 
+	if (!s) return this.prevElementSibling;
+	let a = Array.from(this.parentElement.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this;
+	let out = [];
+	while ((c = c.prevElementSibling))
+		if (~a.indexOf(c)) out.push(c);
+	return c.length?c:null;
+};
+Element.prototype.next = function(s) { 
+	if (!s) return this.nextElementSibling;
+	let a = Array.from(this.parentElement.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this;
+	let out = [];
+	while ((c = c.nextElementSibling))
+		if (~a.indexOf(c)) out.push(c);
+	return c.length?c:null;
+};
+Element.prototype.up = function(s){
+	if (!s) return this.parentElement;
+	let a = Array.from(document.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this;
+	let out = [];
+	while ((c = c.parentElement))
+		if (~a.indexOf(c)) out.push(c);
+	return c.length?c:null;
+};
+Element.prototype.down = function(s){
+	if (!s) return this.children;
+	let a = Array.from(this.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this.children[0];
+	let out = [];
+	while ((c = c.nextElementSibling))
+		if (~a.indexOf(c)) out.push(c);
+	return c.length?c:null;
+};
+Element.prototype.nearestPrev = function(s){
+	if (!s) return this.prevElementSibling;
+	let a = Array.from(this.parentElement.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this;
+	while ((c = c.prevElementSibling))
+		if (~a.indexOf(c)) return c;
+	return null;
+};
+Element.prototype.nearestNext = function(s){
+	if (!s) return this.nextElementSibling;
+	let a = Array.from(this.parentElement.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this;
+	while ((c = c.nextElementSibling))
+		if (~a.indexOf(c)) return c;
+	return null;
+};
+Element.prototype.nearestUp = function(s){
+	if (!s) return this.parentElement;
+	let a = Array.from(document.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this;
+	while ((c = c.parentElement))
+		if (~a.indexOf(c)) return c;
+	return null;
+};
+Element.prototype.nearestDown = function(s){
+	if (!s) return this.children;
+	let a = Array.from(this.querySelectorAll(s));
+	if (!a.length) return null;
+	let c = this.children[0];
+	while ((c = c.nextElementSibling))
+		if (~a.indexOf(c)) return c;
+	return null;
+};
 Element.prototype.text = function(text){ if(text === undefined) return this.innerText; this.innerText = text; return this; };
 Element.prototype.html = function(html){ if(html === undefined) return this.innerHTML; this.innerHTML = html; return this; };
 Element.prototype.empty = function(){ this.innerHTML = ''; return this; };
@@ -416,8 +492,8 @@ HTMLCollection.prototype.show = NodeList.prototype.show = function(){ var i = -1
 
 /* vQuery definition */
 var vQuery = window.vQuery = function(arg){
-	if (typeof arg === 'function')	// equivalent to document.ready(func);
-		return document.one('DOMContentLoaded',arg);
+	if (typeof arg === 'function')
+		return document.ready(arg);
 	else if (arg instanceof Node)	// Is already a node, return given object
 		return arg;
 	else if (typeof arg === 'string' && arg.match(/^<(?:(?!\/>).)*\/>$/)) 		// Create an element from HTML string
@@ -514,7 +590,7 @@ class Ajax {
 		else this.callbacks.cancel.push(func);
 		return this;
 	}
-	aabort() { return this.xhr.abort(); }
+	abort() { return this.xhr.abort(); }
 }
 vQuery.ajax = function(options) {
 	let defaults = {

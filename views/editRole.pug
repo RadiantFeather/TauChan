@@ -23,7 +23,7 @@ mixin roleloop(level,depth)
                 - let name = depth.join('-');
                 tr
                     td.value(data-depth=depth.length-1)= __(i).toLowerCamelCase(" ")
-                    td.desc Can #{v}.
+                    td.desc= __("Can "+v)+'.'
                     td
                         input(type="radio",name=name,value="yes",checked=data&&data.flags[name]==true)
                     td
@@ -51,7 +51,10 @@ block main
                 pattern="^[^!@#$%^&*()_+~`={}|[\\]/\\\\?\"'<>,.:;-]+$",placeholder=__("No special characters"))
         label= __('Role Capcode')
             input.capcode(type="text",name="capcode",required=true,value=data&&data.capcode?data.capcode:false,
-                maxLength="32",pattern="^[^#].{3,}",placeholder=__("Cannot start with a #"))
+                maxLength="32",pattern="^[^#].{3,}",list="capcodes",autocomplete="off",placeholder=__("Cannot start with a #"))
+            datalist#capcodes
+                each i in capcodes
+                    option(value=i)= i
         input(type="submit",value=__("Save Role"))
         table
             thead

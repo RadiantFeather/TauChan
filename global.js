@@ -35,7 +35,7 @@ var _ = {};
  */
 
 _.index = async function(ctx,next){	// moderation front page aka underboard
-	if (!ctx.state.user.reg) return this.login(ctx,next);
+	if (!ctx.state.user.reg) return await this.login(ctx,next);
 	let data = await db.any(Config.sql.view.user_roles,{
 		id: ctx.state.user.id
 	});
@@ -44,20 +44,20 @@ _.index = async function(ctx,next){	// moderation front page aka underboard
 };
 
 _.login = async function(ctx,next){
-	console.log(ctx.cookies.lastpage,ctx.path);
-	if (ctx.state.user.reg) return ctx.redirect(ctx.cookies.get('lastpage')!=ctx.path?ctx.cookies.get('lastpage'):'/_');
+	ctx.skipRedirect();
+	if (ctx.state.user.reg) return ctx.redirect();
 	ctx.render('login');
 };
 
 _.signup = async function(ctx,next){
-	console.log(ctx.cookies.lastpage,ctx.path);
-	if (ctx.state.user.reg) return ctx.redirect(ctx.cookies.get('lastpage')!=ctx.path?ctx.cookies.get('lastpage'):'/');
+	ctx.skipRedirect();
+	if (ctx.state.user.reg) return ctx.redirect();
 	ctx.render('signup');
 };
 
 _.logout = async function(ctx,next){
-	ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true});
-	if (!ctx.session.user) ctx.redirect(ctx.cookies.get('lastpage'));
+	ctx.skipRedirect();
+	if (!ctx.session.user) return ctx.redirect();
 	try {
 		await db.none(Config.sql.modify.user_token,{
 			user:ctx.session.user.username,
@@ -120,6 +120,7 @@ _ = {};
  */
 
 _.login = async function(ctx,next){
+	ctx.skipRedirect();
 	ctx.checkCSRF();
 	try {
 		let data = await db.one(Config.sql.view.user_by_name,{
@@ -142,7 +143,7 @@ _.login = async function(ctx,next){
 			if (!!ctx.request.body.rememberme) x.maxAge = 1000*60*60*24*7;
 			else x.expires = 0;
 			ctx.cookies.set('user',token,x);
-			ctx.redirect(ctx.cookies.get('lastpage')!=ctx.path?ctx.cookies.get('lastpage'):'/');
+			return ctx.redirect();
 		} catch(err){
 			throw err;
 		}
@@ -154,6 +155,7 @@ _.login = async function(ctx,next){
 };
 
 _.signup = async function(ctx,next){
+	ctx.skipRedirect();
 	ctx.checkCSRF();
 	let err;
 	if (ctx.request.body.passphrase != ctx.request.body.validate)
@@ -184,8 +186,7 @@ _.signup = async function(ctx,next){
 		if (ctx.request.body.rememberme) x.maxAge = 1000*60*60*24*3; // 3 days
 		else x.expires = 0;
 		ctx.cookies.set('user',token,x);
-		ctx.cookies.set('curpage',ctx.cookies.get('lastpage'),{httpOnly:true,expires:0});
-		ctx.redirect('/_/login');
+		return ctx.redirect('/_/login');
 	} catch(err){
 		throw Lib.mkerr('signup',err).withrender('signup').locals({data:ctx.request.body});
 	}
@@ -193,6 +194,7 @@ _.signup = async function(ctx,next){
 
 
 _.createBoard = async function(ctx,next){
+	ctx.skipRedirect();
 	ctx.checkCSRF();
 	let err;
 	ctx.request.body.board = ctx.request.body.board.replace(/(?:^\/|\/$)/g,'');
@@ -264,6 +266,7 @@ _.createBoard.reg = true;
 _.createBoard.auth = handlers.GET.createBoard.auth; 
 
 _.deleteBoard = async function(ctx,next){
+	ctx.skipRedirect();
 	
 	
 };
@@ -345,4 +348,4 @@ handlers.index = async function(ctx,next){
 };
 
 module.exports = handlers;
-// export {handlers as default};
+// export default handlers;
